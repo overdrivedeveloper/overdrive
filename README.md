@@ -6,8 +6,9 @@ Status: in development. Not deployed. Unaudited.
 
 ## Layout
 ```
-contracts/   Solidity contracts (Foundry)
-app/         Bun services: API, indexer, crank, hedger, liquidator
+contracts/   Solidity contracts (Foundry): src/interfaces (every IOD interface), test/mocks, lib/ (vendored)
+app/         Bun services: API, indexer, crank, hedger, liquidator; deployments/ (one address file per chain), src/abi
+scripts/     quiet-run.sh, ci-local.sh, export-abis.sh and their tests
 sdk/         TypeScript client
 mcp/         Agent MCP server
 web/         Website

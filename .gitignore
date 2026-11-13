@@ -8,3 +8,6 @@ contracts/broadcast/
 web/dist/
 *.log
 .DS_Store
+.logs/
+.ci-local/
+app/node_modules/
