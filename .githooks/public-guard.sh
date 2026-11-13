@@ -35,7 +35,7 @@ case "$deny" in "$root_real"/*) deny_rel="${deny#"$root_real"/}";; esac
 hits=0
 flag(){ echo "public-guard: $1"; hits=$((hits+1)); }
 
-files=$(git ls-files -co --exclude-standard)
+files=$(git ls-files -co --exclude-standard | grep -v '^contracts/lib/' || true)   # vendored upstream libraries (see contracts/lib/VERSIONS.md)
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   case "$f" in
