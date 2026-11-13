@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "overdrive-deployment.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chainId",
+    "network",
+    "commit",
+    "deployedAt",
+    "startBlock",
+    "deployer",
+    "admin",
+    "external",
+    "contracts",
+    "markets",
+    "gears"
+  ],
+  "properties": {
+    "chainId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "network": {
+      "enum": [
+        "mainnet",
+        "testnet",
+        "fork",
+        "anvil"
+      ]
+    },
+    "commit": {
+      "type": "string"
+    },
+    "deployedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "startBlock": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "deployer": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "admin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownerSafe",
+        "timelock",
+        "guardianSafe",
+        "minDelaySec"
+      ],
+      "properties": {
+        "ownerSafe": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "timelock": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "guardianSafe": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "minDelaySec": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "external": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usdg",
+        "poolManager",
+        "stateView",
+        "v4Quoter",
+        "pythCore",
+        "permit2",
+        "entryPoint",
+        "v3Factory"
+      ],
+      "properties": {
+        "usdg": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "poolManager": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "stateView": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "v4Quoter": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "pythCore": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "permit2": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "entryPoint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "v3Factory": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ODMarketHours",
+        "ODOracleGuard",
+        "ODVolOracle",
+        "ODGearRegistry",
+        "ODGearFactory",
+        "ODMinter",
+        "ODGovernor",
+        "ODInsurance",
+        "ODHook",
+        "ODBacker",
+        "ODFees",
+        "ODStake",
+        "ODAgentRouter",
+        "ODPaymaster"
+      ],
+      "properties": {
+        "ODMarketHours": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODOracleGuard": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODVolOracle": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODGearRegistry": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODGearFactory": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODMinter": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODGovernor": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODInsurance": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODHook": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODBacker": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODFees": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODStake": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODAgentRouter": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        },
+        "ODPaymaster": {
+          "type": "string",
+          "pattern": "^(0x[0-9a-fA-F]{40})?$"
+        }
+      }
+    },
+    "markets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "symbol",
+          "kind",
+          "feed",
+          "stockToken",
+          "multiplierEmbedded",
+          "pythId",
+          "twapPool",
+          "alwaysOpen"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{64}$"
+          },
+          "symbol": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "stock",
+              "crypto"
+            ]
+          },
+          "feed": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          },
+          "stockToken": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "multiplierEmbedded": {
+            "type": "boolean"
+          },
+          "pythId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "twapPool": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alwaysOpen": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "gears": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "symbol",
+          "gear",
+          "power",
+          "marketA",
+          "marketB",
+          "token",
+          "poolId",
+          "capUsd",
+          "spreadBps",
+          "unitUsd"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{64}$"
+          },
+          "symbol": {
+            "type": "string",
+            "minLength": 1
+          },
+          "gear": {
+            "enum": [
+              "CRUISE",
+              "SPORT",
+              "RACE",
+              "ECO",
+              "REVERSE"
+            ]
+          },
+          "power": {
+            "type": "string"
+          },
+          "marketA": {
+            "type": "string"
+          },
+          "marketB": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "token": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          },
+          "poolId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{64}$"
+          },
+          "capUsd": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "spreadBps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "unitUsd": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$"
+          }
+        }
+      }
+    }
+  }
+}
