@@ -177,7 +177,9 @@ contract GovernorInvariantTest is GovernorFixture {
         usdg.mint(holder, 30_000e6);
         vm.prank(holder);
         usdg.approve(address(minter), 30_000e6);
-        for (uint256 i; i < 3; ++i) minter.buy(ids[i], holder, holder, 10_000e18, 10_000e6, 0);
+        for (uint256 i; i < 3; ++i) {
+            minter.buy(ids[i], holder, holder, 10_000e18, 10_000e6, 0);
+        }
         targetContract(address(h));
     }
 
@@ -195,5 +197,4 @@ contract GovernorInvariantTest is GovernorFixture {
     function invariant_ReserveAboveFloorPaysSells() public view {
         assertEq(h.reserveFloorViolations(), 0);
     }
-
 }

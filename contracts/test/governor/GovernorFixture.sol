@@ -159,7 +159,9 @@ abstract contract GovernorFixture is ODTest {
         uint256 n;
         while (n < 32 && m[n] != 0) ++n;
         bytes memory out = new bytes(n);
-        for (uint256 i; i < n; ++i) out[i] = m[i];
+        for (uint256 i; i < n; ++i) {
+            out[i] = m[i];
+        }
         return string(out);
     }
 

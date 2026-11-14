@@ -38,9 +38,7 @@ contract CapsTest is GovernorFixture {
         bytes32 id = _list(TSLA, NONE, Gear.SPORT, 1_000_000e18);
         _buy(id, 20_000e18, 20_000e6); // 11,250 <= 15,000
         // 30,000 x (1.25^2 - 1) = 16,875 > 15% x 100,000
-        _expectBuyRevert(
-            id, 10_000e18, abi.encodeWithSelector(IODGovernor.StressBudget.selector, 16_875e18, 15_000e18)
-        );
+        _expectBuyRevert(id, 10_000e18, abi.encodeWithSelector(IODGovernor.StressBudget.selector, 16_875e18, 15_000e18));
         assertEq(gov.buyBlock(id, 10_000e18), bytes32("STRESS"));
         assertEq(gov.buyBlock(id, 1_000e18), bytes32(0));
     }

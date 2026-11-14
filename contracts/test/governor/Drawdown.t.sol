@@ -43,7 +43,7 @@ contract DrawdownTest is GovernorFixture {
         _buy(id, 20_000e18, 20_000e6);
         _poke();
         // TSLA up 41.42%: SPORT value doubles, liability +20,000 = -20% of equity.
-        guard.set(TSLA, 353.553390593273762200e18, 353.553390593273762200e18);
+        guard.set(TSLA, 353.5533905932737622e18, 353.5533905932737622e18);
         _poke();
     }
 

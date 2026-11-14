@@ -24,7 +24,9 @@ contract StressTest is GovernorFixture {
         bytes32 r = _list(NVDA, NONE, Gear.REVERSE, 1_000_000e18);
         _buy(r, 3_000e18, 3_000e6);
         // REVERSE short loses on the down shock: 3,000 x (1/0.75 - 1) = 1,000 (index rounded up)
-        assertEq(_loss(NVDA), 3_000e18 * (ODIndex.shockFactor(Gear.REVERSE, -0.25e18, Math.Rounding.Ceil) - 1e18) / 1e18);
+        assertEq(
+            _loss(NVDA), 3_000e18 * (ODIndex.shockFactor(Gear.REVERSE, -0.25e18, Math.Rounding.Ceil) - 1e18) / 1e18
+        );
         assertApproxEqAbs(_loss(NVDA), 1_000e18, 1e6);
         bytes32 c = _list(SPY, NONE, Gear.CRUISE, 1_000_000e18); // ETF group: 15%
         _buy(c, 4_000e18, 4_000e6);
@@ -65,16 +67,17 @@ contract StressTest is GovernorFixture {
         assertEq(_loss(TSLA), 5_625e18 + 4_400e18);
     }
 
-    function testFuzz_StressMatchesBruteForce(uint256 ts, uint256 te, uint256 tr, int256 hedge, uint256 price)
-        public
-    {
+    function testFuzz_StressMatchesBruteForce(uint256 ts, uint256 te, uint256 tr, int256 hedge, uint256 price) public {
         ts = bound(ts, 0, 50_000e18);
         te = bound(te, 0, 50_000e18);
         tr = bound(tr, 0, 50_000e18);
         hedge = bound(hedge, -200_000e18, 200_000e18);
         price = bound(price, 150e18, 400e18);
-        bytes32[3] memory ids =
-            [_list(TSLA, NONE, Gear.SPORT, 1e30), _list(TSLA, NONE, Gear.ECO, 1e30), _list(TSLA, NONE, Gear.REVERSE, 1e30)];
+        bytes32[3] memory ids = [
+            _list(TSLA, NONE, Gear.SPORT, 1e30),
+            _list(TSLA, NONE, Gear.ECO, 1e30),
+            _list(TSLA, NONE, Gear.REVERSE, 1e30)
+        ];
         uint256[3] memory amt = [ts, te, tr];
         for (uint256 i; i < 3; ++i) {
             if (amt[i] != 0) minterMint(ids[i], amt[i]);

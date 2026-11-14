@@ -141,14 +141,10 @@ library ODGovernorRisk {
         return s;
     }
 
-    function _addShocks(
-        int256[4] memory acc,
-        Ctx memory c,
-        bytes32 id,
-        GearConfig memory cfg,
-        int256 net,
-        int256 s
-    ) private view {
+    function _addShocks(int256[4] memory acc, Ctx memory c, bytes32 id, GearConfig memory cfg, int256 net, int256 s)
+        private
+        view
+    {
         (uint256 v,,) = _values(c, id, cfg, net >= 0);
         int256 val = mulNet(net, v);
         // Rounded toward more loss: a larger factor for a Governor short, a smaller one for a long.
