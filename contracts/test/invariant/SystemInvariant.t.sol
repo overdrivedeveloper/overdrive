@@ -204,7 +204,8 @@ contract SystemInvariantTest is HookFixture {
     /// F12-1 minimal repro (found by invariant_AllSystem, deep profile): ODFees.distribute pays the Governor bucket via
     /// Governor.fundCash, which settles the Governor's owed fees back into ODFees and notifies them (pending += x);
     /// ODFees._pay measures only s0 - x as paid, so the bucket also holds x. ODFees then books more USDG than it holds.
-    /// This test asserts the bug is present; when the fix lands it fails: flip the last line to assertGe.
+    /// Fixed in fix round 3 (_pay counts USDG booked back as pending during the call as paid out): the books stay
+    /// covered.
     function test_Repro_FeeDoubleBookOnDistribute() public {
         _buy(bob, sport, 15_000e6); // spread share notified to ODFees while the Governor has cash
         uint256 cash = gov.trackedCash();
@@ -219,7 +220,7 @@ contract SystemInvariantTest is HookFixture {
         _refreshAll();
         fees.distribute();
         assertLt(gov.feeOwed(), owed, "the Governor paid its owed fee inside distribute");
-        assertLt(usdg.balanceOf(address(fees)), fees.pending() + fees.totalHeld(), "F12-1: books exceed balance");
+        assertGe(usdg.balanceOf(address(fees)), fees.pending() + fees.totalHeld(), "F12-1: books exceed balance");
     }
 
     // ============================================================================================ R1 to R12
@@ -284,13 +285,8 @@ contract SystemInvariantTest is HookFixture {
             sum += c;
         }
         assertEq(backer.totalCollateral(), sum, "R5: backer collateral sum");
-        // F12-1 (known, reported): distribute can book the Governor's re-entrant fee payment twice; the handler
-        // tracks exactly how much. Strict form (no allowance) is test_Repro_FeeDoubleBookOnDistribute.
-        assertGe(
-            usdg.balanceOf(address(fees)) + h.feeDoubleBooked(),
-            fees.pending() + fees.totalHeld(),
-            "R5: fees books (beyond the tracked F12-1 double-booking)"
-        );
+        // strict since the F12-1 fix: no allowance for the Governor's re-entrant fee payment inside distribute
+        assertGe(usdg.balanceOf(address(fees)), fees.pending() + fees.totalHeld(), "R5: fees books");
     }
 
     /// R5: the hook holds nothing of its own (only what was donated to it).
@@ -408,12 +404,8 @@ contract SystemInvariantTest is HookFixture {
     /// forge-config: deep.invariant.depth = 10
     function invariant_FeesConserved() public view {
         assertEq(h.feeViolations(), 0, "R12: fee books moved outside notify/distribute");
-        // every notified USDG is paid out (measured), pending or held; F12-1 adds exactly the tracked double-booking
-        assertEq(
-            h.feesNotified() + h.feeDoubleBooked(),
-            h.feesPaidOut() + fees.pending() + fees.totalHeld(),
-            "R12: fees conserved"
-        );
+        // every notified USDG is paid out (measured), pending or held; strict since the F12-1 fix
+        assertEq(h.feesNotified(), h.feesPaidOut() + fees.pending() + fees.totalHeld(), "R12: fees conserved");
     }
 
     // ============================================================================================ after fix-audit2
@@ -433,9 +425,9 @@ contract SystemInvariantTest is HookFixture {
         assertLe(reg.gearCount(), abi.decode(ret, (uint256)), "L-1: gear count above MAX_GEARS");
     }
 
-    /// PENDING fix-audit2 (M-6, executeBatch gas rule): an execute with too little gas for a vault reverts and leaves
-    /// the batch open for another executor instead of marking it done with the vault unliquidated. Skips until
-    /// ODBacker exposes MIN_VAULT_GAS.
+    /// M-6, executeBatch gas rule: an execute with too little gas for a vault reverts and leaves the batch open for
+    /// another executor instead of marking it done with the vault unliquidated. Runs now that ODBacker exposes
+    /// MIN_VAULT_GAS (it skips only if the getter is ever removed).
     function test_ExecuteBatchGasRule_afterFixAudit2() public {
         (bool ok, bytes memory ret) = address(backer).staticcall(abi.encodeWithSignature("MIN_VAULT_GAS()"));
         if (!ok || ret.length < 32) {

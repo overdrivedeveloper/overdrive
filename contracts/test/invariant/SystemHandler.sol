@@ -175,10 +175,9 @@ contract SystemHandler is Test, Ghosts {
         uint256 held = s.fees.totalHeld();
         uint256 bal = s.usdg.balanceOf(address(s.fees));
         if (name == "distributeFees") {
-            // KNOWN BUG (todo 12 finding F12-1): distribute pays the Governor bucket through fundCash, which settles
-            // the Governor's owed fees back into ODFees and notifies them (pending += x) while _pay measures only
-            // s0 - x as paid, so the bucket also holds x: x is in ODFees once but booked as pending and as held. Books
-            // must move by exactly (x notified - measured outflow); invariant_BooksCovered allows exactly the tracked x.
+            // F12-1 (fixed in fix round 3): distribute pays the Governor bucket through fundCash, which settles the
+            // Governor's owed fees back into ODFees and notifies them (pending += x). Books must move by exactly
+            // (x notified - measured outflow); feeDoubleBooked records any growth beyond that, and R5/R12 are strict.
             uint256 owedNow = s.gov.feeOwed();
             uint256 x = _feeOwedBefore > owedNow ? _feeOwedBefore - owedNow : 0; // fees paid in during the call
             int256 overBefore = int256(_feePendingBefore + _feeHeldBefore) - int256(_feeBalBefore);
