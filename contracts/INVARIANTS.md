@@ -55,6 +55,21 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | 25 | A guardian can only reduce risk (pause, lower a cap, raise a spread, revoke the vol signer); only the admin unpauses | `gear/Registry.t.sol : test_GuardianOnlyLowersRisk`, `test_GuardianCannotUnpause`; `oracle/OracleGuard.t.sol : test_GuardianCannotUnpause`; `oracle/VolOracle.t.sol : test_GuardianRevokes`; `backer/Health.t.sol : test_SetUpliftGuardianOnlyRaises`; `governor/Pause.t.sol : test_TimelockUnpauses` (all example-based) |
 | 26 | Every admin setter refuses values outside its hard bound | `minter/Spread.t.sol : test_TradeParamsBounds`; `oracle/VolOracle.t.sol : test_SetBoundsHardLimits`; `oracle/OracleGuard.t.sol : test_SetMarketBounds`; `gear/Registry.t.sol : test_ListParamBounds`; `fees/BuyBurn.t.sol : test_PerCallCapAndRouteBounds` (all example-based) |
 
+## Fix round 2 properties
+
+| # | Invariant | Checked by (file : function) |
+| --- | --- | --- |
+| 27 | A gas-starved execute never skips a vault or an insurance draw: every gas limit either liquidates every vault (insurance paid in full) or reverts with the batch open | `audit/GasStarvedExecute.t.sol : testFuzz_SuccessImpliesAllLiquidated`; examples: `test_GasSweepNeverVoidsBatch`, `test_GasSweepNeverSkipsInsurance`, `test_UnderFloorRevertsNamed` |
+| 28 | A vault that fails for a real reason keeps its batch open for another executor | `audit/GasStarvedExecute.t.sol : test_BlockedExecutorLeavesBatchOpen` (example-based) |
+| 29 | A full `MAX_BATCH` of deep-crash vaults seals and executes under 24M gas on the chain fork (one Orbit transaction is capped near 32M) | `fork/BatchGasFork.t.sol : test_MaxBatchFitsUnder24M`; measurement: `test_ExecuteGasPerVaultCount` (fork, example-based) |
+| 30 | A backer mint, sell and repay round trip across a move inside the lag band never profits | `audit/BackerLagRoundTrip.t.sol : testFuzz_M4Backer_RoundTripNeverProfits`, `testFuzz_M4Backer_WiderBand`; example: `test_M4Backer_AllGearsAtTheBand` |
+| 31 | Hedge stress is bounded for any posted delta, and USDG in transit to the hedger ages into a stale hedge | `audit/HedgeDeltaTransit.t.sol : testFuzz_L2_StressBoundedForAnyDelta`; examples: `test_L2_TransitAges`, `test_L2_TransitClockNotRefreshedBySmallSends`, `test_L2_HostileDeltaBounded` |
+| 32 | The hedge jump window anchors on equity less hedge equity, so top-of-range posts grow NAV linearly (at most 16,000 bps of start over 24 hours), never compounding | `audit/HedgeWindowAnchor.t.sol : test_L5_WindowAnchorExcludesHedge` (example-based) |
+| 33 | After `ODFees.sync()` the fee books equal the fee contract's USDG balance | `fees/Fees.t.sol : testFuzz_L3_SyncMakesBooksEqualBalance`; example: `test_L3_UnnotifiedUsdgSyncsIntoSplit` |
+| 34 | Every agent action (buy, sell, backer mint) is charged against both the per-trade cap and the budget | `agent/AgentRouter.t.sol : testFuzz_L4_BudgetCoversEveryAction`; examples: `test_L4_SellChargedAgainstCapAndBudget`, `test_L4_BackerMintCharged` |
+| 35 | Under a stale hedge a claim with no minimum reverts, and a claim with a minimum never pays above the hedge-free low edge | `audit/StaleHedgeClaim.t.sol : testFuzz_L6_StaleClaimNeverAboveHedgeFree`; example: `test_L6_StaleHedgeClaimWithExplicitMin` |
+| 36 | The registry lists at most `MAX_GEARS` (32) gears, and at that cap `pokeRisk`, an LP deposit and a claim each stay under 10M gas on the chain fork | `gear/Registry.t.sol : test_L1_TotalGearCap`; `fork/GearCountGasFork.t.sol : test_GasPerBuyVsGearCount` (example-based) |
+
 ## Known gaps
 
 - ODFees, ODInsurance and the minter sell queue hold funds but have no stateful invariant suite yet (fuzz and example tests only).
