@@ -179,6 +179,8 @@
     NotFillable: function () { return "This queued sell cannot be filled yet (no fresh price, or the price is below your minimum). Try again later, or cancel it to get your gears back."; },
     TooEarly: function (a) { return "This withdrawal is not claimable yet. It opens at " + new Date(Number(a[0]) * 1000).toUTCString() + "."; },
     ClaimBelowMin: function (a) { return "The Governor can pay " + fmtUnits(a[0], USD) + " USDG now, below your minimum of " + fmtUnits(a[1], USD) + " USDG. Lower the minimum or wait."; },
+    HedgeStale: function () { return "The hedge report is late, so the Governor will not pay a claim that has no minimum. Enter the smallest USDG you accept (above 0); the page fills it from a fresh quote. While the report is late the claim pays the low price that leaves out the hedge."; },
+    MinimumRequired: function () { return "Enter the smallest USDG you accept, above 0. A claim with no minimum is refused while the hedge report is late."; },
     InsufficientCash: function (a) { return "The Governor does not have enough free cash for this right now (needs " + fmtUnits(a[0], USD) + " USDG, has " + fmtUnits(a[1], USD) + "). Try again later."; },
     UseWithdrawalQueue: function () { return "This amount must go through the withdrawal queue. Request a withdrawal, then claim it after the delay."; },
     PayOutOfGas: function () { return "The payout ran out of gas. Try again with a higher gas limit."; },
@@ -221,17 +223,35 @@
       fillQueued: function (ticket) { return { to: addr.ODMinter, data: encodeCall(find(abis.minter, "fillQueued"), [ticket]) }; },
       cancelQueued: function (ticket) { return { to: addr.ODMinter, data: encodeCall(find(abis.minter, "cancelQueued"), [ticket]) }; },
       requestWithdraw: function (shares) { return { to: addr.ODGovernor, data: encodeCall(find(abis.governor, "requestWithdraw"), [shares]) }; },
-      claim: function (ticket, minAssetsOut) { return { to: addr.ODGovernor, data: encodeCall(find(abis.governor, "claim"), [ticket, minAssetsOut]) }; },
+      claim: function (ticket, minAssetsOut) {
+        // the Governor refuses a zero minimum while the hedge report is late (HedgeStale); the page never sends 0
+        if (typeof minAssetsOut !== "bigint" || minAssetsOut <= 0n) throw new Error(REASONS.MinimumRequired());
+        return { to: addr.ODGovernor, data: encodeCall(find(abis.governor, "claim"), [ticket, minAssetsOut]) };
+      },
       repay: function (vaultId, tokens) { return { to: addr.ODBacker, data: encodeCall(find(abis.backer, "repay"), [vaultId, tokens]) }; },
       withdrawCollateral: function (vaultId, usdg, to) { return { to: addr.ODBacker, data: encodeCall(find(abis.backer, "withdraw"), [vaultId, usdg, to]) }; }
     };
+  }
+
+  // ---- claim minimum ------------------------------------------------------------------------------------------
+  // The suggested minimum for a Governor claim: the ticket's value at today's low edge (previewRedeem, which leaves out
+  // the hedge while its report is late, the same price the claim pays), capped by free cash, less `slipBps` for the
+  // NAV moving before the claim is mined. Never 0 when anything can be paid; 0 means nothing can be paid now.
+  function claimMinimum(quote, freeCash, slipBps) {
+    var base = BigInt(quote);
+    if (freeCash !== undefined && freeCash !== null && BigInt(freeCash) < base) base = BigInt(freeCash);
+    if (base <= 0n) return 0n;
+    var bps = BigInt(slipBps === undefined ? 50 : slipBps);
+    if (bps < 0n || bps >= 10000n) throw new Error("slippage out of range");
+    var m = base * (10000n - bps) / 10000n;
+    return m > 0n ? m : 1n;
   }
 
   var api = {
     keccak256: keccak256, keccakText: keccakText, signature: signature, selectorOf: selectorOf, topicOf: topicOf,
     encodeArgs: encodeArgs, encodeCall: encodeCall, decodeArgs: decodeArgs, decodeResult: decodeResult,
     errorTable: errorTable, decodeRevert: decodeRevert, explain: explain, revertDataFromError: revertDataFromError,
-    fmtUnits: fmtUnits, parseUnits: parseUnits, find: find, calls: calls
+    fmtUnits: fmtUnits, parseUnits: parseUnits, find: find, calls: calls, claimMinimum: claimMinimum
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.ExitLib = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

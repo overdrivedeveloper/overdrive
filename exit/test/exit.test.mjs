@@ -46,14 +46,14 @@ test("every embedded selector equals cast sig", () => {
 
 test("built page contains every needed selector, event topic and error, and no external URL", () => {
   const { html, data } = buildPage({ deployment: anvilDeployment(), abiDir });
-  const need = { minter: ["sell", "queueSell", "fillQueued", "cancelQueued", "queuedSell", "quote", "valuePerToken"], governor: ["claim", "requestWithdraw", "ticketOf", "balanceOf"], backer: ["repay", "withdraw", "vault", "health"], gear: ["balanceOf"] };
+  const need = { minter: ["sell", "queueSell", "fillQueued", "cancelQueued", "queuedSell", "quote", "valuePerToken"], governor: ["claim", "requestWithdraw", "ticketOf", "balanceOf", "previewRedeem", "freeCash", "hedgeStale"], backer: ["repay", "withdraw", "vault", "health"], gear: ["balanceOf"] };
   for (const [k, names] of Object.entries(need)) for (const n of names) {
     const f = data.abis[k].find((x) => x.name === n && x.type === "function");
     assert.ok(f, `${k}.${n} embedded`);
     assert.ok(html.includes(f.sel), `selector of ${k}.${n} in page`);
   }
   for (const n of ["SellQueued", "WithdrawalQueued", "VaultOpened"]) assert.ok(html.includes(Object.values(data.abis).flat().find((x) => x.name === n).topic), n);
-  for (const n of ["UseQueue", "Slippage", "ClaimBelowMin", "TooEarly", "NotFillable", "Undercollateralized"]) assert.ok(data.errors.some((e) => e.name === n), "error " + n);
+  for (const n of ["UseQueue", "Slippage", "ClaimBelowMin", "TooEarly", "NotFillable", "Undercollateralized", "HedgeStale"]) assert.ok(data.errors.some((e) => e.name === n), "error " + n);
   assert.ok(html.includes(ADDR.ODMinter) && html.includes(GEAR.token));
   noMatch(html, /https?:\/\//i);
   noMatch(html, /\/\/[a-z0-9.-]+\.[a-z]{2,}/i, "protocol-relative URL");
@@ -90,8 +90,24 @@ test("revert decoding gives plain-English reasons", () => {
   assert.match(lib.explain(lib.decodeRevert(t, slip)), /receive 90 USDG.*minimum is 100 USDG/);
   assert.match(lib.explain(lib.decodeRevert(t, "0x")), /no reason/);
   assert.match(lib.explain(lib.decodeRevert(t, "0xdeadbeef")), /does not know/);
+  assert.match(lib.explain(lib.decodeRevert(t, sel("HedgeStale"))), /hedge report is late.*above 0/);
   assert.equal(lib.parseUnits("1.5", 6), 1500000n);
   assert.throws(() => lib.parseUnits("1.2345678", 6));
+});
+
+test("a claim never goes out with a minimum of 0, and the suggested minimum comes from the quote", () => {
+  const { data } = buildPage({ deployment: anvilDeployment(), abiDir });
+  const C = lib.calls(data.abis, ADDR);
+  assert.throws(() => C.claim(7n, 0n), /above 0/);
+  assert.throws(() => C.claim(7n, -1n), /above 0/);
+  assert.ok(C.claim(7n, 1n).data.startsWith(data.abis.governor.find((f) => f.name === "claim").sel));
+  assert.equal(lib.claimMinimum(100_000000n, undefined, 50), 99_500000n); // quote less 0.5%
+  assert.equal(lib.claimMinimum(100_000000n, 40_000000n, 50), 39_800000n); // capped by free cash
+  assert.equal(lib.claimMinimum(1n, 1000n, 50), 1n); // never rounds to 0 when something can be paid
+  assert.equal(lib.claimMinimum(0n, 1000n, 50), 0n); // nothing can be paid
+  assert.equal(lib.claimMinimum(5n, 0n, 50), 0n);
+  const app = readFileSync(join(here, "../app.js"), "utf8");
+  noMatch(app, /parseUnits\(\$\("w-min"\)\.value \|\| "0"/, "claim minimum defaulting to 0");
 });
 
 test("the page script loads against a stub DOM and every element id it uses exists in the page", () => {
@@ -174,9 +190,20 @@ test("anvil: one sell, one queued sell, one claim, one refusal through the page'
   let low;
   try { await rpc("eth_call", [{ from: me, ...C.claim(7n, L.parseUnits("2000", 6)) }, "latest"]); } catch (e) { low = e; }
   assert.match(L.explain(L.decodeRevert(table, L.revertDataFromError(low))), /can pay 5 USDG now, below your minimum of 2000 USDG/);
-  const r3 = await sendTx(C.claim(7n, L.parseUnits("4", 6)));
+  // a zero minimum: the builder refuses it; sent raw, the Governor refuses it with HedgeStale and the page explains
+  assert.throws(() => C.claim(7n, 0n), /above 0/);
+  const claimFrag = D.abis.governor.find((f) => f.name === "claim");
+  let stale;
+  try { await rpc("eth_call", [{ from: me, to: addr.ODGovernor, data: L.encodeCall(claimFrag, [7n, 0n]) }, "latest"]); } catch (e) { stale = e; }
+  assert.match(L.explain(L.decodeRevert(table, L.revertDataFromError(stale))), /hedge report is late/);
+  // the page's fresh minimum: previewRedeem of the ticket, capped by free cash, less 0.5%
+  const rd = async (name, args) => { const f = D.abis.governor.find((x) => x.name === name); return L.decodeResult(f, await rpc("eth_call", [{ to: addr.ODGovernor, data: L.encodeCall(f, args) }, "latest"])); };
+  const fresh = L.claimMinimum(await rd("previewRedeem", [1n]), await rd("freeCash", []), 50);
+  assert.equal(fresh, 4975000n);
+  assert.equal(await rd("hedgeStale", []), true);
+  const r3 = await sendTx(C.claim(7n, fresh));
   assert.equal(word(r3.logs[0].data, 0), 7n);
-  assert.equal(word(r3.logs[0].data, 1), 4000000n);
+  assert.equal(word(r3.logs[0].data, 1), fresh);
 
   // backer repay and withdraw
   const r4 = await sendTx(C.repay(3n, tokens));

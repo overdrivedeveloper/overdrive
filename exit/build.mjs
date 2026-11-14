@@ -16,7 +16,7 @@ const lib = require("./lib.cjs");
 
 const NEEDED = {
   minter: { file: "IODMinter", fns: ["sell", "queueSell", "fillQueued", "cancelQueued", "queuedSell", "quote", "valuePerToken", "ticketCount"], events: ["SellQueued"] },
-  governor: { file: "IODGovernor", fns: ["claim", "requestWithdraw", "ticketOf", "balanceOf", "decimals", "symbol", "convertToAssets", "canPay"], events: ["WithdrawalQueued"] },
+  governor: { file: "IODGovernor", fns: ["claim", "requestWithdraw", "ticketOf", "balanceOf", "decimals", "symbol", "convertToAssets", "canPay", "previewRedeem", "hedgeStale", "freeCash"], events: ["WithdrawalQueued"] },
   backer: { file: "IODBacker", fns: ["repay", "withdraw", "vault", "health", "tollFeeOwed"], events: ["VaultOpened"] },
   gear: { file: "IODGear", fns: ["balanceOf", "decimals", "symbol"], events: [] },
 };

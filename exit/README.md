@@ -13,7 +13,7 @@ What it does:
 | Sell gears | `ODMinter.sell(gearId, tokensIn, minUsdgOut, recipient, deadline)` |
 | Sell when the market is closed, or `sell` returns `UseQueue` | `ODMinter.queueSell(gearId, tokens, minUsdgOut, recipient)` |
 | Claim or cancel a queued sell | `ODMinter.fillQueued(ticket)`, `ODMinter.cancelQueued(ticket)` |
-| Governor withdrawal | `ODGovernor.requestWithdraw(shares)`, then `ODGovernor.claim(ticket, minAssetsOut)` (you set the minimum) |
+| Governor withdrawal | `ODGovernor.requestWithdraw(shares)`, then `ODGovernor.claim(ticket, minAssetsOut)`. The minimum is never 0 (the Governor refuses a zero minimum while the hedge report is late); the page fills it from `previewRedeem` of the ticket, capped by `freeCash`, less 0.5%, and you check it before sending |
 | Backer vaults | `ODBacker.repay(vaultId, tokens)`, `ODBacker.withdraw(vaultId, usdg, to)` |
 
 Every send is simulated with `eth_call` first. If the contract would refuse, the page decodes the custom error from

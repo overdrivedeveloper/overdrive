@@ -6,6 +6,7 @@ pragma solidity 0.8.26;
 contract MockExit {
     error UseQueue();
     error ClaimBelowMin(uint256 paidUsdg, uint256 minAssetsOut);
+    error HedgeStale();
     event SellSeen(bytes32 gearId, uint256 tokens, uint256 minOut, address recipient, uint64 deadline);
     event QueueSeen(bytes32 gearId, uint256 tokens, uint256 minOut, address recipient);
     event ClaimSeen(uint256 ticket, uint256 minAssetsOut);
@@ -24,9 +25,22 @@ contract MockExit {
     }
 
     function claim(uint256 ticket, uint256 minAssetsOut) external returns (uint256) {
+        if (minAssetsOut == 0) revert HedgeStale(); // the hedge report is always late here
         if (minAssetsOut > 1000e6) revert ClaimBelowMin(5e6, minAssetsOut);
         emit ClaimSeen(ticket, minAssetsOut);
         return 5e6;
+    }
+
+    function previewRedeem(uint256) external pure returns (uint256) {
+        return 5e6;
+    }
+
+    function freeCash() external pure returns (uint256) {
+        return 1000e6;
+    }
+
+    function hedgeStale() external pure returns (bool) {
+        return true;
     }
 
     function repay(uint256 v, uint256 t) external {

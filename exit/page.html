@@ -65,11 +65,11 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.85em}
 </section>
 <section>
 <h2>4. Governor withdrawals</h2>
-<p class="small mut">Your Governor shares: <span id="g-shares">-</span>. A withdrawal is requested first and can be claimed after the delay. You set the smallest amount of USDG you will take when you claim.</p>
+<p class="small mut">Your Governor shares: <span id="g-shares">-</span>. A withdrawal is requested first and can be claimed after the delay. You set the smallest amount of USDG you will take when you claim; it must be above 0. Leave it empty and the first press of Claim fills it from a fresh quote (the ticket&#39;s value at today&#39;s low price, capped by the Governor&#39;s free cash, less 0.5%) so you can check it before you press Claim again. While the hedge report is late the Governor refuses a claim with no minimum, and a claim with a minimum pays the low price that leaves out the hedge.</p>
 <div class="row"><div><label for="w-shares">Shares to request a withdrawal for</label><input id="w-shares" inputmode="decimal"></div></div>
 <button id="btn-wreq" class="alt">Request withdrawal</button>
 <table id="tickets"></table>
-<div class="row"><div><label for="w-id">Ticket number (if it is not listed)</label><input id="w-id" inputmode="numeric"></div><div><label for="w-min">Smallest USDG you accept on claim</label><input id="w-min" inputmode="decimal" placeholder="0"></div></div>
+<div class="row"><div><label for="w-id">Ticket number (if it is not listed)</label><input id="w-id" inputmode="numeric"></div><div><label for="w-min">Smallest USDG you accept on claim</label><input id="w-min" inputmode="decimal" placeholder="filled from a fresh quote"></div></div>
 <button id="btn-wadd" class="alt">Add ticket</button><button id="btn-wrefresh" class="alt">Refresh</button>
 <div id="msg-gov"></div>
 </section>

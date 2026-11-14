@@ -157,9 +157,37 @@
     for (var t in state.tickets) {
       var r = await read(D.addr.ODGovernor, A.governor, "ticketOf", [BigInt(t)]);
       if (r[0] === ZERO || r[1] === 0n) { rows.push("<tr><td>#" + t + "</td><td class=mut colspan=2>Claimed</td></tr>"); continue; }
-      rows.push("<tr><td>#" + t + "</td><td>" + esc(L.fmtUnits(r[1], state.shareDec)) + " shares, claimable from " + esc(new Date(Number(r[2]) * 1000).toUTCString()) + "</td><td><button data-claim=" + t + ">Claim</button></td></tr>");
+      var worth = "";
+      try { worth = ", worth about " + L.fmtUnits(await read(D.addr.ODGovernor, A.governor, "previewRedeem", [r[1]]), state.usdDec) + " USDG at today's low price"; } catch (e) {}
+      rows.push("<tr><td>#" + t + "</td><td>" + esc(L.fmtUnits(r[1], state.shareDec)) + " shares" + esc(worth) + ", claimable from " + esc(new Date(Number(r[2]) * 1000).toUTCString()) + "</td><td><button data-claim=" + t + ">Claim</button></td></tr>");
     }
     $("tickets").innerHTML = rows.join("") || "<tr><td class=mut>No withdrawal tickets found.</td></tr>";
+  }
+
+  // A claim never goes out with a minimum of 0: the Governor refuses that while the hedge report is late (HedgeStale).
+  // An empty minimum is filled from a fresh read (previewRedeem of the ticket's shares, capped by free cash, less 0.5%)
+  // and the holder presses Claim again after checking it.
+  async function freshClaimMinimum(ticket) {
+    var r = await read(D.addr.ODGovernor, A.governor, "ticketOf", [ticket]);
+    if (r[0] === ZERO || r[1] === 0n) throw new Error("This ticket is already claimed.");
+    var quote = await read(D.addr.ODGovernor, A.governor, "previewRedeem", [r[1]]);
+    var cash; try { cash = await read(D.addr.ODGovernor, A.governor, "freeCash", []); } catch (e) {}
+    var stale = false; try { stale = await read(D.addr.ODGovernor, A.governor, "hedgeStale", []); } catch (e) {}
+    return { min: L.claimMinimum(quote, cash, 50), quote: quote, stale: stale };
+  }
+  async function doClaim(ticket) {
+    var typed = $("w-min").value.trim();
+    if (!typed) {
+      var q = await freshClaimMinimum(ticket);
+      if (q.min === 0n) { say("gov", "The Governor cannot pay this ticket anything right now (no free cash, or the shares are worth nothing at today's low price). Try again later.", "bad"); return; }
+      $("w-min").value = L.fmtUnits(q.min, state.usdDec, state.usdDec);
+      say("gov", "Filled the minimum from a fresh quote: " + L.fmtUnits(q.min, state.usdDec) + " USDG (the ticket is worth about " + L.fmtUnits(q.quote, state.usdDec) + " USDG now, less 0.5%)." + (q.stale ? " The hedge report is late, so this is the low price that leaves out the hedge." : "") + " Check it, then press Claim again.");
+      return;
+    }
+    var min = L.parseUnits(typed, state.usdDec);
+    if (min <= 0n) { say("gov", L.explain({ name: "MinimumRequired", args: [] }), "bad"); return; }
+    var r3 = await send(C.claim(ticket, min), "gov", "Claimed.");
+    if (r3.hash) refreshAll();
   }
 
   // ---- vaults ---------------------------------------------------------------------------------------------
@@ -197,7 +225,7 @@
       var t = e.target, d = t && t.dataset; if (!d) return;
       if (d.fill) { var r = await send(C.fillQueued(BigInt(d.fill)), "queued", "Claimed. The USDG was sent to the address you chose when you queued."); if (r.hash) refreshAll(); }
       if (d.cancel) { var r2 = await send(C.cancelQueued(BigInt(d.cancel)), "queued", "Cancelled. Your gears are back in your wallet."); if (r2.hash) refreshAll(); }
-      if (d.claim) { try { var min = L.parseUnits($("w-min").value || "0", state.usdDec); var r3 = await send(C.claim(BigInt(d.claim), min), "gov", "Claimed."); if (r3.hash) refreshAll(); } catch (x) { say("gov", x.message, "bad"); } }
+      if (d.claim) { try { await doClaim(BigInt(d.claim)); } catch (x) { say("gov", x.message, "bad"); } }
       if (d.vfill) $("v-id").value = d.vfill;
     });
     if (window.ethereum && window.ethereum.on) { window.ethereum.on("chainChanged", function () { location.reload(); }); window.ethereum.on("accountsChanged", function () { location.reload(); }); }
