@@ -59,3 +59,8 @@ vol-engine/**/__pycache__/
 vol-engine/*.egg-info/
 vol-engine/.pytest_cache/
 vol-engine/tests/fixtures/test.*
+
+# Dry-run outputs of the deploy scripts (todo 11): fork/anvil deployments, post-deploy reports, timelock batches.
+/app/deployments/local/
+/.audit-grade/
+/.batches/

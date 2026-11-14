@@ -1,0 +1,436 @@
+{
+ "src/agent/ODPaymaster.sol": [
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "addStake"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "setGuardian"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "setKernelAccounts"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "setLimits"
+  },
+  {
+   "access": [
+    "guardian",
+    "owner"
+   ],
+   "function": "setPaused"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "setSigner"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "unlockStake"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "withdrawStake"
+  },
+  {
+   "access": [
+    "owner"
+   ],
+   "function": "withdrawTo"
+  }
+ ],
+ "src/backer/ODBacker.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setMintPaused"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setStake"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setUplift"
+  }
+ ],
+ "src/fees/ODBuyBurn.sol": [
+  {
+   "access": [
+    "KEEPER_ROLE"
+   ],
+   "function": "execute"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setMaxUsdgPerCall"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setPriceSource"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setRoute"
+  }
+ ],
+ "src/fees/ODFees.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setFeeParams"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setNotifier"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setOpsSplit"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setRecipient"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setSplit"
+  }
+ ],
+ "src/gear/ODGear.sol": [
+  {
+   "access": [
+    "onlyMinter"
+   ],
+   "function": "burn"
+  },
+  {
+   "access": [
+    "onlyMinter"
+   ],
+   "function": "mint"
+  }
+ ],
+ "src/gear/ODGearRegistry.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "listGear"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setMinter"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setParams"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setStatus"
+  }
+ ],
+ "src/governor/ODGovernor.sol": [
+  {
+   "access": [
+    "onlyBacker"
+   ],
+   "function": "absorbLiquidation"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "KEEPER_ROLE"
+   ],
+   "function": "moveToExitReserve"
+  },
+  {
+   "access": [
+    "onlyBacker"
+   ],
+   "function": "onBackerMint"
+  },
+  {
+   "access": [
+    "onlyBacker"
+   ],
+   "function": "onBackerRepay"
+  },
+  {
+   "access": [
+    "onlyMinter"
+   ],
+   "function": "onBuy"
+  },
+  {
+   "access": [
+    "onlyMinter"
+   ],
+   "function": "onSell"
+  },
+  {
+   "access": [
+    "onlyMinter"
+   ],
+   "function": "onToll"
+  },
+  {
+   "access": [
+    "onlyMinter"
+   ],
+   "function": "pay"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "HEDGER_ROLE"
+   ],
+   "function": "postHedge"
+  },
+  {
+   "access": [
+    "HEDGER_ROLE"
+   ],
+   "function": "returnFromHedger"
+  },
+  {
+   "access": [
+    "HEDGER_ROLE"
+   ],
+   "function": "sendToHedger"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setBacker"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setBuysPaused"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setDepositor"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setHedger"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setMarketGroup"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setMinter"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setParams"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "skim"
+  }
+ ],
+ "src/governor/ODInsurance.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setCoverers"
+  }
+ ],
+ "src/governor/ODMinter.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setHook"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setStake"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setTradeParams"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "settleGear"
+  }
+ ],
+ "src/hook/ODHook.sol": [
+  {
+   "access": [
+    "onlyPoolManager"
+   ],
+   "function": "beforeSwap"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "initializeGearPool"
+  }
+ ],
+ "src/oracle/ODMarketHours.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setFallbackEnabled"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setHolidays"
+  },
+  {
+   "access": [
+    "KEEPER_ROLE"
+   ],
+   "function": "setSessionsWithKinds"
+  }
+ ],
+ "src/oracle/ODOracleGuard.sol": [
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setBuysPaused"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setMarket"
+  }
+ ],
+ "src/oracle/ODVolOracle.sol": [
+  {
+   "access": [
+    "GUARDIAN_ROLE"
+   ],
+   "function": "revokeSigner"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setBounds"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setSigner"
+  }
+ ],
+ "src/stake/ODStake.sol": [
+  {
+   "access": [
+    "FEES_ROLE"
+   ],
+   "function": "notifyRewards"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setCoverCap"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE",
+    "GUARDIAN_ROLE"
+   ],
+   "function": "setDepositsPaused"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setSlashRoute"
+  },
+  {
+   "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "setTiers"
+  }
+ ]
+}

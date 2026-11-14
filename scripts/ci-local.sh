@@ -39,13 +39,17 @@ check_stake_usage() {
     return 1
   fi
 }
+# Todo 11 R5: contracts/privileged-functions.json equals the guarded functions found in the sources.
+check_privileged_functions() { (cd contracts && python3 script/ci/privileged-functions.py --check); }
+# Todo 11 R11: every src contract stays under the 24,576-byte EIP-170 limit (reads the forge build output).
+check_code_size() { (cd contracts && python3 script/ci/code-size.py out >/dev/null); }
 # hygiene and semgrep need gitleaks and semgrep on PATH (brew install gitleaks; pipx install semgrep); a missing tool fails.
 job_hygiene() {
   python3 .github/scripts/check-hygiene.py && python3 .github/scripts/readme-deployments.py --check \
     && gitleaks git . --config .github/gitleaks.toml --redact --no-banner
 }
 job_semgrep() { bash .github/scripts/semgrep.sh; }
-job_contracts() { check_no_failopen_pattern && check_stake_usage && (cd contracts && forge fmt --check && forge build && forge test); }
+job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test); }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
 job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }

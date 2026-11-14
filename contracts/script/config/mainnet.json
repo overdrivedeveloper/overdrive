@@ -1,0 +1,224 @@
+{
+ "network": "mainnet",
+ "chainId": 4663,
+ "minDelaySec": 172800,
+ "source": "docs/research/feeds.json 2026-11-13 survey (copied; no docs path is read at run time)",
+ "roles": {
+  "ownerSafe": "0x0000000000000000000000000000000000000000",
+  "guardianSafe": "0x0000000000000000000000000000000000000000",
+  "keeper": "0x0000000000000000000000000000000000000000",
+  "hedger": "0x0000000000000000000000000000000000000000",
+  "volSigner": "0x0000000000000000000000000000000000000000",
+  "paymasterSigner": "0x0000000000000000000000000000000000000000",
+  "treasury": "0x0000000000000000000000000000000000000000"
+ },
+ "external": {
+  "usdg": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+  "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+  "stateView": "0xF3334192D15450CdD385c8B70e03f9A6bD9E673b",
+  "v4Quoter": "0x8Dc178eFB8111BB0973Dd9d722ebeFF267c98F94",
+  "pythCore": "0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a",
+  "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "v3Factory": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+  "createX": "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed",
+  "ovrd": "0x0000000000000000000000000000000000000000"
+ },
+ "dev": {
+  "usdg": false,
+  "ovrd": false,
+  "poolManager": false
+ },
+ "paymaster": {
+  "maxCostPerOpWei": "10000000000000000",
+  "accountDailyCapWei": "50000000000000000",
+  "globalDailyCapWei": "1000000000000000000"
+ },
+ "hookSeed": {
+  "usdgPerGear": "500000000",
+  "gearWadPerGear": "1000000000000000000",
+  "approvedByOwner": false,
+  "note": "D26 small hook seed per launch gear, held by the owner Safe as ERC-6909; figures need the owner's approval"
+ },
+ "markets": [
+  {
+   "symbol": "ETH",
+   "kind": "crypto",
+   "feed": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+   "stockAsset": "0x0000000000000000000000000000000000000000",
+   "twapPool": "0x0000000000000000000000000000000000000000",
+   "pythId": "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+   "maxAgeInSession": 284400,
+   "group": 2,
+   "volFloorBps": 3000,
+   "volCeilingBps": 20000,
+   "multiplierEmbedded": true,
+   "pythMultiplierEmbedded": false,
+   "maxAgeClosed": 432000,
+   "refMaxAge": 120,
+   "twapWindow": 1800,
+   "refBandBps": 200,
+   "continuityBps": 1500
+  },
+  {
+   "symbol": "BTC",
+   "kind": "crypto",
+   "feed": "0xa2c5184bF03d373Dc9dE4876eb4Bce595B460251",
+   "stockAsset": "0x0000000000000000000000000000000000000000",
+   "twapPool": "0x0000000000000000000000000000000000000000",
+   "pythId": "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+   "maxAgeInSession": 111600,
+   "group": 2,
+   "volFloorBps": 3000,
+   "volCeilingBps": 20000,
+   "multiplierEmbedded": true,
+   "pythMultiplierEmbedded": false,
+   "maxAgeClosed": 432000,
+   "refMaxAge": 120,
+   "twapWindow": 1800,
+   "refBandBps": 200,
+   "continuityBps": 1500
+  },
+  {
+   "symbol": "NVDA",
+   "kind": "stock",
+   "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+   "stockAsset": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+   "twapPool": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+   "pythId": "b1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593",
+   "maxAgeInSession": 93600,
+   "group": 0,
+   "volFloorBps": 2000,
+   "volCeilingBps": 15000,
+   "multiplierEmbedded": true,
+   "pythMultiplierEmbedded": false,
+   "maxAgeClosed": 432000,
+   "refMaxAge": 120,
+   "twapWindow": 1800,
+   "refBandBps": 200,
+   "continuityBps": 1500
+  },
+  {
+   "symbol": "TSLA",
+   "kind": "stock",
+   "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
+   "stockAsset": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+   "twapPool": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",
+   "pythId": "16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1",
+   "maxAgeInSession": 93600,
+   "group": 0,
+   "volFloorBps": 2000,
+   "volCeilingBps": 15000,
+   "multiplierEmbedded": true,
+   "pythMultiplierEmbedded": false,
+   "maxAgeClosed": 432000,
+   "refMaxAge": 120,
+   "twapWindow": 1800,
+   "refBandBps": 200,
+   "continuityBps": 1500
+  },
+  {
+   "symbol": "SPY",
+   "kind": "stock",
+   "feed": "0x319724394D3A0e3669269846abE664Cd621f9f6A",
+   "stockAsset": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+   "twapPool": "0xa7Bb1AC63BBaB0C44316E6c8C455213441689167",
+   "pythId": "19e09bb805456ada3979a7d1cbb4b6d63babc3a0f8e8a9509f68afa5c4c11cd5",
+   "maxAgeInSession": 367200,
+   "group": 1,
+   "volFloorBps": 1500,
+   "volCeilingBps": 4000,
+   "multiplierEmbedded": true,
+   "pythMultiplierEmbedded": false,
+   "maxAgeClosed": 432000,
+   "refMaxAge": 120,
+   "twapWindow": 1800,
+   "refBandBps": 200,
+   "continuityBps": 1500
+  }
+ ],
+ "gears": [
+  {
+   "marketA": "ETH",
+   "marketB": "",
+   "gear": "CRUISE",
+   "capUsd": 5000000,
+   "spreadBps": 40,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "ETH",
+   "marketB": "",
+   "gear": "SPORT",
+   "capUsd": 5000000,
+   "spreadBps": 40,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "BTC",
+   "marketB": "",
+   "gear": "CRUISE",
+   "capUsd": 5000000,
+   "spreadBps": 40,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "BTC",
+   "marketB": "",
+   "gear": "SPORT",
+   "capUsd": 5000000,
+   "spreadBps": 40,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "NVDA",
+   "marketB": "",
+   "gear": "CRUISE",
+   "capUsd": 1000000,
+   "spreadBps": 60,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "NVDA",
+   "marketB": "",
+   "gear": "SPORT",
+   "capUsd": 1000000,
+   "spreadBps": 60,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "TSLA",
+   "marketB": "",
+   "gear": "CRUISE",
+   "capUsd": 1000000,
+   "spreadBps": 60,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "TSLA",
+   "marketB": "",
+   "gear": "SPORT",
+   "capUsd": 1000000,
+   "spreadBps": 60,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "SPY",
+   "marketB": "",
+   "gear": "CRUISE",
+   "capUsd": 2000000,
+   "spreadBps": 50,
+   "unitUsd": 1
+  },
+  {
+   "marketA": "SPY",
+   "marketB": "",
+   "gear": "SPORT",
+   "capUsd": 2000000,
+   "spreadBps": 50,
+   "unitUsd": 1
+  }
+ ],
+ "pythIdNote": "pythId is the 32-byte Pyth price id without its 0x prefix (the loader adds it)",
+ "stockAssetNote": "stockAsset is the market's Stock Token address (0x0 for 24/7 crypto)"
+}

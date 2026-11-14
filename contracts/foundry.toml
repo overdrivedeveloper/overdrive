@@ -15,7 +15,7 @@ cbor_metadata = true
 # within 60 s) instead of failing.
 fork_retries = 30
 fork_retry_backoff = 5000
-fs_permissions = [{ access = "read", path = "./" }, { access = "read-write", path = "./out" }, { access = "read-write", path = "../app/deployments" }]
+fs_permissions = [{ access = "read", path = "./" }, { access = "read-write", path = "./out" }, { access = "read-write", path = "../app/deployments" }, { access = "read-write", path = "../.audit-grade" }, { access = "read-write", path = "../.batches" }]
 
 [invariant]
 runs = 64

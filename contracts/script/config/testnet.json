@@ -1,0 +1,46 @@
+{
+ "network": "testnet",
+ "chainId": 46630,
+ "minDelaySec": 172800,
+ "source": "docs/research/feeds.json 2026-11-13 survey (copied; no docs path is read at run time)",
+ "roles": {
+  "ownerSafe": "0x0000000000000000000000000000000000000000",
+  "guardianSafe": "0x0000000000000000000000000000000000000000",
+  "keeper": "0x0000000000000000000000000000000000000000",
+  "hedger": "0x0000000000000000000000000000000000000000",
+  "volSigner": "0x0000000000000000000000000000000000000000",
+  "paymasterSigner": "0x0000000000000000000000000000000000000000",
+  "treasury": "0x0000000000000000000000000000000000000000"
+ },
+ "external": {
+  "usdg": "0x0000000000000000000000000000000000000000",
+  "poolManager": "0x0000000000000000000000000000000000000000",
+  "stateView": "0x0000000000000000000000000000000000000000",
+  "v4Quoter": "0x0000000000000000000000000000000000000000",
+  "pythCore": "0x0000000000000000000000000000000000000000",
+  "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "v3Factory": "0x0000000000000000000000000000000000000000",
+  "createX": "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed",
+  "ovrd": "0x0000000000000000000000000000000000000000"
+ },
+ "dev": {
+  "usdg": true,
+  "ovrd": true,
+  "poolManager": false
+ },
+ "paymaster": {
+  "maxCostPerOpWei": "10000000000000000",
+  "accountDailyCapWei": "50000000000000000",
+  "globalDailyCapWei": "1000000000000000000"
+ },
+ "hookSeed": {
+  "usdgPerGear": "500000000",
+  "gearWadPerGear": "1000000000000000000",
+  "approvedByOwner": false,
+  "note": "D26 small hook seed per launch gear, held by the owner Safe as ERC-6909; figures need the owner's approval"
+ },
+ "markets": [],
+ "gears": [],
+ "stockAssetNote": "stockAsset is the market's Stock Token address (0x0 for 24/7 crypto)"
+}
