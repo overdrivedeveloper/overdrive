@@ -56,7 +56,7 @@ The cores are non-upgradeable. Admin actions go through a 48 hour timelock; the 
 
 ### Deployment
 
-Not deployed yet. No addresses are published. This section will list them from `app/deployments/<chain>.json` once the contracts are live. See Deploy below for the order.
+Not deployed yet. No addresses are published. This section will list them from `app/deployments/<chain>.json` once the contracts are live.
 
 ### Actors and roles
 
