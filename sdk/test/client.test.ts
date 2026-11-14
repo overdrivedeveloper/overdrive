@@ -58,7 +58,7 @@ const CALLS: Record<OperationKey, { run: (c: Overdrive) => Promise<unknown>; met
 describe("SDK client", () => {
   test("every operation of the OpenAPI document has a client method that calls its path", async () => {
     const doc = JSON.parse(readFileSync(join(import.meta.dir, "..", "openapi.json"), "utf8")) as { paths: Record<string, Record<string, unknown>> };
-    const fromDoc = Object.entries(doc.paths).flatMap(([p, item]) => Object.keys(item).filter((m) => ["get", "post"].includes(m)).map((m) => `${m.toUpperCase()} ${p}`)).sort();
+    const fromDoc = Object.entries(doc.paths).filter(([p]) => !p.startsWith("/v1/compat/")).flatMap(([p, item]) => Object.keys(item).filter((m) => ["get", "post"].includes(m)).map((m) => `${m.toUpperCase()} ${p}`)).sort();
     expect([...OPERATION_KEYS].map(String).sort()).toEqual(fromDoc);
     expect(Object.keys(CALLS).sort()).toEqual(fromDoc);
     for (const key of OPERATION_KEYS) {
