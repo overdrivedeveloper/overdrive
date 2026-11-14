@@ -70,6 +70,13 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | 35 | Under a stale hedge a claim with no minimum reverts, and a claim with a minimum never pays above the hedge-free low edge | `audit/StaleHedgeClaim.t.sol : testFuzz_L6_StaleClaimNeverAboveHedgeFree`; example: `test_L6_StaleHedgeClaimWithExplicitMin` |
 | 36 | The registry lists at most `MAX_GEARS` (32) gears, and at that cap `pokeRisk`, an LP deposit and a claim each stay under 10M gas on the chain fork | `gear/Registry.t.sol : test_L1_TotalGearCap`; `fork/GearCountGasFork.t.sol : test_GasPerBuyVsGearCount` (example-based) |
 
+## Fix round 3 properties
+
+| # | Invariant | Checked by (file : function) |
+| --- | --- | --- |
+| 37 | With an independent move per leg (each inside the lag band, any signs, any band from 1 to 300 bps), a round trip never profits, for single and pair gears, on the minter, the backer and the hook | `audit/TwoLegLagRoundTrip.t.sol : testFuzz_TwoLeg_MinterNeverProfits`, `testFuzz_TwoLeg_BackerNeverProfits`, `testFuzz_TwoLeg_HookNeverProfits`; examples: `test_TwoLeg_PairCorners`, `test_TwoLeg_BackerPairCorners`, `test_TwoLeg_HookPairCorners`, `poc/Rescore2PairLag.t.sol : test_PoC_PairBothLegsInsideBandLoses` |
+| 38 | Unabsorbed transit up to `TRANSIT_DUST` (1 USDG) never makes `hedgeStale()` true and never passes its age to a later send; transit above it still ages | `poc/Rescore2Transit.t.sol : test_PoC_TransitDustDoesNotStaleFreshHedge`, `test_L8_LaterSendAgesFromItsOwnTime`, `test_L8_AboveDustStillAges`, `test_L8_SubDustSendsAddUp` (example-based) |
+
 ## Known gaps
 
 - ODFees, ODInsurance and the minter sell queue hold funds but have no stateful invariant suite yet (fuzz and example tests only).
