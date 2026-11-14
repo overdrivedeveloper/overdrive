@@ -78,6 +78,32 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | 38 | Unabsorbed transit up to `TRANSIT_DUST` (1 USDG) never makes `hedgeStale()` true and never passes its age to a later send; transit above it still ages | `poc/Rescore2Transit.t.sol : test_PoC_TransitDustDoesNotStaleFreshHedge`, `test_L8_LaterSendAgesFromItsOwnTime`, `test_L8_AboveDustStillAges`, `test_L8_SubDustSendsAddUp` (example-based) |
 | 39 | After `ODFees.distribute`, the fee contract's USDG balance covers pending plus held, including when the Governor settles owed fees back during its own payout | `poc/FeeDoubleBook.t.sol : test_F12_1_DistributeNeverBooksMoreThanHeld` (example-based) |
 
+## Whole-system properties (invariant suite)
+
+One handler drives the real oracle guard, vol oracle, registry and gear tokens, Governor, insurance, ODFees, minter,
+backer (real seal and execute), a local v4 PoolManager with ODHook, and a 48 hour TimelockController, across 26
+actions and 16 actors (`test/invariant/SystemHandler.sol`, ghosts in `Ghosts.sol`). `invariant_AllSystem` checks S1
+to S13 in one long campaign; the deep run is `bash contracts/script/ci/deep-invariants.sh` (250 runs, 50,000 calls).
+
+| # | Invariant | Checked by (file : function) |
+| --- | --- | --- |
+| S1 | A holder sell of value at most the exit reserve, with the reserve at or above its floor and both prices present, never ends in UseQueue | `invariant/SystemInvariant.t.sol : invariant_HoldersExitAboveFloor` |
+| S2 | Liquidations never touch holders: holder balances move only by the holder's own trades and queue actions | `invariant/SystemInvariant.t.sol : invariant_HolderBalancesOnlyOwnActions` |
+| S3 | Quote equals execution for direct and hook buys and sells in the same state (refusal and queued flag included); the hook quote equals the executed swap | `invariant/SystemInvariant.t.sol : invariant_QuoteEqualsExecution` |
+| S4 | Exits are never gated: sell (only UseQueue or BelowMinimum), owner queue cancel, backer token repay, backer deposit, Governor claim (only HedgeStale) | `invariant/SystemInvariant.t.sol : invariant_ExitsNeverGatedByPauses` |
+| S5 | Books covered: Governor USDG >= trackedCash + exitReserve; backer USDG >= totalCollateral + pendingFees and totalCollateral = sum of vaults; ODFees USDG >= pending + totalHeld (strict since the F12-1 fix) | `invariant/SystemInvariant.t.sol : invariant_BooksCovered` |
+| S6 | The hook holds nothing of its own; the minter holds exactly the escrowed queue tokens and no USDG | `invariant/SystemInvariant.t.sol : invariant_HookHoldsNothing`, `invariant_MinterHoldsOnlyEscrow` |
+| S7 | backerDebt(g) = sum of vault debt for g, and netTokens(g) = supply(g) - backerDebt(g) | `invariant/SystemInvariant.t.sol : invariant_DebtAndNetConsistent` |
+| S8 | Toll NF is monotone (non-ECO never rises, ECO never falls), stays in [1e9, 1e24], and cumTollPerTokenWad never falls | `invariant/SystemInvariant.t.sol : invariant_NfMonotone` |
+| S9 | The exit reserve only falls inside a holder payout at least that size | `invariant/SystemInvariant.t.sol : invariant_ReserveOnlyPaysHolders` |
+| S10 | A USDG donation to the Governor, backer, minter, hook or ODFees changes no share price, book, vault health or quote | `invariant/SystemInvariant.t.sol : invariant_DonationsIgnored` |
+| S11 | Drawdown is measured on the Governor's own share price; peak >= now; a trip closes buys | `invariant/SystemInvariant.t.sol : invariant_DrawdownOnOwnSharePrice` |
+| S12 | The guardian only pauses; only the timelock unpauses | `invariant/SystemInvariant.t.sol : invariant_OnlyTimelockUnpauses` |
+| S13 | Fee split conserves: notified = paid out (measured) + pending + held, books move only by notify and distribute (strict since the F12-1 fix) | `invariant/SystemInvariant.t.sol : invariant_FeesConserved` |
+| S14 | Gears ever listed <= ODGearRegistry.MAX_GEARS | `invariant/SystemInvariant.t.sol : invariant_GearCountWithinGlobalCap` |
+| S15 | A low-gas executeBatch reverts and leaves the batch executable (reads the public MIN_VAULT_GAS) | `invariant/SystemInvariant.t.sol : test_ExecuteBatchGasRule_afterFixAudit2` |
+| S16 | ODFees.distribute never books more USDG than it holds when the Governor settles owed fees inside its own payout (F12-1) | `invariant/SystemInvariant.t.sol : test_Repro_FeeDoubleBookOnDistribute` |
+
 ## Known gaps
 
 - ODFees, ODInsurance and the minter sell queue hold funds but have no stateful invariant suite yet (fuzz and example tests only).
