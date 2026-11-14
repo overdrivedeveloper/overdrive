@@ -207,7 +207,7 @@ async function ingestRange(state: IndexerState, data: RangeData, head: bigint): 
   let count = 0;
   const kinds = new Set<OdEventKind>();
   await state.sql.begin(async (tx) => {
-    const context: IndexerContext = { tx, deployment: state.deployment, logger: state.logger, gearByToken: state.gearByToken, touchedBalances: new Map(), newTokens: [], kinds, snapshotNeeded: false };
+    const context: IndexerContext = { tx, deployment: state.deployment, logger: state.logger, gearByToken: state.gearByToken, touchedBalances: new Map(), newTokens: [], kinds, snapshotNeeded: false, ...(state.source.readGearParams ? { readGearParams: state.source.readGearParams.bind(state.source) } : {}) };
     let events = await decode(tx, data.logs);
     for (let pass = 0; ; pass++) {
       state.skipped += await handleEvents(context, events);

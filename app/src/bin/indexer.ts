@@ -41,7 +41,7 @@ try {
 
 const state = await createIndexerState({
   settings: { confirmations: config.INDEXER_CONFIRMATIONS, catchupConcurrency: config.INDEXER_CATCHUP_CONCURRENCY, snapshotHeartbeatMs: config.INDEXER_SNAPSHOT_HEARTBEAT_MS },
-  source: createRpcChainSource(clients),
+  source: createRpcChainSource(clients, deployment),
   reader: createChainReader(clients, deployment),
   sql,
   logger,

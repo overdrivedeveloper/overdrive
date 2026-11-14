@@ -47,6 +47,15 @@ export class FakeChain implements ChainSource {
   salt = 0;
   failLogs: ((range: LogRange) => Error | undefined) | undefined;
   logCalls: LogRange[] = [];
+  /** Registry params by gear id, served by readGearParams (a mocked chain read). Unset: the read fails like an unreachable node. */
+  gearParams = new Map<string, { capUsdWad: bigint; spreadBps: number }>();
+  paramReads: { gearId: string; block: bigint }[] = [];
+  async readGearParams(gearId: Hex, block: bigint) {
+    this.paramReads.push({ gearId, block });
+    const params = this.gearParams.get(gearId);
+    if (!params) throw new Error("rpc unreachable");
+    return params;
+  }
   constructor() { this.blocks.push(this.make(0n, "0x" + "00".repeat(32), [])); }
   private make(number: bigint, parentHash: string, logs: RpcLog[]): FakeBlock {
     return { number, parentHash, hash: keccak256(toHex(`${number}:${parentHash}:${this.salt}:${logs.map((l) => l.data + l.topics.join()).join()}`)), timestamp: new Date(1_700_000_000_000 + Number(number) * 12_000), logs };

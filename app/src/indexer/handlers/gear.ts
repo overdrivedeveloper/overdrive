@@ -20,8 +20,13 @@ export async function handleRegistryEvent(context: IndexerContext, event: ChainE
   if (event.eventName === "GearListed") {
     const marketB = id32(event, "marketB");
     const token = addr(event, "token");
+    // GearListed has no cap or spread and listGear emits no GearParamsSet: read them from the registry (P01).
+    // A failed read keeps the configured defaults; later GearParamsSet events overwrite in order.
+    let params: { capUsdWad: bigint; spreadBps: number } | undefined;
+    try { params = await context.readGearParams?.(id as `0x${string}`, event.blockNumber); } catch (error) { context.logger.warn({ err: error, gear: id }, "gear params read failed at listing"); }
     await change(context, event, "gear", id, "listed", {
       marketA: id32(event, "marketA"), marketB: marketB === ZERO_BYTES32 ? null : marketB, gear: asNumber(event.args.gear), token, unitWad: big(event, "unitWad"),
+      ...(params ? { capUsdWad: params.capUsdWad.toString(), spreadBps: params.spreadBps } : {}),
     });
     context.gearByToken.set(token, id);
     context.newTokens.push(token);

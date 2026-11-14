@@ -1,5 +1,7 @@
 import type { Address, Hex } from "viem";
+import { IODGearRegistryAbi } from "../abi";
 import type { ServiceClients } from "../chain/clients";
+import type { Deployment } from "../chain/deployment";
 import type { BlockHeader, ChainSource, RpcLog } from "./types";
 import { asBigInt, blockHex, parseChainTimestamp } from "./units";
 
@@ -21,8 +23,9 @@ function parseHeader(value: unknown): BlockHeader | undefined {
 }
 
 /** Reads through the rotating RPC pool. Header and log calls never come from the pool cache, so a reorg is always visible. */
-export function createRpcChainSource(clients: ServiceClients): ChainSource {
+export function createRpcChainSource(clients: ServiceClients, deployment?: Deployment): ChainSource {
   const { pool } = clients;
+  const registry = deployment?.contracts.ODGearRegistry as Address | undefined;
   return {
     getHead: () => clients.logsClient.getBlockNumber(),
     async getLogs(range) {
@@ -41,6 +44,14 @@ export function createRpcChainSource(clients: ServiceClients): ChainSource {
       unique.forEach((number, index) => result.set(number, parseHeader(responses[index])));
       return result;
     },
+    ...(registry ? {
+      async readGearParams(gearId: Hex, block: bigint) {
+        const call = (blockNumber?: bigint) => clients.stateClient.readContract({ address: registry, abi: IODGearRegistryAbi, functionName: "gear", args: [gearId], ...(blockNumber === undefined ? {} : { blockNumber }) });
+        // a node without historical state rejects the block read: fall back to latest
+        const config = await call(block).catch(() => call());
+        return { capUsdWad: config.capUsdWad, spreadBps: Number(config.spreadBps) };
+      },
+    } : {}),
     async getTransactionInput(hash) {
       const [tx] = await pool.requestBatch("logs", [{ method: "eth_getTransactionByHash", params: [hash] }]);
       const input = (tx as { input?: unknown } | null | undefined)?.input;

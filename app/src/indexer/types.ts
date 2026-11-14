@@ -47,6 +47,11 @@ export interface ChainSource {
   /** Headers by number. A block the node does not have comes back as undefined. */
   getHeaders(numbers: readonly bigint[]): Promise<ReadonlyMap<bigint, BlockHeader | undefined>>;
   getTransactionInput(hash: string): Promise<Hex | undefined>;
+  /**
+   * The gear's current cap and spread from the registry, read at `block` when the node can serve that state, else at latest.
+   * GearListed carries neither value, so the indexer asks the chain. Optional: a source without it leaves the configured defaults.
+   */
+  readGearParams?(gearId: Hex, block: bigint): Promise<{ readonly capUsdWad: bigint; readonly spreadBps: number } | undefined>;
 }
 
 export interface IndexerContext {
@@ -59,6 +64,8 @@ export interface IndexerContext {
   readonly touchedBalances: Map<string, { token: string; account: string }>;
   /** Gear tokens listed in this batch: they are watched from the next range on. */
   readonly newTokens: string[];
+  /** Reads a listed gear's cap and spread from the chain (see ChainSource.readGearParams). */
+  readonly readGearParams?: ChainSource["readGearParams"];
   readonly kinds: Set<"trade" | "oracle" | "snapshot" | "liquidation" | "config">;
   /** A trade, accrual or book change happened: the ledger must be re-snapshotted. */
   snapshotNeeded: boolean;

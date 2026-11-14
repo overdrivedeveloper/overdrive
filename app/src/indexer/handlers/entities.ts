@@ -31,7 +31,7 @@ export async function applyEntity(tx: TransactionSql, deployment: Deployment, ch
       await tx`
         INSERT INTO gears (id, market_a, market_b, underlying, underlying_b, power, power_wad, token, cap_usd, spread_bps, status, listed_block, listed_at)
         VALUES (${ref}, ${marketA}, ${marketB}, ${symbolA}, ${symbolB}, ${GEAR_POWER_TEXT[index] ?? "1"}, ${(GEAR_POWER_WAD[index] ?? 0n).toString()},
-                ${str(data, "token")}, ${configured?.capUsd ?? "0"}, ${configured?.spreadBps ?? 0}, 'active', ${block}, ${ts})
+                ${str(data, "token")}, ${data.capUsdWad === undefined ? (configured?.capUsd ?? "0") : wadToUsdg(BigInt(str(data, "capUsdWad"))).toString()}, ${data.spreadBps === undefined ? (configured?.spreadBps ?? 0) : asNumber(data.spreadBps)}, 'active', ${block}, ${ts})
         ON CONFLICT (id) DO NOTHING`;
     } else if (kind === "params") {
       await tx`UPDATE gears SET cap_usd = ${wadToUsdg(BigInt(str(data, "capUsdWad"))).toString()}, spread_bps = ${asNumber(data.spreadBps)} WHERE id = ${ref}`;

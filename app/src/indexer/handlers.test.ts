@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { Abi } from "viem";
-import { IODBackerAbi, IODOracleGuardAbi } from "../abi";
+import { IODBackerAbi, IODGearRegistryAbi, IODOracleGuardAbi } from "../abi";
 import { applyMigrations, createTestDatabase, testDatabaseUrl, type TestDatabase } from "../testing/db";
 import { accrued, addressOf, bought, collateralMoved, drain, ev, FakeChain, feeNotified, GEAR_1, GEAR_2, listGear, MARKET_TSLA, newState, queueFilled, resetDb, sellQueued, STOCK_TSLA, TOKEN_1, TOKEN_2, transfer, testDeployment, USERS, vaultMinted, vaultOpened, volPosted, ZERO } from "./test-support";
 
@@ -25,6 +25,31 @@ suite("handlers", () => {
     expect(gear.nf).toBe(latest.nf);
     expect(gear.nf).toBe("997000000000000000");
     expect(new Date(gear.last_accrual).getTime()).toBe(new Date(latest.ts).getTime());
+  });
+
+  test("listing_reads_cap_and_spread_from_chain_then_params_event_overwrites", async () => {
+    await resetDb(db.sql);
+    const chain = new FakeChain();
+    chain.gearParams.set(GEAR_1, { capUsdWad: 5_000_000n * 10n ** 18n, spreadBps: 25 });
+    chain.add([listGear(d, GEAR_1, MARKET_TSLA, TOKEN_1)]);
+    await drain(await newState(db.sql, chain));
+    expect(chain.paramReads).toEqual([{ gearId: GEAR_1, block: 1n }]);
+    const listed = (await db.sql`SELECT cap_usd, spread_bps FROM gears`)[0]!;
+    expect(listed.cap_usd).toBe("5000000000000");
+    expect(listed.spread_bps).toBe(25);
+    chain.add([ev(addressOf(d, "ODGearRegistry"), IODGearRegistryAbi as Abi, "GearParamsSet", { id: GEAR_1, capUsdWad: 7n * 10n ** 18n, spreadBps: 40 })]);
+    await drain(await newState(db.sql, chain));
+    const after = (await db.sql`SELECT cap_usd, spread_bps FROM gears`)[0]!;
+    expect(after.cap_usd).toBe("7000000");
+    expect(after.spread_bps).toBe(40);
+  });
+
+  test("listing_survives_a_failed_params_read", async () => {
+    await resetDb(db.sql);
+    const chain = new FakeChain();
+    chain.add([listGear(d, GEAR_1, MARKET_TSLA, TOKEN_1)]);
+    await drain(await newState(db.sql, chain));
+    expect((await db.sql`SELECT 1 FROM gears`).length).toBe(1);
   });
 
   test("split_event_recorded_with_effective_time", async () => {
