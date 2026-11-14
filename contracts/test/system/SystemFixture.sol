@@ -71,7 +71,7 @@ abstract contract SystemFixture is ODTest {
     function setUp() public virtual {
         vm.warp(T0);
         (volSigner, volKey) = makeAddrAndKey("volSigner");
-        usdg = new MockUSDG();
+        usdg = _newUsdg();
         cal = new MockKindCalendar(Session.OPEN);
         pyth = new MockPyth();
         aggImpl = address(new MockAggregatorImpl());
@@ -140,6 +140,11 @@ abstract contract SystemFixture is ODTest {
     /// The address wired as the Governor's backer. The backer suites override it with a real ODBacker.
     function _deployBacker() internal virtual returns (address) {
         return makeAddr("backer");
+    }
+
+    /// The USDG mock; a test may return a variant (e.g. a reentrant one).
+    function _newUsdg() internal virtual returns (MockUSDG) {
+        return new MockUSDG();
     }
 
     function _lpDeposit() internal view virtual returns (uint256) {

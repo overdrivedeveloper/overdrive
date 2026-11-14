@@ -30,7 +30,7 @@ contract MockUSDG is ERC20, ERC20Permit {
         blocked[account] = v;
     }
 
-    function _update(address from, address to, uint256 value) internal override {
+    function _update(address from, address to, uint256 value) internal virtual override {
         if (paused) revert TokenPaused();
         if (blocked[from]) revert AccountBlocked(from);
         if (blocked[to]) revert AccountBlocked(to);
