@@ -1,0 +1,28 @@
+{
+ "about": "Fork stack overlay on contracts/script/config/fork.json (see README.md). Roles name anvil dev account parts from scripts/fork/lib.ts ROLE_INDEX.",
+ "baseConfig": "contracts/script/config/fork.json",
+ "roles": {
+  "ownerSafe": "owner",
+  "guardianSafe": "guardian",
+  "keeper": "crank",
+  "hedger": "hedger",
+  "volSigner": "volSigner",
+  "paymasterSigner": "paymasterSigner",
+  "treasury": "treasury"
+ },
+ "usdgHolder": "0x6bEbb110c9BB93D529d1EAB51D44bcf49ae585D5",
+ "relaxations": {
+  "feedMaxAgeSec": 2592000,
+  "feedMaxAgeClosedSec": 1209600,
+  "refBandBps": 2000,
+  "refMaxAgeSec": 86400
+ },
+ "warm": {
+  "codeOnly": [
+   "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+   "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+   "0xcA11bde05977b3631167028862bE2a173976CA11",
+   "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed"
+  ]
+ }
+}

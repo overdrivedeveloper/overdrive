@@ -1,0 +1,330 @@
+// Fork stack setup, called by up.sh (fork only; every write goes to the local anvil node).
+//   bun scripts/fork/setup.ts --keystores          throwaway keystores for the signing roles in $FORK_DIR/keys (mode 600)
+//   bun scripts/fork/setup.ts --config             $FORK_DIR/deploy-config.json: contracts/script/config/fork.json with the
+//                                                  roles moved to anvil dev accounts (config/deploy.fork.json)
+//   bun scripts/fork/setup.ts --clear-delegations  removes EIP-7702 delegation code from every anvil dev account (R4)
+//   bun scripts/fork/setup.ts --relax              applies RELAXATIONS through the timelock (R5), once per deployment
+//   bun scripts/fork/setup.ts --list-gears         runs deploy-fork.sh's list-gears Safe batch for real: the owner (anvil
+//                                                  account 1 = ownerSafe) schedules it on the timelock, the clock moves
+//                                                  past minDelay, the owner executes it. Once per deployment.
+//   bun scripts/fork/setup.ts --env                one env file per service in $FORK_DIR/env (keystore form, R7)
+//
+// Fork-only relaxations (this list and the fork report; never in DeploySystem or deploy-fork.sh). Each is sent by the
+// TimelockController itself through anvil impersonation, the same path a scheduled timelock call takes:
+//   R5.1 ODOracleGuard maxAgeOpen and maxAgeExtended = 30 days for every market: the fork never sees a new Chainlink print,
+//        so after any warp the real feeds would age past the production bound and every market would read HALTED.
+//   R5.2 ODOracleGuard maxAgeClosed = 14 days (the contract maximum): same reason, for closed-session reads.
+//   R5.3 ODOracleGuard refBandBps = 2000 (the contract maximum) and refMaxAge = 1 day (the maximum): feeds, Pyth and pools
+//        are frozen at the fork block, so a gap the live market closes in minutes would pause buys for the whole run.
+//   R5.4 Pyth Core (external, not ours) answers from MockPyth code put at its address with anvil_setCode, priced from each
+//        market's Chainlink feed with publishTime = the fork clock (refreshed by warp.ts and `setup.ts --refresh-pyth`).
+//        The real Pyth Core holds prices days old and can only be updated with signed Hermes updates (an API key), so
+//        every market would read REF_UNAVAILABLE and the list-gears batch reverts MarketNotReady (seen 2026-11-14).
+// The freshness, halted and band paths are still exercised in 22b with a mock feed swapped in for one market.
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { getAddress, type Address, type Hex } from "viem";
+import { IODOracleGuardAbi } from "@/abi/IODOracleGuard";
+import { warpTarget } from "./warp";
+import {
+  addressOf, ANVIL_URL, anvilAccounts, API_URL, asTimelock, assertFork, DATABASE_URL, DEPLOYMENT_FILE, encryptKeystore, FORK_DIR,
+  forkClients, keyOf, loadDeployment, loadForkConfig, PORTS, ROOT, runOnce, walletFor, type Role,
+} from "./lib";
+
+export interface Relaxation { id: string; contract: string; what: string; why: string }
+export const RELAXATIONS: readonly Relaxation[] = [
+  { id: "R5.1", contract: "ODOracleGuard", what: "maxAgeOpen and maxAgeExtended = 30 days, every market", why: "real feeds are frozen at the fork block; warps would read HALTED" },
+  { id: "R5.2", contract: "ODOracleGuard", what: "maxAgeClosed = 14 days (contract maximum), every market", why: "closed-session reads after warps" },
+  { id: "R5.3", contract: "ODOracleGuard", what: "refBandBps = 2000 and refMaxAge = 1 day (contract maxima), every market", why: "feed, Pyth and pools frozen at different prices" },
+  { id: "R5.4", contract: "Pyth Core (external)", what: "MockPyth code at the Pyth Core address, priced from the Chainlink feed, publishTime = fork clock", why: "real Pyth prices are days old; updates need signed Hermes data" },
+];
+
+const feedAbi = [
+  { type: "function", name: "latestRoundData", stateMutability: "view", inputs: [], outputs: [{ type: "uint80" }, { type: "int256" }, { type: "uint256" }, { type: "uint256" }, { type: "uint80" }] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+] as const;
+const stockAbi = [{ type: "function", name: "uiMultiplier", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }] as const;
+const mockPythAbi = [
+  { type: "function", name: "setPrice", stateMutability: "nonpayable", inputs: [{ type: "bytes32" }, { type: "int64" }, { type: "uint64" }, { type: "int32" }, { type: "uint256" }], outputs: [] },
+] as const;
+
+/** Pyth price (raw, expo = -feed decimals) matching a Chainlink answer; divides out the Stock Token multiplier when the
+ * guard multiplies Pyth by it (pythMultiplierEmbedded false on a stock market). Pure, tested. */
+export function pythFromFeed(answer: bigint, multiplierWad: bigint | undefined): bigint {
+  return multiplierWad && multiplierWad > 0n ? (answer * 10n ** 18n) / multiplierWad : answer;
+}
+
+function mockPythCode(): Hex {
+  const p = Bun.spawnSync([join(process.env.HOME ?? "", ".foundry/bin/forge"), "inspect", "test/mocks/MockPyth.sol:MockPyth", "deployedBytecode"], { cwd: join(ROOT, "contracts"), stdout: "pipe", stderr: "pipe" });
+  const out = p.stdout.toString().trim().split("\n").pop() ?? "";
+  if (p.exitCode !== 0 || !/^0x[0-9a-fA-F]+$/.test(out)) throw new Error(`forge inspect MockPyth failed: ${p.stderr.toString().slice(-400)}`);
+  return out as Hex;
+}
+
+/** R5.4: MockPyth code at the Pyth Core address (once), then a fresh price per market from its Chainlink feed. */
+export async function refreshPyth(): Promise<number> {
+  const { pub, test } = await assertFork();
+  const dep = loadDeployment();
+  const pyth = getAddress(dep.external.pythCore ?? "");
+  const guard = getAddress(dep.contracts.ODOracleGuard ?? "");
+  const marker = join(FORK_DIR, "mock-pyth.code");
+  if (!existsSync(marker)) writeFileSync(marker, mockPythCode());
+  const code = readFileSync(marker, "utf8").trim() as Hex;
+  if ((await pub.getCode({ address: pyth }))?.toLowerCase() !== code.toLowerCase()) await test.setCode({ address: pyth, bytecode: code });
+  const now = (await pub.getBlock()).timestamp;
+  const wallet = walletFor("spare1");
+  let n = 0;
+  for (const m of dep.markets) {
+    const cfg = (await pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "config", args: [marketId(m.symbol)] })) as unknown as MarketCfg;
+    if (/^0x0+$/.test(cfg.pythId)) continue;
+    const [, answer] = await pub.readContract({ address: cfg.feed, abi: feedAbi, functionName: "latestRoundData" });
+    const dec = await pub.readContract({ address: cfg.feed, abi: feedAbi, functionName: "decimals" });
+    const stock = cfg.stockToken !== "0x0000000000000000000000000000000000000000" && !cfg.pythMultiplierEmbedded;
+    const mult = stock ? await pub.readContract({ address: cfg.stockToken, abi: stockAbi, functionName: "uiMultiplier" }) : undefined;
+    const hash = await wallet.writeContract({
+      address: pyth, abi: mockPythAbi, functionName: "setPrice", args: [cfg.pythId, pythFromFeed(answer, mult), 0n, -Number(dec), now], chain: null, account: wallet.account!,
+    });
+    if ((await pub.waitForTransactionReceipt({ hash })).status !== "success") throw new Error(`mock Pyth ${m.symbol}: ${hash} reverted`);
+    n++;
+  }
+  return n;
+}
+
+/** Roles that sign in the services or the deploy, each with a throwaway keystore (prefix = keys.ts env prefix). */
+export const SIGNING_ROLES: readonly { role: Role; prefix: string }[] = [
+  { role: "deployer", prefix: "DEPLOYER" }, { role: "crank", prefix: "CRANK" }, { role: "hedger", prefix: "HEDGER" },
+  { role: "liquidator", prefix: "LIQUIDATOR" }, { role: "volSigner", prefix: "VOL_SIGNER" }, { role: "volSender", prefix: "VOL_SENDER" },
+  { role: "paymasterSigner", prefix: "PAYMASTER_SIGNER" }, { role: "agent", prefix: "AGENT" },
+];
+export const keystorePath = (role: Role) => join(FORK_DIR, "keys", `${role}.json`);
+export const passwordFile = () => join(FORK_DIR, "keys", "password");
+
+export function writeKeystores(): number {
+  mkdirSync(join(FORK_DIR, "keys"), { recursive: true, mode: 0o700 });
+  if (!existsSync(passwordFile())) writeFileSync(passwordFile(), randomBytes(24).toString("hex"), { mode: 0o600 });
+  const pw = readFileSync(passwordFile(), "utf8").trim();
+  let made = 0;
+  for (const { role } of SIGNING_ROLES) {
+    const file = keystorePath(role);
+    const want = addressOf(role).slice(2).toLowerCase();
+    if (existsSync(file) && (JSON.parse(readFileSync(file, "utf8")) as { address: string }).address === want) continue;
+    writeFileSync(file, encryptKeystore(keyOf(role), pw), { mode: 0o600 });
+    made++;
+  }
+  return made;
+}
+
+/** contracts/script/config/fork.json with every role moved to the anvil dev account config/deploy.fork.json names. */
+export function forkDeployConfig(base: Record<string, unknown>, roleMap: Record<string, Role>, addr: (r: Role) => Address): Record<string, unknown> {
+  const roles = { ...(base.roles as Record<string, string>) };
+  for (const [k, role] of Object.entries(roleMap)) {
+    if (!(k in roles)) throw new Error(`deploy config has no role ${k}`);
+    roles[k] = getAddress(addr(role));
+  }
+  return { ...base, roles };
+}
+
+function writeDeployConfig(): void {
+  const cfg = loadForkConfig();
+  const base = JSON.parse(readFileSync(join(ROOT, "contracts/script/config/fork.json"), "utf8")) as Record<string, unknown>;
+  writeFileSync(join(FORK_DIR, "deploy-config.json"), `${JSON.stringify(forkDeployConfig(base, cfg.roles, addressOf), null, 1)}\n`);
+  console.log(`setup: deploy config with roles on anvil dev accounts (${join(FORK_DIR, "deploy-config.json")})`);
+}
+
+export async function clearDevDelegations(): Promise<number> {
+  const { pub, test } = await assertFork();
+  let cleared = 0;
+  for (const address of anvilAccounts().available_accounts) {
+    const code = await pub.getCode({ address });
+    if (code && code !== "0x") { await test.setCode({ address, bytecode: "0x" }); cleared++; }
+  }
+  return cleared;
+}
+
+type MarketCfg = {
+  feed: Address; stockToken: Address; multiplierEmbedded: boolean; pythMultiplierEmbedded: boolean; alwaysOpen: boolean; pythId: Hex;
+  twapPool: Address; maxAgeOpen: number; maxAgeExtended: number; maxAgeClosed: number; refMaxAge: number; twapWindow: number;
+  refBandBps: number; continuityBps: number; enabled: boolean;
+};
+/** The relaxed MarketConfig for one market (pure, tested). Leaves refMaxAge alone when no Pyth id is set. */
+export function relaxedMarket(cfg: MarketCfg, r = loadForkConfig().relaxations): MarketCfg {
+  return {
+    ...cfg,
+    maxAgeOpen: Math.max(cfg.maxAgeOpen, r.feedMaxAgeSec),
+    maxAgeExtended: cfg.alwaysOpen && cfg.maxAgeExtended === 0 ? 0 : Math.max(cfg.maxAgeExtended, r.feedMaxAgeSec),
+    maxAgeClosed: Math.max(cfg.maxAgeClosed, r.feedMaxAgeClosedSec),
+    refBandBps: Math.max(cfg.refBandBps, r.refBandBps),
+    refMaxAge: /^0x0+$/.test(cfg.pythId) ? cfg.refMaxAge : Math.max(cfg.refMaxAge, r.refMaxAgeSec),
+  };
+}
+
+/** Market ids as the deployment's ODOracleGuard knows them (bytes32 of the symbol, right-padded). */
+export const marketId = (symbol: string): Hex => `0x${Buffer.from(symbol, "utf8").toString("hex").padEnd(64, "0")}` as Hex;
+
+async function relax(): Promise<void> {
+  const marker = join(FORK_DIR, "relaxations.json");
+  if (existsSync(marker)) { console.log("setup: relaxations already applied (relaxations.json)"); return; }
+  const { pub } = await assertFork();
+  const dep = loadDeployment();
+  const guard = getAddress(dep.contracts.ODOracleGuard ?? "");
+  const applied: { market: string; tx: Hex }[] = [];
+  await asTimelock(async (wallet, timelock) => {
+    for (const m of dep.markets) {
+      const id = marketId(m.symbol);
+      const cfg = (await pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "config", args: [id] })) as unknown as MarketCfg;
+      const hash = await wallet.writeContract({
+        address: guard, abi: IODOracleGuardAbi, functionName: "setMarket", args: [id, relaxedMarket(cfg) as never], chain: null, account: timelock,
+      });
+      const r = await pub.waitForTransactionReceipt({ hash });
+      if (r.status !== "success") throw new Error(`relax ${m.symbol}: ${hash} reverted`);
+      applied.push({ market: m.symbol, tx: hash });
+    }
+  });
+  writeFileSync(marker, `${JSON.stringify({ relaxations: RELAXATIONS, applied, by: "timelock (impersonated)" }, null, 1)}\n`);
+  console.log(`setup: relaxations ${RELAXATIONS.map((x) => x.id).join(", ")} applied through the timelock on ${applied.length} markets`);
+}
+
+interface SafeBatch { chainId?: string | number; transactions: { to: Address; value: string; data: Hex }[] }
+
+async function sendBatch(file: string, label: string): Promise<Hex[]> {
+  const { pub } = await assertFork();
+  const batch = JSON.parse(readFileSync(file, "utf8")) as SafeBatch;
+  const owner = walletFor("owner");
+  const hashes: Hex[] = [];
+  for (const t of batch.transactions) {
+    let hash: Hex;
+    try {
+      hash = await owner.sendTransaction({ to: getAddress(t.to), data: t.data, value: BigInt(t.value || "0"), chain: null, account: owner.account! });
+    } catch (e) {
+      // TimelockUnexpectedOperationState: the operation was scheduled by an earlier, interrupted run.
+      if (label.startsWith("schedule") && String((e as Error).message).includes("0x5ead8eb5")) { console.log(`setup: ${label} already scheduled`); continue; }
+      throw e;
+    }
+    const r = await pub.waitForTransactionReceipt({ hash });
+    if (r.status !== "success") throw new Error(`${label}: ${hash} reverted`);
+    hashes.push(hash);
+  }
+  return hashes;
+}
+
+/** One crank pass of `jobs` through its production entry point; retried for up to `timeoutMs` while the job reports an
+ * error (on the fork the crank waits for the indexer's chain-time snapshot, so the indexer must be running). */
+export async function crankPass(jobs: string, timeoutMs = 120_000): Promise<string> {
+  let last = "";
+  for (const end = Date.now() + timeoutMs; Date.now() < end; await Bun.sleep(3000)) {
+    const r = runOnce("crank", { CRANK_ENABLED_JOBS: jobs });
+    last = r.output;
+    if (r.ok && !/"error":/.test(r.output)) return r.output;
+  }
+  throw new Error(`crank pass (${jobs}) kept failing:\n${last.slice(-1500)}`);
+}
+
+/** Moves the clock at least `minSec`, then to the first US regular session (+10 min) that ODMarketHours reports OPEN for
+ * a stock market (holidays are skipped by asking the contract, not a calendar). Returns the new timestamp. */
+export async function warpToOpenSession(minSec = 0): Promise<number> {
+  const { pub, test } = await assertFork();
+  const dep = loadDeployment();
+  const guard = getAddress(dep.contracts.ODOracleGuard ?? "");
+  const stock = dep.markets.find((m) => m.kind === "stock");
+  let from = Number((await pub.getBlock()).timestamp) + minSec;
+  for (let i = 0; i < 10; i++) {
+    const now = Number((await pub.getBlock()).timestamp);
+    const target = warpTarget(from, "to-next-open") + 600;
+    await test.increaseTime({ seconds: target - now });
+    await test.mine({ blocks: 1 });
+    if (!stock) return target;
+    const r = (await pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "read", args: [marketId(stock.symbol)] })) as { session: number };
+    if (r.session === SESSION_OPEN) return target;
+    from = target + 3600;
+  }
+  throw new Error("no open session found within 10 tries");
+}
+export const SESSION_OPEN = 0; // ODTypes Session.OPEN
+
+async function listGears(): Promise<void> {
+  const marker = join(FORK_DIR, "gears-listed.json");
+  if (existsSync(marker)) { console.log("setup: list-gears skip (gears-listed.json)"); return; }
+  const schedule = join(ROOT, ".batches", "fork-list-gears.json");
+  const execute = join(ROOT, ".batches", "fork-list-gears.execute.json");
+  if (!existsSync(schedule)) { console.log("setup: list-gears skip (no batch: every gear listed)"); return; }
+  const { pub, test } = await assertFork();
+  const dep = loadDeployment();
+  if (getAddress(dep.admin.ownerSafe) !== addressOf("owner")) throw new Error("ownerSafe is not anvil account 1; was the deploy config remapped?");
+  const scheduled = await sendBatch(schedule, "schedule list-gears");
+  // Past minDelay, then on to the next US regular session (+10 min): a stock market lists only from a live price, and a
+  // closed-session read has no last good price on a fresh deployment.
+  await test.increaseTime({ seconds: Number(dep.admin.minDelaySec) + 1 });
+  await test.mine({ blocks: 1 });
+  // The crank pushes the US session calendar (ODMarketHours is keeper-fed); one pass of its sessions job, then the clock
+  // goes to a session the contract calls OPEN.
+  await crankPass("sessions");
+  const target = await warpToOpenSession();
+  await refreshPyth();
+  const executed = await sendBatch(execute, "execute list-gears");
+  writeFileSync(marker, `${JSON.stringify({ scheduled, executed, clockAt: new Date(target * 1000).toISOString() }, null, 1)}\n`);
+  console.log(`setup: list-gears scheduled and executed through the timelock (${scheduled.length}+${executed.length} txs, clock now ${new Date(target * 1000).toISOString()})`);
+}
+
+export function envText(vars: Record<string, string | number>): string {
+  return `${Object.entries(vars).map(([k, v]) => `${k}=${/[\s"'$`\\]/.test(String(v)) ? JSON.stringify(String(v)) : v}`).join("\n")}\n`;
+}
+
+function existingMcpToken(): string | undefined {
+  const file = join(FORK_DIR, "env", "mcp.env");
+  if (!existsSync(file)) return undefined;
+  return /^MCP_HTTP_TOKEN=([0-9a-f]{32})$/m.exec(readFileSync(file, "utf8"))?.[1];
+}
+
+const keyVars = (role: Role, prefix: string) => ({ [`${prefix}_KEYSTORE`]: keystorePath(role), [`${prefix}_KEYSTORE_PASSWORD_FILE`]: passwordFile() });
+
+/** One env file per service, in the production shape (keystores, no raw keys), pointed at the fork only. */
+export function serviceEnv(): Record<string, Record<string, string | number>> {
+  const shared = {
+    NODE_ENV: "development", NETWORK: "fork", CHAIN_ID: 31337, DATABASE_URL, PUBLIC_RPC_URL: ANVIL_URL, RPC_URL_OVERRIDE: ANVIL_URL,
+    RPC_BACKUP_URL: "", ALCHEMY_API_KEYS: "", DEPLOYMENT_FILE, LOG_LEVEL: "info",
+    INDEXER_POLL_ACTIVE_MS: 1000, INDEXER_POLL_BASE_MS: 2000, INDEXER_POLL_IDLE_MS: 5000,
+  };
+  return {
+    indexer: { ...shared },
+    // The API refuses a role that can write: it reads through the SELECT-only role of scripts/api-readonly-role.sql
+    // (trust auth on the fork's own loopback cluster, so no password).
+    api: {
+      ...shared, DATABASE_URL: DATABASE_URL.replace(/^postgres:\/\/[^@]+@/, "postgres://overdrive_api@"), API_PORT: PORTS.api, API_RATE_LIMIT_PER_MINUTE: 0, API_WRITE_RATE_LIMIT_PER_MINUTE: 0,
+      CORS_ORIGINS: [PORTS.web].flatMap((p) => [`http://localhost:${p}`, `http://127.0.0.1:${p}`]).join(","),
+    },
+    crank: { ...shared, ...keyVars("crank", "CRANK"), CRANK_DRY_RUN: 0, CRANK_TOLL_MAX_AGE_SECONDS: 300 },
+    hedger: { ...shared, ...keyVars("hedger", "HEDGER"), // Live hedge posting is refused by src/bin/hedger.ts until the transaction queue lands (its own message); dry run
+      // until then (22c G05 needs it live: follow-up).
+      HEDGER_DRY_RUN: 1, HEDGER_VENUES: "mock" },
+    liquidator: { ...shared, ...keyVars("liquidator", "LIQUIDATOR"), LIQUIDATOR_DRY_RUN: 0 },
+    mcp: {
+      // The hosted HTTP server is read only and refuses to start holding an agent key.
+      ...shared, OD_API_URL: API_URL, AGENT_RPC_URL: ANVIL_URL, AGENT_CHAIN_ID: 31337,
+      AGENT_OWNER: addressOf("agentOwner"), MCP_MODE: "read_only", MCP_HTTP_HOST: "127.0.0.1", MCP_HTTP_PORT: PORTS.mcp,
+      MCP_HTTP_TOKEN: existingMcpToken() ?? randomBytes(16).toString("hex"), MCP_RATE_LIMIT_PER_MINUTE: 600,
+    },
+    "vol-engine": {
+      DATABASE_URL, ...keyVars("volSigner", "VOL_SIGNER"), ...keyVars("volSender", "VOL_SENDER"), VOL_SEND: 1, VOL_CLOCK: "chain",
+      VOL_CHAIN_ID: 31337, VOL_RPC_URL: ANVIL_URL, DEPLOYMENT_FILE,
+    },
+  };
+}
+
+function writeEnv(): void {
+  mkdirSync(join(FORK_DIR, "env"), { recursive: true, mode: 0o700 });
+  for (const [name, vars] of Object.entries(serviceEnv())) writeFileSync(join(FORK_DIR, "env", `${name}.env`), envText(vars), { mode: 0o600 });
+  console.log(`setup: env files in ${join(FORK_DIR, "env")}`);
+}
+
+if (import.meta.main) {
+  const has = (f: string) => process.argv.includes(f);
+  if (has("--keystores")) console.log(`setup: throwaway keystores in ${join(FORK_DIR, "keys")} (${writeKeystores()} written)`);
+  if (has("--config")) writeDeployConfig();
+  if (has("--clear-delegations")) console.log(`setup: cleared EIP-7702 delegation code on ${await clearDevDelegations()} anvil dev accounts`);
+  if (has("--relax")) await relax();
+  if (has("--relax") || has("--refresh-pyth")) console.log(`setup: R5.4 mock Pyth priced from the feeds for ${await refreshPyth()} markets`);
+  if (has("--list-gears")) await listGears();
+  if (has("--env")) writeEnv();
+  void forkClients;
+}
