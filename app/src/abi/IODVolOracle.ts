@@ -2,6 +2,30 @@
 export const IODVolOracleAbi = [
   {
     "type": "function",
+    "name": "bounds",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "floorBps",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "ceilingBps",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "domainSeparator",
     "inputs": [],
     "outputs": [
@@ -9,6 +33,76 @@ export const IODVolOracleAbi = [
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hashPost",
+    "inputs": [
+      {
+        "name": "p",
+        "type": "tuple",
+        "internalType": "struct VolPost",
+        "components": [
+          {
+            "name": "market",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "sigmaBps",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "buyBlockFrom",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "buyBlockTo",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "validUntil",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "nonce",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lastNonce",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"
@@ -177,6 +271,44 @@ export const IODVolOracleAbi = [
   },
   {
     "type": "event",
+    "name": "BoundsSet",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "floorBps",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "ceilingBps",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SignerRevoked",
+    "inputs": [
+      {
+        "name": "signer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "SignerSet",
     "inputs": [
       {
@@ -221,12 +353,54 @@ export const IODVolOracleAbi = [
   },
   {
     "type": "error",
+    "name": "BadBuyBlockWindow",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "to",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "BadSignature",
     "inputs": []
   },
   {
     "type": "error",
     "name": "Expired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidAdmin",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidBounds",
+    "inputs": [
+      {
+        "name": "floorBps",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "ceilingBps",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidSigner",
     "inputs": []
   },
   {
