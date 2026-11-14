@@ -1,0 +1,42 @@
+{
+  "chainId": 31337,
+  "network": "anvil",
+  "commit": "fixture",
+  "deployedAt": "2026-11-13T00:00:00Z",
+  "startBlock": 1,
+  "deployer": "0xB2f1439e7e4B3144C730Db4B8c9080bE66258ed2",
+  "admin": {
+    "ownerSafe": "0xF2998DcC9D7811727045ff0bBc2E53E4B550697B",
+    "timelock": "0xe7067fc37d7cE62bCcA609113D980EC1Ccd714Db",
+    "guardianSafe": "0x814741c527b1415F13e3EFA94F6dC8d19fBde3Ec",
+    "minDelaySec": 172800
+  },
+  "external": {
+    "usdg": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "stateView": "0xF3334192D15450CdD385c8B70e03f9A6bD9E673b",
+    "v4Quoter": "0x8Dc178eFB8111BB0973Dd9d722ebeFF267c98F94",
+    "pythCore": "0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a",
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "entryPoint": "0x282A2B8fab53534EfadCdcd7ec8d146564993a38",
+    "v3Factory": "0xDe3b6fA45161EB4b05526699954Ef0c37a997a1E"
+  },
+  "contracts": {
+    "ODMarketHours": "0x0D60a5792aa62C61E5b749De34A325C30F9D9208",
+    "ODOracleGuard": "0x6aD2DF0A7D3513fd97D6B6FD90274fF718a23624",
+    "ODVolOracle": "0x86A4467bdaD2eA849AddcA95280bed269796D5b9",
+    "ODGearRegistry": "0x813404DF69cC16e3Ae3871a26d20Ae2ffbC2ceb3",
+    "ODGearFactory": "0xEB349707d738920CE7A30273dB55F5934B867ea9",
+    "ODMinter": "0xbb4422D0B20Ee5fb20D3BFBBf37BACb6fA0a9a7e",
+    "ODGovernor": "0xad20c8CbEbe5e15fa483Cb97FA6d019FA4C426EC",
+    "ODInsurance": "0x1cBcef1425103D88a5c9635e9A8E4F1Bdcf5AB12",
+    "ODHook": "0x5d1cEa0C095Cdb4a6B684Ed924eC6dD4dfdA26Ec",
+    "ODBacker": "0x13b69443F873A69c473ec89d75634C508483A41F",
+    "ODFees": "0x376ec06F6b0392F8dAadAa580052a3DE8b14DeEa",
+    "ODStake": "0xCE11A673ED91C495d9bb2002eae0BE09e2b78B45",
+    "ODAgentRouter": "0x4b9fb135948792a4EE9B4348b71561cFB8422605",
+    "ODPaymaster": "0x2926955a4dE5EBbBD0dB9fa709D4423A4704Ac58"
+  },
+  "markets": [],
+  "gears": []
+}
