@@ -86,6 +86,19 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "backer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "backerDebt",
     "inputs": [
       {
@@ -124,6 +137,30 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "buyBlock",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "addTokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "reason",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "buysPaused",
     "inputs": [],
     "outputs": [
@@ -136,6 +173,72 @@ export const IODGovernorAbi = [
         "name": "reason",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cachedEquity",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "equityWad",
+        "type": "int256",
+        "internalType": "int256"
+      },
+      {
+        "name": "at",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "sharePriceWad",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cachedStress",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lossWad",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "at",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "canPay",
+    "inputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -260,6 +363,29 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "drawdown",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "peakWad",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nowWad",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "tripped",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "equity",
     "inputs": [],
     "outputs": [
@@ -380,6 +506,151 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "getParams",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IODGovernor.Params",
+        "components": [
+          {
+            "name": "stressBudgetBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "capScaleBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "exitReserveFloorBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "minExitReserveUsdg",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "maxHedgeEquityBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxHedgeJumpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "hedgeMaxAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "equityMaxAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "drawdownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "withdrawDelay",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "shockStockBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockEtfBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockCryptoBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hedgeEquity",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "postedUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "inTransitUsdg",
+        "type": "int256",
+        "internalType": "int256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hedgeMaxAge",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hedgeOf",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "hedgeDeltaWad",
+        "type": "int256",
+        "internalType": "int256"
+      },
+      {
+        "name": "hedgeEquityUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "asOf",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "hedgeStale",
     "inputs": [],
     "outputs": [
@@ -387,6 +658,57 @@ export const IODGovernorAbi = [
         "name": "",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hedgerWallet",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isDepositor",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marketShockBps",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
       }
     ],
     "stateMutability": "view"
@@ -406,6 +728,19 @@ export const IODGovernorAbi = [
         "name": "maxAssets",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "maxHedgeJumpBps",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
       }
     ],
     "stateMutability": "view"
@@ -493,6 +828,19 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "minter",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "moveToExitReserve",
     "inputs": [
       {
@@ -513,6 +861,24 @@ export const IODGovernorAbi = [
         "name": "",
         "type": "string",
         "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "navBand",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "lowWad",
+        "type": "int256",
+        "internalType": "int256"
+      },
+      {
+        "name": "highWad",
+        "type": "int256",
+        "internalType": "int256"
       }
     ],
     "stateMutability": "view"
@@ -848,12 +1214,38 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "returnFromHedger",
+    "inputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "sendToHedger",
     "inputs": [
       {
         "name": "usdg",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setBacker",
+    "inputs": [
+      {
+        "name": "backer",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -892,6 +1284,155 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "setHedger",
+    "inputs": [
+      {
+        "name": "hedgerWallet",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMarketGroup",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "group",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMinter",
+    "inputs": [
+      {
+        "name": "minter",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setParams",
+    "inputs": [
+      {
+        "name": "p",
+        "type": "tuple",
+        "internalType": "struct IODGovernor.Params",
+        "components": [
+          {
+            "name": "stressBudgetBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "capScaleBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "exitReserveFloorBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "minExitReserveUsdg",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "maxHedgeEquityBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxHedgeJumpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "hedgeMaxAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "equityMaxAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "drawdownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "withdrawDelay",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "shockStockBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockEtfBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockCryptoBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sharePriceWad",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "skim",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "stressLoss",
     "inputs": [],
     "outputs": [
@@ -923,6 +1464,35 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "ticketOf",
+    "inputs": [
+      {
+        "name": "ticket",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "shares",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "claimableAt",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "totalAssets",
     "inputs": [],
     "outputs": [
@@ -941,6 +1511,19 @@ export const IODGovernorAbi = [
     "outputs": [
       {
         "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "trackedCash",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "usdg",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1094,6 +1677,25 @@ export const IODGovernorAbi = [
   },
   {
     "type": "event",
+    "name": "CashFunded",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Deposit",
     "inputs": [
       {
@@ -1125,6 +1727,25 @@ export const IODGovernorAbi = [
   },
   {
     "type": "event",
+    "name": "DepositorSet",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "allowed",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ExitReserveMoved",
     "inputs": [
       {
@@ -1135,6 +1756,50 @@ export const IODGovernorAbi = [
       },
       {
         "name": "balanceAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeeOwed",
+    "inputs": [
+      {
+        "name": "kind",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "owedAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeePaid",
+    "inputs": [
+      {
+        "name": "kind",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "usdg",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1175,6 +1840,88 @@ export const IODGovernorAbi = [
   },
   {
     "type": "event",
+    "name": "InsuranceDrawn",
+    "inputs": [
+      {
+        "name": "requested",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "received",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Liquidation",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "debtTokens",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "collateralUsdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MarketGroupSet",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "group",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ModuleSet",
+    "inputs": [
+      {
+        "name": "what",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "module",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PaidOut",
     "inputs": [
       {
@@ -1194,6 +1941,110 @@ export const IODGovernorAbi = [
         "type": "bool",
         "indexed": false,
         "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ParamsSet",
+    "inputs": [
+      {
+        "name": "p",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IODGovernor.Params",
+        "components": [
+          {
+            "name": "stressBudgetBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "capScaleBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "exitReserveFloorBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "minExitReserveUsdg",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "maxHedgeEquityBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxHedgeJumpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "hedgeMaxAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "equityMaxAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "drawdownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "withdrawDelay",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "shockStockBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockEtfBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockCryptoBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReturnedFromHedger",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1235,6 +2086,44 @@ export const IODGovernorAbi = [
       },
       {
         "name": "usdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Skimmed",
+    "inputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TollBooked",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tollValueUsdWad",
+        "type": "int256",
+        "indexed": false,
+        "internalType": "int256"
+      },
+      {
+        "name": "feeUsdg",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1362,6 +2251,22 @@ export const IODGovernorAbi = [
   },
   {
     "type": "error",
+    "name": "AlreadySet",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadAsOf",
+    "inputs": [
+      {
+        "name": "asOf",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "BuysPaused",
     "inputs": [
       {
@@ -1405,6 +2310,48 @@ export const IODGovernorAbi = [
   },
   {
     "type": "error",
+    "name": "FirstDepositTooSmall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "HedgeCap",
+    "inputs": [
+      {
+        "name": "afterUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "capUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "HedgeJump",
+    "inputs": [
+      {
+        "name": "prevUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nextUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "allowedUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InsufficientCash",
     "inputs": [
       {
@@ -1421,12 +2368,43 @@ export const IODGovernorAbi = [
   },
   {
     "type": "error",
+    "name": "InvalidParams",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NavNotPositive",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoHedger",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotBacker",
     "inputs": []
   },
   {
     "type": "error",
     "name": "NotMinter",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotTicketOwner",
+    "inputs": [
+      {
+        "name": "ticket",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PayOutOfGas",
     "inputs": []
   },
   {
@@ -1455,5 +2433,26 @@ export const IODGovernorAbi = [
         "internalType": "uint64"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "UsdgNotReceived",
+    "inputs": [
+      {
+        "name": "needed",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UseWithdrawalQueue",
+    "inputs": []
   }
 ] as const;
