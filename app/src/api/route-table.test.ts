@@ -19,7 +19,7 @@ test("every_route_listed_and_no_admin_route", () => {
   }
   for (const t of ROUTE_TABLE) expect(registered.some((r) => r.method === t.method && asOpenApi(r.path) === t.path)).toBe(true);
   expect(ROUTE_TABLE.some((t) => /admin|\/internal|\/pause|\/sign/i.test(t.path))).toBe(false);
-  expect(ROUTE_TABLE.filter((t) => t.method === "POST").map((t) => t.path).sort()).toEqual(["/v1/intent/buy", "/v1/intent/sell"]);
+  expect(ROUTE_TABLE.filter((t) => t.method === "POST").map((t) => t.path).sort()).toEqual(["/v1/intent/agent/policy", "/v1/intent/agent/revoke", "/v1/intent/back/deposit", "/v1/intent/back/mint", "/v1/intent/back/open", "/v1/intent/back/repay", "/v1/intent/back/repay-usdg", "/v1/intent/back/withdraw", "/v1/intent/buy", "/v1/intent/queue/cancel", "/v1/intent/queue/fill", "/v1/intent/sell"]);
   expect(ROUTE_TABLE.filter((t) => t.method === "POST").every((t) => t.auth === "public_rate_limited")).toBe(true);
 });
 

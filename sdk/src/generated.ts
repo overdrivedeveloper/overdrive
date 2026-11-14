@@ -472,6 +472,630 @@ export interface Operations {
       };
     };
   };
+  "POST /v1/intent/back/open": {
+    body: {
+      gear: string;
+      account: string;
+      collateralUsdg: string;
+      /** Open the vault for another owner (openVaultFor). Default: account. */
+      owner?: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/back/deposit": {
+    body: {
+      account: string;
+      vaultId: string;
+      usdg: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/back/mint": {
+    body: {
+      account: string;
+      vaultId: string;
+      tokens: string;
+      /** Sell the minted tokens to the Governor; the proceeds join the collateral. An operator always sells. */
+      sellToGovernor?: boolean;
+      /** Smallest proceeds you accept. Default: the estimate less 50 bps. */
+      minProceedsUsdg?: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/back/repay": {
+    body: {
+      account: string;
+      vaultId: string;
+      tokens: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/back/repay-usdg": {
+    body: {
+      account: string;
+      vaultId: string;
+      tokens: string;
+      /** Most collateral you accept paying. Default: the estimate plus 50 bps. */
+      maxCostUsdg?: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/back/withdraw": {
+    body: {
+      account: string;
+      vaultId: string;
+      usdg: string;
+      to?: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/queue/cancel": {
+    body: {
+      account: string;
+      ticket: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/queue/fill": {
+    body: {
+      ticket: string;
+      account?: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/agent/policy": {
+    body: {
+      /** The owner granting the policy. */
+      account: string;
+      agent: string;
+      budgetUsdg: string;
+      maxPerTradeUsdg: string;
+      /** Unix seconds; must be in the future. */
+      expiresAt: number;
+      canSell?: boolean;
+      canBack?: boolean;
+      /** Markets the agent may trade, by symbol (TSLA) or bytes32 id. */
+      markets: Array<string>;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "POST /v1/intent/agent/revoke": {
+    body: {
+      account: string;
+      agent: string;
+    };
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        kind: "back_open" | "back_deposit" | "back_mint" | "back_repay" | "back_repay_usdg" | "back_withdraw" | "queue_cancel" | "queue_fill" | "agent_policy" | "agent_revoke";
+        chainId: number;
+        blockNumber: string;
+        tx: {
+          to: string;
+          data: string;
+          value: "0";
+        };
+        approvals: Array<{
+          token: string;
+          spender: string;
+          amount: string;
+        }>;
+        /** Permit2 payload; null while Permit2 is not enabled for this deployment. */
+        permit2: null;
+        /** The numbers the checks used (raw integer strings). Informational: the contract decides. */
+        preflight: {
+          [key: string]: string;
+        };
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      404: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      409: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
   "GET /v1/governor": {
     responses: {
       200: {
@@ -859,6 +1483,16 @@ export const OPERATION_KEYS: readonly OperationKey[] = [
   "GET /v1/quote",
   "POST /v1/intent/buy",
   "POST /v1/intent/sell",
+  "POST /v1/intent/back/open",
+  "POST /v1/intent/back/deposit",
+  "POST /v1/intent/back/mint",
+  "POST /v1/intent/back/repay",
+  "POST /v1/intent/back/repay-usdg",
+  "POST /v1/intent/back/withdraw",
+  "POST /v1/intent/queue/cancel",
+  "POST /v1/intent/queue/fill",
+  "POST /v1/intent/agent/policy",
+  "POST /v1/intent/agent/revoke",
   "GET /v1/governor",
   "GET /v1/governor/history",
   "GET /v1/exit",

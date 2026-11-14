@@ -1,6 +1,6 @@
 // Every chain read the API makes, behind one interface so tests (and the mock hook) can stand in. Reads only: the API holds
 // no key and sends nothing. The real implementation uses the "state" client of the rpc pool.
-import { parseAbi, type PublicClient } from "viem";
+import { BaseError, ContractFunctionRevertedError, parseAbi, type PublicClient } from "viem";
 import { IODBackerAbi, IODFeesAbi, IODGovernorAbi, IODMinterAbi } from "../abi";
 import type { Deployment } from "../lib/deployments";
 import type { BlockQuote, RawQuote, Side } from "./quote/model";
@@ -23,6 +23,10 @@ export interface GovernorReads {
 
 export interface BackerHealth { collateralUsdg: bigint; debtValueWad: bigint; ratioBps: bigint; requiredBps: bigint; maintenanceBps: bigint }
 
+export interface BackerVaultState { owner: string; gearId: string; collateralUsdg: bigint; debtTokens: bigint; batchId: bigint }
+export interface QueuedSellState { gearId: string; owner: string; recipient: string; tokens: bigint; minUsdgOut: bigint }
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 export interface ApiChain {
   blockNumber(): Promise<bigint>;
   readonly quoter: ChainQuoter;
@@ -33,6 +37,14 @@ export interface ApiChain {
   backerHealth(vaultId: bigint): Promise<BackerHealth>;
   feeSplits(): Promise<{ protocolSpreadShareBps: number; tollFeeBps: number; distributable: bigint; nextDistributionAt: bigint }>;
   upliftActive(marketId: string): Promise<{ active: boolean; upliftBps: number }>;
+  /** ODBacker.vault; an unknown vault comes back with the zero address as owner. Used by the intent routes (reads only). */
+  backerVault(vaultId: bigint): Promise<BackerVaultState>;
+  /** ODBacker.batchWindow: (0, 0) is an unknown batch. */
+  backerBatchWindow(batchId: bigint): Promise<{ readyAt: bigint; expiresAt: bigint }>;
+  backerMintPaused(): Promise<boolean>;
+  backerIsOperator(owner: string, operator: string): Promise<boolean>;
+  /** ODMinter.queuedSell; a ticket that is gone (filled, cancelled, never existed) has the zero address as owner. */
+  queuedSell(ticket: bigint): Promise<QueuedSellState>;
 }
 
 /** Uniswap v4 pool parameters of a gear pool. PENDING todo 06a: confirm against ODHook.initializeGearPool when it is built. */
@@ -109,6 +121,25 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
     upliftActive: async (market) => {
       const [active, upliftBps] = await client.readContract({ address: backer, abi: IODBackerAbi, functionName: "upliftActive", args: [market as `0x${string}`] });
       return { active, upliftBps: Number(upliftBps) };
+    },
+    backerVault: async (vaultId) => {
+      try {
+        const [owner, gearId, collateralUsdg, debtTokens, batchId] = await client.readContract({ address: backer, abi: IODBackerAbi, functionName: "vault", args: [vaultId] });
+        return { owner, gearId, collateralUsdg, debtTokens, batchId };
+      } catch (error) {
+        if (error instanceof BaseError && error.walk((e) => e instanceof ContractFunctionRevertedError)) return { owner: ZERO_ADDRESS, gearId: "0x", collateralUsdg: 0n, debtTokens: 0n, batchId: 0n };
+        throw error;
+      }
+    },
+    backerBatchWindow: async (batchId) => {
+      const [readyAt, expiresAt] = await client.readContract({ address: backer, abi: IODBackerAbi, functionName: "batchWindow", args: [batchId] });
+      return { readyAt, expiresAt };
+    },
+    backerMintPaused: async () => client.readContract({ address: backer, abi: IODBackerAbi, functionName: "mintPaused" }),
+    backerIsOperator: async (owner, operator) => client.readContract({ address: backer, abi: IODBackerAbi, functionName: "isOperator", args: [owner as `0x${string}`, operator as `0x${string}`] }),
+    queuedSell: async (ticket) => {
+      const [gearId, owner, recipient, tokens, minUsdgOut] = await client.readContract({ address: minter, abi: IODMinterAbi, functionName: "queuedSell", args: [ticket] });
+      return { gearId, owner, recipient, tokens, minUsdgOut };
     },
   };
 }

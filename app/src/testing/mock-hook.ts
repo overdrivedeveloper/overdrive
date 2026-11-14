@@ -100,6 +100,11 @@ export class MockHook {
       backerHealth: never("backerHealth") as unknown as (v: bigint) => Promise<BackerHealth>,
       feeSplits: async () => { calls.other++; return { protocolSpreadShareBps: 1000, tollFeeBps: 1000, distributable: 0n, nextDistributionAt: 0n }; },
       upliftActive: async () => { calls.other++; return { active: false, upliftBps: 0 }; },
+      backerVault: never("backerVault") as unknown as ApiChain["backerVault"],
+      backerBatchWindow: never("backerBatchWindow") as unknown as ApiChain["backerBatchWindow"],
+      backerMintPaused: async () => { calls.other++; return false; },
+      backerIsOperator: async () => { calls.other++; return false; },
+      queuedSell: never("queuedSell") as unknown as ApiChain["queuedSell"],
       ...extra,
     };
     return chain;

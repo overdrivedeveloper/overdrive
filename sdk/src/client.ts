@@ -56,7 +56,9 @@ export type Range = "1d" | "7d" | "30d" | "90d";
 export type QuoteQuery = Operations["GET /v1/quote"]["query"];
 export type QuoteResponse = Response200<"GET /v1/quote">;
 export type GearsQuery = never;
-export type IntentKind = "buy" | "sell";
+export type IntentKind = "buy" | "sell" | ActionIntentKind;
+/** Intents for backer vaults, queued sells and agent policies. Same shape for all: `tx`, `approvals`, `chainId`, `preflight`. */
+export type ActionIntentKind = "back/open" | "back/deposit" | "back/mint" | "back/repay" | "back/repay-usdg" | "back/withdraw" | "queue/cancel" | "queue/fill" | "agent/policy" | "agent/revoke";
 export type IntentBody<K extends IntentKind> = Operations[`POST /v1/intent/${K}`]["body"];
 export type IntentResponse<K extends IntentKind> = Response200<`POST /v1/intent/${K}`>;
 

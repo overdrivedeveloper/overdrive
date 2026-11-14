@@ -19,6 +19,7 @@ import { registerGovernorRoutes } from "./routes/governor";
 import { registerHealthRoutes } from "./routes/health";
 import { registerHedgeRoutes } from "./routes/hedges";
 import { registerIntentRoutes } from "./routes/intent";
+import { registerIntentActionRoutes } from "./routes/intent-actions";
 import { registerQuoteRoutes, quoteServiceOf } from "./routes/quote";
 import { registerRiskRoutes } from "./routes/risk";
 import { registerStatusRoutes } from "./routes/status";
@@ -74,6 +75,7 @@ export function createApiApp(deps: ApiDependencies): OpenAPIHono {
   registerTollRoutes(app, deps);
   registerQuoteRoutes(app, deps, quotes);
   registerIntentRoutes(app, deps, quotes);
+  registerIntentActionRoutes(app, deps, quotes);
   registerGovernorRoutes(app, deps);
   registerGovernorHistoryRoutes(app, deps);
   registerExitRoutes(app, deps);
