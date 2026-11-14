@@ -8,7 +8,7 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...base, NETWORK: "mainnet", CHAIN_ID: "31337" })).toThrow("does not match NETWORK");
     expect(() => loadConfig({ ...base, NETWORK: "fork", CHAIN_ID: "4663" })).toThrow(ConfigurationError);
     expect(() => loadConfig({ ...base, NETWORK: "mainnet", CHAIN_ID: "4663", RPC_URL_OVERRIDE: "http://127.0.0.1:8545" })).toThrow("RPC_URL_OVERRIDE");
-    expect(() => loadConfig({ ...base, CRANK_ENABLED_JOBS: "accrue,prices" })).toThrow("Unknown job: prices");
+    expect(() => loadConfig({ ...base, CRANK_ENABLED_JOBS: "toll,prices" })).toThrow("Unknown job: prices");
     expect(() => loadConfig({ ...base, HEDGER_DISABLED_JOBS: "hedge,,equity" })).toThrow("Unknown job: ");
     expect(() => loadConfig({ ...base, LIQUIDATOR_ENABLED_JOBS: "scan, nope" })).toThrow("Unknown job: nope");
   });

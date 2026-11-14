@@ -14,7 +14,8 @@
     "api": "bun run src/bin/api.ts",
     "dump-openapi": "bun run scripts/dump-openapi.ts",
     "lint-copy": "bun run scripts/lint-copy.ts",
-    "gen-formula": "bun run scripts/gen-formula.ts"
+    "gen-formula": "bun run scripts/gen-formula.ts",
+    "crank": "bun run src/bin/crank.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { KeyConfigError, assertDistinctKeys } from "./keys";
 
 /** Valid job names, one exported const per service. Config validation imports them, so an unknown name fails at boot. */
-export const CRANK_JOBS = ["accrue", "vol-post", "sessions", "queued-sells", "fee-distribute", "settle-halted", "admin-watch"] as const;
+export const CRANK_JOBS = ["sessions", "toll", "poke", "vol-watch", "queued-sells", "fees", "risk-monitor", "admin-watch", "gas-watch", "heartbeat"] as const;
 export const HEDGER_JOBS = ["hedge", "equity", "funding"] as const;
 export const LIQUIDATOR_JOBS = ["scan", "seal", "execute"] as const;
 export type CrankJob = (typeof CRANK_JOBS)[number];
@@ -17,6 +17,9 @@ const routeSchema = (fallback: string) =>
     .default(fallback)
     .transform((value) => value.split(",").map((item) => item.trim().toLowerCase()))
     .pipe(z.array(z.enum(["public", "alchemy"])).min(1));
+
+const boolFlag = (fallback: "0" | "1") =>
+  z.enum(["0", "1", "true", "false"]).default(fallback).transform((value) => value === "1" || value === "true");
 
 const addressOrEmpty = z.string().regex(/^(0x[0-9a-fA-F]{40})?$/).default("");
 
@@ -66,6 +69,26 @@ const envSchema = z.object({
   HEDGER_DISABLED_JOBS: jobList(HEDGER_JOBS, ""),
   LIQUIDATOR_ENABLED_JOBS: jobList(LIQUIDATOR_JOBS, LIQUIDATOR_JOBS.join(",")),
   LIQUIDATOR_DISABLED_JOBS: jobList(LIQUIDATOR_JOBS, ""),
+  CRANK_DRY_RUN: boolFlag("0"),
+  CRANK_AUTOPAUSE: boolFlag("0"),
+  CRANK_GAS_MULTIPLIER_BPS: z.coerce.number().int().min(12_000).max(100_000).default(15_000),
+  CRANK_GAS_HEADROOM: z.coerce.number().int().min(0).default(500_000),
+  CRANK_GAS_CAP: z.coerce.number().int().positive().default(32_000_000),
+  CRANK_TOLL_MAX_AGE_SECONDS: z.coerce.number().int().min(300).default(3600),
+  CRANK_TOLL_BATCH: z.coerce.number().int().min(1).max(45).default(40),
+  CRANK_TOLL_BATCH_MAX: z.coerce.number().int().min(1).max(45).default(45),
+  CRANK_TOLL_GAS_TARGET: z.coerce.number().int().positive().default(8_000_000),
+  CRANK_QUEUE_MAX_PER_PASS: z.coerce.number().int().min(1).default(25),
+  CRANK_QUEUE_RETRY_MS: z.coerce.number().int().min(1000).default(600_000),
+  VOL_STALE_WARN_SECONDS: z.coerce.number().int().min(60).default(900),
+  FEES_MIN_USDG: z.coerce.number().min(0).default(50),
+  GAS_WATCH_MIN_ETH_CRANK: z.coerce.number().min(0).default(0.01),
+  GAS_WATCH_MIN_ETH_HEDGER: z.coerce.number().min(0).default(0.01),
+  GAS_WATCH_MIN_ETH_LIQUIDATOR: z.coerce.number().min(0).default(0.01),
+  GAS_WATCH_MIN_ETH_VOL_SIGNER: z.coerce.number().min(0).default(0.001),
+  GAS_WATCH_MIN_ETH_VOL_SENDER: z.coerce.number().min(0).default(0.01),
+  GAS_WATCH_REALERT_HOURS: z.coerce.number().positive().default(6),
+  TELEGRAM_ENV_FILE: z.string().default(""),
   LOG_LEVEL: z.string().default("info"),
   EXPECT_ADDRESS: addressOrEmpty,
   // API (todo 19a). The API reads Postgres through a SELECT-only role and holds no key.
