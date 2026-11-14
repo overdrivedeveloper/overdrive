@@ -354,6 +354,16 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
 
         PriceReading memory r = e.r;
         (r.refP, e.fromPyth) = _reference(cfg, d, t.ok ? t.mult : 0); // 0: no multiplier known
+        // A per-share reference (Pyth) that already moved by a split-class multiplier ratio while the multiplier has
+        // not switched prices the token wrongly: drop it, so no sell is ever priced off it (the minter queues).
+        if (r.refP != 0) {
+            uint256 base = st.lastGoodP != 0 ? st.lastGoodP : e.liveP;
+            if (base != 0 && !_within(r.refP, base, cfg.continuityBps)) {
+                MarketState memory sb = st;
+                sb.lastGoodP = uint128(base);
+                if (_explainedByMultiplier(r.refP, sb, t, cfg.continuityBps)) r.refP = 0;
+            }
+        }
         if (halted) {
             r.session = Session.HALTED;
             r.p = st.lastGoodP;

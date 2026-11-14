@@ -11,6 +11,10 @@ via_ir = true
 evm_version = "cancun"
 bytecode_hash = "ipfs"
 cbor_metadata = true
+# Fork tests share the public RHC RPC, which answers 429 under parallel suites: retry with backoff (rate limit resets
+# within 60 s) instead of failing.
+fork_retries = 30
+fork_retry_backoff = 5000
 fs_permissions = [{ access = "read", path = "./" }, { access = "read-write", path = "./out" }, { access = "read-write", path = "../app/deployments" }]
 
 [invariant]
