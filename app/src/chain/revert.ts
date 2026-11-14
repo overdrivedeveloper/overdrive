@@ -1,4 +1,4 @@
-import { decodeErrorResult, type Abi, type Hex } from "viem";
+import { decodeErrorResult, parseAbi, type Abi, type Hex } from "viem";
 import { ABIS } from "../abi";
 
 /**
@@ -11,7 +11,13 @@ import { ABIS } from "../abi";
  */
 
 /** Every contract error the services can meet: the typed IOD* interfaces. */
-const DECODERS: readonly Abi[] = Object.values(ABIS) as unknown as readonly Abi[];
+/** Uniswap v4 wrappers around a hook revert. The V4Quoter surfaces the PoolManager revert as `UnexpectedRevertBytes(bytes)` (selector 0x6190b2b0),
+ * and the PoolManager itself wraps a hook revert in `WrappedError(target, selector, reason, details)` (0x90bfb865); `reason` is the hook's own revert data. */
+export const WRAPPED_ERROR_ABI = parseAbi([
+  "error UnexpectedRevertBytes(bytes revertData)",
+  "error WrappedError(address target, bytes4 selector, bytes reason, bytes details)",
+]);
+const DECODERS: readonly Abi[] = [...(Object.values(ABIS) as unknown as readonly Abi[]), WRAPPED_ERROR_ABI as unknown as Abi];
 
 const HEX = /^0x(?:[0-9a-fA-F]{2})+$/;
 

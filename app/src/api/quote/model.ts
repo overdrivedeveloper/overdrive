@@ -2,6 +2,7 @@
 // No I/O here, so every rule has a table test.
 import { formatUnits } from "viem";
 import { bytes32Text } from "../../indexer/units";
+import { decodeRevert } from "../../chain/revert";
 
 export type Side = "buy" | "sell";
 export type SellMode = "instant" | "instant_min" | "queued";
@@ -31,6 +32,13 @@ export interface Refusal { code: ErrorCode | "QUEUED"; reason: string; detail?: 
 /** A contract revert (decoded name and arguments) as the API reports it. Unknown reverts fail closed as UPSTREAM. */
 export function classifyRevert(name: string, args: readonly unknown[]): Refusal {
   switch (name) {
+    case "UnexpectedRevertBytes":
+    case "WrappedError": {
+      // Uniswap v4 wrappers around the hook's revert: classify the inner error (its revert data is args[0] or args[2]).
+      const data = name === "WrappedError" ? args[2] : args[0];
+      const inner = typeof data === "string" ? decodeRevert({ data }) : undefined;
+      return inner ? classifyRevert(inner.name, inner.args) : { code: "UPSTREAM", reason: name };
+    }
     case "BuysClosed": {
       const reason = bytes32Text(args[1]) || "UNKNOWN";
       if (reason === "STALE" || reason === "REF_UNAVAILABLE") return { code: "STALE", reason };

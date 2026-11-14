@@ -9,7 +9,7 @@ import { type ErrorCode, tollBpsText } from "./quote/model";
 
 export interface GearView {
   symbol: string; id: string; underlying: string; underlyingB: string | null; power: string; token: string; gear: string | null;
-  price: string | null; valuePerToken: string; valueSource: "trade" | "listing"; nf: string;
+  price: string | null; valuePerToken: string; valueSource: "trade" | "trade_nf" | "listing"; nf: string;
   tollPerDayBps: string; tollPer30DaysBps: string; holdersReceive: boolean; tollFormulaBps: string | null;
   sigmaBps: string | null; sigmaAgeSec: number | null; sigmaWarning: "floor" | null;
   spreadBps: number; cap: string; openValue: string; status: string; session: string; buyable: boolean; reason: ErrorCode | null;
@@ -29,11 +29,26 @@ export function tollPerDayOf(row: GearRow): bigint {
   return 0n;
 }
 
+/** NF as if accrued now: the stored NF carried forward at the indexed toll rate since the last written accrual, NF * (1 - toll)^dt
+ * (the contract steps this hourly, so the continuous form is within rounding). Matches normState, which is also "as if accrued now". */
+export function projectNf(nf: bigint, tollPerSecWad: string | null, lastAccrual: Date | null, now: Date): bigint {
+  if (tollPerSecWad === null || lastAccrual === null) return nf;
+  const dt = Math.max(0, (now.getTime() - lastAccrual.getTime()) / 1000);
+  const factor = Math.exp(-(Number(BigInt(tollPerSecWad)) / 1e18) * dt);
+  if (!Number.isFinite(factor)) return nf;
+  return (nf * BigInt(Math.round(factor * 1e12))) / 10n ** 12n;
+}
+
 export function buildGearView(row: GearRow, deployment: Deployment, pauses: readonly PauseRow[], now: Date): GearView {
   const cfg = deployment.gears.find((g) => g.id.toLowerCase() === row.id.toLowerCase());
   const nf = BigInt(row.nf);
+  const nfNow = projectNf(nf, row.tollPerSecWad, row.lastAccrual, now);
   const unit = cfg ? parseUnits(cfg.unitUsd, 18) : WAD;
-  const value = row.lastValueWad !== null ? BigInt(row.lastValueWad) : (unit * nf) / WAD;
+  // The last trade's value moved to the current NF (value is proportional to NF), so toll that accrued since the trade shows.
+  // The underlying price is not re-applied here (this view reads Postgres only); `/v1/quote` gives the exact value at a block.
+  const nfAtTrade = row.tradeNf !== null ? BigInt(row.tradeNf) : 0n;
+  const adjusted = row.lastValueWad !== null && nfAtTrade > 0n;
+  const value = row.lastValueWad === null ? (unit * nfNow) / WAD : adjusted ? (BigInt(row.lastValueWad) * nfNow) / nfAtTrade : BigInt(row.lastValueWad);
   const supply = BigInt(row.supply);
   const open = wadToUsdg((supply * value) / WAD);
   const cap = BigInt(row.capUsd);
@@ -49,7 +64,7 @@ export function buildGearView(row: GearRow, deployment: Deployment, pauses: read
   else if (cap > 0n && open >= cap) reason = "CAP_REACHED";
   return {
     symbol: cfg?.symbol ?? row.id, id: row.id, underlying: row.underlying, underlyingB: row.underlyingB, power: row.power, token: row.token, gear: cfg?.gear ?? null,
-    price: row.priceWad, valuePerToken: value.toString(), valueSource: row.lastValueWad !== null ? "trade" : "listing", nf: row.nf,
+    price: row.priceWad, valuePerToken: value.toString(), valueSource: row.lastValueWad === null ? "listing" : adjusted ? "trade_nf" : "trade", nf: nfNow.toString(),
     tollPerDayBps: round6(toll), tollPer30DaysBps: round6(toll * 30n), holdersReceive: toll < 0n,
     tollFormulaBps: row.sigmaBps !== null ? round6(tollPerDayTwinWad(powerWad, BigInt(row.sigmaBps))) : null,
     sigmaBps: row.sigmaBps, sigmaAgeSec: sigmaAge, sigmaWarning: sigmaAge !== null && sigmaAge > SIGMA_MAX_AGE_SEC ? "floor" : null,

@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { encodeErrorResult } from "viem";
+import { IODMinterAbi } from "../../abi";
+import { decodeRevert, WRAPPED_ERROR_ABI } from "../../chain/revert";
 import { breakevenDays, classifyRevert, closedSellValue, minOutSuggested, sellModeOf, tollBpsText } from "./model";
 import { mockBook, mockGear, WAD, idOf } from "../test-support";
 import { MockHook } from "../../testing/mock-hook";
@@ -41,4 +44,17 @@ test("breakeven days is spread over toll; a negative toll has none and says hold
   expect(breakevenDays(40, -(10n ** 14n))).toBeNull();
   expect(tollBpsText(-(10n ** 14n))).toBe("-1");
   expect(minOutSuggested(10_000n)).toBe(9_950n);
+});
+
+test("classify_unwraps_the_v4_wrapped_errors", () => {
+  const inner = encodeErrorResult({ abi: IODMinterAbi, errorName: "BuysClosed", args: [idOf("g") as `0x${string}`, b32("CLOSED") as `0x${string}`] });
+  const useQueue = encodeErrorResult({ abi: IODMinterAbi, errorName: "UseQueue" });
+  const wrap = (reason: `0x${string}`) => encodeErrorResult({ abi: WRAPPED_ERROR_ABI, errorName: "WrappedError", args: ["0x00000000000000000000000000000000000000c3", "0x7e87ce7d", reason, "0x1234"] });
+  const unexpected = (data: `0x${string}`) => encodeErrorResult({ abi: WRAPPED_ERROR_ABI, errorName: "UnexpectedRevertBytes", args: [data] });
+  const classify = (data: `0x${string}`) => { const d = decodeRevert({ data })!; return classifyRevert(d.name, d.args); };
+  expect(classify(wrap(inner)).code).toBe("CLOSED");
+  expect(classify(wrap(useQueue)).code).toBe("QUEUED");
+  expect(classify(unexpected(wrap(inner))).code).toBe("CLOSED"); // the live V4Quoter shape (0x6190b2b0)
+  expect(unexpected("0x").slice(0, 10)).toBe("0x6190b2b0");
+  expect(classify(wrap("0xdeadbeef")).code).toBe("UPSTREAM");
 });

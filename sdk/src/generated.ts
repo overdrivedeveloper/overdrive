@@ -113,7 +113,8 @@ export interface Operations {
           /** Underlying price, WAD (last indexed). */
           price: string | null;
           valuePerToken: string;
-          valueSource: "trade" | "listing";
+          /** How valuePerToken is derived. trade_nf: the last trade value moved to the current NF (toll since the trade included; the underlying price is not re-applied). trade: the last trade value as is (no NF history). listing: unit value times NF. */
+          valueSource: "trade" | "trade_nf" | "listing";
           nf: string;
           /** Daily toll in basis points; negative means holders receive. */
           tollPerDayBps: string;
@@ -161,7 +162,8 @@ export interface Operations {
           /** Underlying price, WAD (last indexed). */
           price: string | null;
           valuePerToken: string;
-          valueSource: "trade" | "listing";
+          /** How valuePerToken is derived. trade_nf: the last trade value moved to the current NF (toll since the trade included; the underlying price is not re-applied). trade: the last trade value as is (no NF history). listing: unit value times NF. */
+          valueSource: "trade" | "trade_nf" | "listing";
           nf: string;
           /** Daily toll in basis points; negative means holders receive. */
           tollPerDayBps: string;

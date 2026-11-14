@@ -9,7 +9,7 @@ import { nowOf, type ApiDependencies } from "../types";
 
 export const GearSchema = z.object({
   symbol: z.string(), id: Hex32, underlying: z.string(), underlyingB: z.string().nullable(), power: z.string(), token: z.string(), gear: z.string().nullable(),
-  price: z.string().nullable().openapi({ description: "Underlying price, WAD (last indexed)." }), valuePerToken: z.string(), valueSource: z.enum(["trade", "listing"]), nf: z.string(),
+  price: z.string().nullable().openapi({ description: "Underlying price, WAD (last indexed)." }), valuePerToken: z.string(), valueSource: z.enum(["trade", "trade_nf", "listing"]).openapi({ description: "How valuePerToken is derived. trade_nf: the last trade value moved to the current NF (toll since the trade included; the underlying price is not re-applied). trade: the last trade value as is (no NF history). listing: unit value times NF." }), nf: z.string(),
   tollPerDayBps: z.string().openapi({ description: "Daily toll in basis points; negative means holders receive." }), tollPer30DaysBps: z.string(), holdersReceive: z.boolean(), tollFormulaBps: z.string().nullable(),
   sigmaBps: z.string().nullable(), sigmaAgeSec: z.number().nullable(), sigmaWarning: z.enum(["floor"]).nullable(),
   spreadBps: z.number(), cap: z.string(), openValue: z.string(), status: z.string(), session: z.string(),

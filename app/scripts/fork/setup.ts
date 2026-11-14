@@ -7,6 +7,7 @@
 //   bun scripts/fork/setup.ts --list-gears         runs deploy-fork.sh's list-gears Safe batch for real: the owner (anvil
 //                                                  account 1 = ownerSafe) schedules it on the timelock, the clock moves
 //                                                  past minDelay, the owner executes it. Once per deployment.
+//   bun scripts/fork/setup.ts --fill-gears        rewrites deployment.json `gears` from the registry (up.sh runs it after --list-gears)
 //   bun scripts/fork/setup.ts --env                one env file per service in $FORK_DIR/env (keystore form, R7)
 //
 // Fork-only relaxations (this list and the fork report; never in DeploySystem or deploy-fork.sh). Each is sent by the
@@ -24,8 +25,9 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getAddress, type Address, type Hex } from "viem";
+import { getAddress, parseAbi, type Address, type Hex } from "viem";
 import { IODOracleGuardAbi } from "@/abi/IODOracleGuard";
+import { ABIS, IODGearRegistryAbi } from "@/abi";
 import { warpTarget } from "./warp";
 import {
   addressOf, ANVIL_URL, anvilAccounts, API_URL, asTimelock, assertFork, DATABASE_URL, DEPLOYMENT_FILE, encryptKeystore, FORK_DIR,
@@ -208,16 +210,23 @@ async function sendBatch(file: string, label: string): Promise<Hex[]> {
   return hashes;
 }
 
-/** One crank pass of `jobs` through its production entry point; retried for up to `timeoutMs` while the job reports an
- * error (on the fork the crank waits for the indexer's chain-time snapshot, so the indexer must be running). */
-export async function crankPass(jobs: string, timeoutMs = 120_000): Promise<string> {
-  let last = "";
-  for (const end = Date.now() + timeoutMs; Date.now() < end; await Bun.sleep(3000)) {
-    const r = runOnce("crank", { CRANK_ENABLED_JOBS: jobs });
-    last = r.output;
-    if (r.ok && !/"error":/.test(r.output)) return r.output;
-  }
-  throw new Error(`crank pass (${jobs}) kept failing:\n${last.slice(-1500)}`);
+/** Pushes the US session calendar the way the crank's sessions job does (same `computeSessions` and `setSessionsWithKinds`, signed by
+ * the crank keeper). Called directly, never through `crank --once`: that waits forever on the single-instance lock once the crank
+ * service runs. A push made before a warp keeps a weekend instant CLOSED (a later push starts at the next open). */
+export async function pushSessionCalendar(): Promise<string> {
+  const { pub } = await assertFork();
+  const dep = loadDeployment();
+  const { computeSessions, KIND_CODE } = await import("../../src/crank/sessions");
+  const { IODMarketHoursAbi } = await import("@/abi/IODMarketHours");
+  const next = computeSessions(new Date(Number((await pub.getBlock()).timestamp) * 1000), "us_equity", 30);
+  const w = walletFor("crank");
+  const hash = await w.writeContract({
+    address: getAddress(dep.contracts.ODMarketHours ?? ""), abi: IODMarketHoursAbi, functionName: "setSessionsWithKinds", gas: 8_000_000n, chain: null, account: w.account!,
+    args: [next.map((x) => ({ open: x.open, close: x.close })), next.map((x) => KIND_CODE[x.kind as "regular" | "extended"])],
+  } as never);
+  const r = await pub.waitForTransactionReceipt({ hash });
+  if (r.status !== "success") throw new Error(`session calendar push reverted (${hash})`);
+  return hash;
 }
 
 /** Moves the clock at least `minSec`, then to the first US regular session (+10 min) that ODMarketHours reports OPEN for
@@ -256,14 +265,43 @@ async function listGears(): Promise<void> {
   // closed-session read has no last good price on a fresh deployment.
   await test.increaseTime({ seconds: Number(dep.admin.minDelaySec) + 1 });
   await test.mine({ blocks: 1 });
-  // The crank pushes the US session calendar (ODMarketHours is keeper-fed); one pass of its sessions job, then the clock
-  // goes to a session the contract calls OPEN.
-  await crankPass("sessions");
+  // ODMarketHours is keeper-fed: push the US session calendar as the crank keeper (the crank service is not up yet and its
+  // single-instance lock would block `crank --once`), then the clock goes to a session the contract calls OPEN.
+  await pushSessionCalendar();
   const target = await warpToOpenSession();
   await refreshPyth();
   const executed = await sendBatch(execute, "execute list-gears");
   writeFileSync(marker, `${JSON.stringify({ scheduled, executed, clockAt: new Date(target * 1000).toISOString() }, null, 1)}\n`);
   console.log(`setup: list-gears scheduled and executed through the timelock (${scheduled.length}+${executed.length} txs, clock now ${new Date(target * 1000).toISOString()})`);
+}
+
+const GEAR_NAMES = ["CRUISE", "SPORT", "RACE", "ECO", "REVERSE"] as const;
+export const POWER_OF_GEAR: Record<number, string> = { 0: "1.5", 1: "2", 2: "3", 3: "0.5", 4: "-1" };
+const asciiOf = (b: Hex) => Buffer.from(b.slice(2), "hex").toString("utf8").replace(/\0+$/, "");
+
+/** The deployment file's `gears` rebuilt from ODGearRegistry (the deploy writes `gears: []` before the list-gears batch runs, and the
+ * API resolves a gear, its symbol, cap and unit only from that file). Writes the file when the list changed; true when it did. */
+export async function fillDeploymentGears(): Promise<boolean> {
+  const { pub } = await assertFork();
+  const file = JSON.parse(readFileSync(DEPLOYMENT_FILE, "utf8")) as Record<string, unknown> & { gears: unknown[]; contracts: Record<string, string> };
+  const reg = getAddress(file.contracts.ODGearRegistry ?? "");
+  const hook = getAddress(file.contracts.ODHook ?? "");
+  const n = Number(await pub.readContract({ address: reg, abi: IODGearRegistryAbi, functionName: "gearCount" }));
+  const gears: unknown[] = [];
+  for (let i = 0; i < n; i++) {
+    const id = (await pub.readContract({ address: reg, abi: IODGearRegistryAbi, functionName: "gearIdAt", args: [BigInt(i)] })) as Hex;
+    const g = (await pub.readContract({ address: reg, abi: IODGearRegistryAbi, functionName: "gear", args: [id] })) as unknown as { marketA: Hex; marketB: Hex; gear: number; token: Address; unitWad: bigint; capUsdWad: bigint; spreadBps: number };
+    const symbol = (await pub.readContract({ address: g.token, abi: parseAbi(["function symbol() view returns (string)"]), functionName: "symbol" })) as string;
+    const poolId = (await pub.readContract({ address: hook, abi: ABIS.IODHook as never, functionName: "poolIdOf", args: [id] })) as Hex;
+    gears.push({
+      id, symbol, gear: GEAR_NAMES[g.gear], power: POWER_OF_GEAR[g.gear], marketA: asciiOf(g.marketA), marketB: /^0x0+$/.test(g.marketB) ? null : asciiOf(g.marketB),
+      token: getAddress(g.token), poolId, capUsd: (g.capUsdWad / 10n ** 18n).toString(), spreadBps: g.spreadBps, unitUsd: (g.unitWad / 10n ** 18n).toString(),
+    });
+  }
+  if (JSON.stringify(gears) === JSON.stringify(file.gears)) { console.log(`setup: deployment gears already filled (${n})`); return false; }
+  writeFileSync(DEPLOYMENT_FILE, `${JSON.stringify({ ...file, gears }, null, 2)}\n`);
+  console.log(`setup: deployment.json gears filled from the registry (${n})`);
+  return true;
 }
 
 export function envText(vars: Record<string, string | number>): string {
@@ -325,6 +363,7 @@ if (import.meta.main) {
   if (has("--relax")) await relax();
   if (has("--relax") || has("--refresh-pyth")) console.log(`setup: R5.4 mock Pyth priced from the feeds for ${await refreshPyth()} markets`);
   if (has("--list-gears")) await listGears();
+  if (has("--fill-gears")) await fillDeploymentGears();
   if (has("--env")) writeEnv();
   void forkClients;
 }

@@ -148,6 +148,9 @@ echo "up: API database role overdrive_api is SELECT-only"
 if want indexer || [ ! -s "$FORK_DIR/gears-listed.json" ]; then start indexer none -- "$BUN" src/bin/indexer.ts; fi
 (cd "$APP" && "$BUN" scripts/fork/setup.ts --relax --list-gears) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
   || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "relaxations or gear listing failed"; }
+# The deploy wrote `gears: []`; the API resolves gears only from this file, so fill it from the registry before the API starts.
+(cd "$APP" && "$BUN" scripts/fork/setup.ts --fill-gears) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
+  || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "filling the deployment gears failed"; }
 
 if want api; then start api "http://127.0.0.1:$API_PORT/health" -- "$BUN" src/bin/api.ts; fi
 if want crank; then start crank none -- "$BUN" src/bin/crank.ts; fi

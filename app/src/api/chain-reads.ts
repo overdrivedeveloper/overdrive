@@ -47,9 +47,16 @@ export interface ApiChain {
   queuedSell(ticket: bigint): Promise<QueuedSellState>;
 }
 
-/** Uniswap v4 pool parameters of a gear pool. PENDING todo 06a: confirm against ODHook.initializeGearPool when it is built. */
-export const GEAR_POOL_FEE = 0x800000; // dynamic-fee flag: the hook sets the price, the pool fee is not the spread
+/** Uniswap v4 pool parameters of a gear pool: ODHook.POOL_FEE and ODHook.TICK_SPACING (a test pins both to the contract source).
+ * The fee is 0 and not the dynamic-fee flag: pricing is the minter's spread and the pools are initialised with fee 0. */
+export const GEAR_POOL_FEE = 0;
 export const GEAR_POOL_TICK_SPACING = 60;
+
+/** The PoolKey of a gear pool, the same as ODHook.poolKeyOf: currencies sorted, fee 0, tick spacing 60, hooks = the hook. */
+export function gearPoolKey(usdg: string, token: string, hook: string) {
+  const [currency0, currency1] = BigInt(usdg) < BigInt(token) ? [usdg, token] : [token, usdg];
+  return { currency0: currency0 as `0x${string}`, currency1: currency1 as `0x${string}`, fee: GEAR_POOL_FEE, tickSpacing: GEAR_POOL_TICK_SPACING, hooks: hook as `0x${string}` };
+}
 
 const v4QuoterAbi = parseAbi([
   "struct PoolKey { address currency0; address currency1; uint24 fee; int24 tickSpacing; address hooks; }",
@@ -82,12 +89,12 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
       const token = gearToken(i.gear);
       if (!token) throw new Error("unknown gear");
       const blockNumber = await client.getBlockNumber();
-      const [currency0, currency1] = BigInt(usdg) < BigInt(token) ? [usdg, token] : [token, usdg];
+      const poolKey = gearPoolKey(usdg, token, hook);
       const tokenIn = i.side === "buy" ? usdg : token;
-      const zeroForOne = tokenIn.toLowerCase() === currency0.toLowerCase();
+      const zeroForOne = tokenIn.toLowerCase() === poolKey.currency0.toLowerCase();
       const [amountOut] = (await client.readContract({
         address: v4, abi: v4QuoterAbi, functionName: "quoteExactInputSingle", blockNumber,
-        args: [{ poolKey: { currency0: currency0 as `0x${string}`, currency1: currency1 as `0x${string}`, fee: GEAR_POOL_FEE, tickSpacing: GEAR_POOL_TICK_SPACING, hooks: hook }, zeroForOne, exactAmount: i.exactIn, hookData: "0x" }],
+        args: [{ poolKey, zeroForOne, exactAmount: i.exactIn, hookData: "0x" }],
       })) as unknown as readonly [bigint, bigint];
       // V4Quoter returns amounts only: the other fields are null and parity skips them.
       return { amountIn: i.exactIn, amountOut, valuePerTokenWad: null, pricePerTokenWad: null, spreadBps: null, protocolFeeUsdg: null, tollPerDayWad: null, session: null, queued: false, blockNumber };

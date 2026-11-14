@@ -231,6 +231,16 @@ contract OracleForkTest is ODTest {
         revert("unknown");
     }
 
+    /// The real US equity calendar, not the OPEN fixture window pushed in setUp: Monday to Friday, inside the regular session in
+    /// both DST regimes (14:30 UTC when New York is on EST, to 20:00 UTC when it is on EDT). Conservative on purpose: a false
+    /// "closed" only skips the TWAP comparison on that run. Holidays are not modelled.
+    function _realMarketOpen() internal view returns (bool) {
+        uint256 dow = ((block.timestamp / 1 days) + 4) % 7; // 0 = Sunday (1970-01-01 was a Thursday)
+        if (dow == 0 || dow == 6) return false;
+        uint256 secs = block.timestamp % 1 days;
+        return secs >= 14 hours + 30 minutes && secs < 20 hours;
+    }
+
     function _within2pct(uint256 a, uint256 b) internal pure returns (bool) {
         uint256 diff = a > b ? a - b : b - a;
         return diff * 10_000 <= b * 200;
@@ -277,7 +287,9 @@ contract OracleForkTest is ODTest {
             } else if (m.twapUsable) {
                 assertFalse(fromPyth);
                 assertGt(refP, 0, m.sym);
-                assertTrue(_within2pct(r.p, refP), "feed vs TWAP");
+                // The TWAP is a live-market number: with the real US calendar closed (weekend, overnight) the feed holds the last
+                // close while the pool keeps trading, so the two legitimately differ. The 2% bound is not widened; the check is skipped.
+                if (_realMarketOpen()) assertTrue(_within2pct(r.p, refP), "feed vs TWAP");
             } else {
                 assertEq(refP, 0, m.sym);
                 assertEq(r.reason, guard.REASON_REF_UNAVAILABLE(), m.sym);

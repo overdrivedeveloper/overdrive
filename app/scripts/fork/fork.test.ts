@@ -160,6 +160,18 @@ describe("fork stack", () => {
     }
   });
 
+  test("up_fills_deployment_gears_and_never_runs_crank_once", () => {
+    const u = src("up.sh");
+    const list = u.indexOf("--relax --list-gears"), fill = u.indexOf("--fill-gears"), api = u.indexOf("if want api");
+    expect(list).toBeGreaterThan(0);
+    expect(fill).toBeGreaterThan(list); // after the gears are listed
+    expect(api).toBeGreaterThan(fill); // before the API reads deployment.json
+    const setup = src("setup.ts");
+    expect(setup).not.toContain("crankPass"); // crank --once waits forever on the single-instance lock once the crank service runs
+    expect(setup).not.toMatch(/runOnce\("crank"/);
+    expect(setup).toContain("fillDeploymentGears");
+  });
+
   test("bash32_lint_and_up_twice_is_idempotent", async () => {
     for (const f of ["env.sh", "up.sh", "down.sh", "reset.sh"]) {
       const text = src(f);
