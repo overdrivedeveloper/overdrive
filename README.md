@@ -36,6 +36,7 @@ The front end is built by another team and lives outside this repository. It tal
 | `ODInsurance` | USDG pot that only the Governor and the backer contract may draw |
 | `ODBacker` | Backer vaults: post USDG collateral, mint gear tokens against it, sealed liquidation batches |
 | `ODBackerMath` | Pure arithmetic of a backer vault |
+| `ODLiquidation` | Sealed-batch liquidation: seal, wait, execute per vault, bonus and bad-debt order (insurance, then stake, then Governor); holders are never touched |
 | `ODHook` | Uniswap v4 hook on each gear/USDG pool; prices every swap through the minter, holds no liquidity |
 | `ODHookMiner` | Finds the CREATE2 salt that gives the hook its permission bits |
 | `ODOracleGuard` | Every price that moves money passes here; Chainlink primary, fails closed |
