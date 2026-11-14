@@ -25,9 +25,10 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getAddress, parseAbi, type Address, type Hex } from "viem";
+import { encodeAbiParameters, erc20Abi, getAddress, keccak256, parseAbi, type Address, type Hex } from "viem";
 import { IODOracleGuardAbi } from "@/abi/IODOracleGuard";
-import { ABIS, IODGearRegistryAbi } from "@/abi";
+import { ABIS, IODGearRegistryAbi, IODGovernorAbi } from "@/abi";
+import { fund } from "./fund";
 import { warpTarget } from "./warp";
 import {
   addressOf, ANVIL_URL, anvilAccounts, API_URL, asTimelock, assertFork, DATABASE_URL, DEPLOYMENT_FILE, encryptKeystore, FORK_DIR,
@@ -163,6 +164,62 @@ export function relaxedMarket(cfg: MarketCfg, r = loadForkConfig().relaxations):
 
 /** Market ids as the deployment's ODOracleGuard knows them (bytes32 of the symbol, right-padded). */
 export const marketId = (symbol: string): Hex => `0x${Buffer.from(symbol, "utf8").toString("hex").padEnd(64, "0")}` as Hex;
+
+/** Governor capital the fork seeds once, in USDG. Same path as the exercise harness (ensureCapital): fund spare2, allow it as a
+ * depositor through the timelock, deposit. Without equity the Governor's cap is 0 and every buy closes with CAP. */
+export const SEED_CAPITAL_USDG = 4_000_000;
+
+async function seedCapital(): Promise<string> {
+  const { pub } = await assertFork();
+  const d = loadDeployment();
+  const gov = getAddress(d.contracts.ODGovernor!);
+  const usdg = getAddress(d.external.usdg!);
+  const supply = (await pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "totalSupply" })) as bigint;
+  if (supply > 0n) return `Governor capital already seeded (${supply} shares)`;
+  const who = addressOf("spare2");
+  await fund([who], SEED_CAPITAL_USDG, 10);
+  const ok = async (hash: Hex, what: string) => {
+    const r = await pub.waitForTransactionReceipt({ hash });
+    if (r.status !== "success") throw new Error(`${what} reverted (${hash})`);
+  };
+  await ok(await asTimelock((w, t) => w.writeContract({ address: gov, abi: IODGovernorAbi, functionName: "setDepositor", args: [who, true], gas: 1_000_000n, chain: null, account: t } as never)), "setDepositor");
+  const w = walletFor("spare2");
+  await ok(await w.writeContract({ address: usdg, abi: erc20Abi, functionName: "approve", args: [gov, 2n ** 255n], chain: null, account: w.account! }), "approve");
+  await ok(await w.writeContract({ address: gov, abi: IODGovernorAbi, functionName: "deposit", args: [BigInt(SEED_CAPITAL_USDG) * 10n ** 6n, who], gas: 3_000_000n, chain: null, account: w.account! } as never), "Governor deposit");
+  // Cache the new equity and stress now rather than at the crank's next pass (permissionless).
+  const c = walletFor("crank");
+  await ok(await c.writeContract({ address: gov, abi: IODGovernorAbi, functionName: "pokeRisk", args: [d.markets.map((m) => marketId(m.symbol))], gas: 8_000_000n, chain: null, account: c.account! } as never), "pokeRisk");
+  return `Governor capital seeded: ${SEED_CAPITAL_USDG} USDG from spare2`;
+}
+
+/**
+ * The vol engine's oracle address and market keys, read from the deployment record. The engine keys a market as
+ * keccak256(symbol) by default, but the deployed minter reads the oracle under the deployment's market id (the
+ * right-padded bytes32 of the symbol, `marketId`), so without these overrides every post lands on a key nothing reads and
+ * buys stay closed with VOL_HARD_STALE. Pair gears read keccak256(abi.encode(idA, idB)). Empty until the deploy wrote the
+ * record (the engine then refuses to start, which is the old behaviour, not a silent wrong key).
+ */
+export function volEngineEnv(file = DEPLOYMENT_FILE): Record<string, string> {
+  if (!existsSync(file)) return {};
+  const d = JSON.parse(readFileSync(file, "utf8")) as Partial<ForkDeploymentLike>;
+  const oracle = d.contracts?.ODVolOracle;
+  const ids = new Map<string, Hex>();
+  for (const m of d.markets ?? []) ids.set(m.symbol.toUpperCase(), (m.id as Hex | undefined) ?? marketId(m.symbol));
+  const keys = [...ids].map(([sym, id]) => `${sym}=${id.toLowerCase()}`);
+  for (const g of d.gears ?? []) {
+    const a = g.marketA?.toUpperCase();
+    const b = g.marketB?.toUpperCase();
+    if (!a || !b || !ids.has(a) || !ids.has(b)) continue;
+    const pair = `${a}/${b}=${keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [ids.get(a)!, ids.get(b)!]))}`;
+    if (!keys.includes(pair)) keys.push(pair);
+  }
+  return { ...(oracle ? { VOL_ORACLE_ADDRESS: getAddress(oracle) } : {}), ...(keys.length ? { VOL_KEYS: keys.join(",") } : {}) };
+}
+type ForkDeploymentLike = {
+  contracts: Record<string, string>;
+  markets: { symbol: string; id?: string }[];
+  gears: { marketA?: string | null; marketB?: string | null }[];
+};
 
 async function relax(): Promise<void> {
   const marker = join(FORK_DIR, "relaxations.json");
@@ -344,8 +401,10 @@ export function serviceEnv(): Record<string, Record<string, string | number>> {
     },
     "vol-engine": {
       DATABASE_URL, ...keyVars("volSigner", "VOL_SIGNER"), ...keyVars("volSender", "VOL_SENDER"), VOL_SEND: 1, VOL_CLOCK: "chain",
-      VOL_CHAIN_ID: 31337, VOL_RPC_URL: ANVIL_URL, DEPLOYMENT_FILE,
+      VOL_CHAIN_ID: 31337, VOL_RPC_URL: ANVIL_URL, ...volEngineEnv(),
     },
+    // Vite gives process env priority over web/.env.fork, so a stack on another PORT_OFFSET points the site at its own API.
+    web: { VITE_API_ORIGIN: API_URL, VITE_CHAIN_ID: 31337 },
   };
 }
 
@@ -365,5 +424,6 @@ if (import.meta.main) {
   if (has("--list-gears")) await listGears();
   if (has("--fill-gears")) await fillDeploymentGears();
   if (has("--env")) writeEnv();
+  if (has("--seed-capital")) console.log(`setup: ${await seedCapital()}`);
   void forkClients;
 }

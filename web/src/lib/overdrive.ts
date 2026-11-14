@@ -20,8 +20,9 @@ export type Market = {
   gears: readonly Gear[];
 };
 
-export const CHAIN_ID = 4663;
-export const CHAIN_HEX = '0x1237';
+// Public config (VITE_CHAIN_ID, default Robinhood Chain 4663); the fork stack sets 31337.
+export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID ?? 4663);
+export const CHAIN_HEX = `0x${CHAIN_ID.toString(16)}`;
 export const CHAIN_NAME = 'Robinhood Chain';
 export const SETTLEMENT = 'USDG';
 export const GEARS: readonly GearDefinition[] = [

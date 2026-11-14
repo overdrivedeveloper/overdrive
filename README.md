@@ -22,18 +22,29 @@ scripts/      CI and tooling: ci-local.sh, quiet-run.sh, export-abis.sh and thei
 .github/      CI workflow and SECURITY.md
 ```
 
-The website and dashboard live in `web/` (built by the design team, imported unchanged). The dashboard is moving to the API through `sdk/`.
+The website and dashboard live in `web/` (built by the design team, imported unchanged). The dashboard reads the API through the `/v1/compat` routes.
 
 ### Frontend (`web/`)
 
-A Vite, React and Tailwind single-page app: the landing page plus the dashboard views (Dashboard, Markets, Portfolio, Trade, Backers, Governor, Activity, Token). It is static; there is no server code and no secret. Wallet connection is by injected EVM wallet on Robinhood Chain (4663). Until the API wiring lands, missing data shows as unavailable and no transaction is submitted.
+A Vite, React and Tailwind single-page app: the landing page plus the dashboard views (Dashboard, Markets, Portfolio, Trade, Backers, Governor, Activity, Token). It is static; there is no server code and no secret. Wallet connection is by injected EVM wallet on Robinhood Chain (4663).
+
+All network access goes through one module, `web/src/services/overdrive.ts`, which calls the API's website contract routes, `POST /v1/compat/<procedure>` (`market.list`, `gear.snapshot`, `trade.quote`, `trade.status`, `exit.queueStatus`, `portfolio.positions`, `backer.vaults`, `backer.quoteAction`, `governor.snapshot`, `stake.account`, `stake.quoteAction`, `activity.list`; typed errors with the 14 `ServiceErrorCode` values). A transaction is sent only after the trade ticket shows the quote review, the intent passes `services/allowlist.ts` (known contract, known function) and the wallet is on the right chain; a wrong chain, a rejected signature and an account change are each handled in the ticket.
+
+Public build config (every `VITE_` value ships to the browser, so never a key):
+
+| Variable | Meaning |
+| --- | --- |
+| `VITE_API_ORIGIN` | API base URL, e.g. `http://127.0.0.1:3101` for the local fork stack |
+| `VITE_CHAIN_ID` | Chain the wallet must be on: 4663 (Robinhood Chain) or 31337 (the fork) |
+
+`web/.env.fork` holds the fork values for `npm run dev -- --mode fork`; `app/scripts/fork/up.sh` starts the web service in that mode. `web/tests/fork.test.ts` runs the compat smoke, QUOTE-1 and the wallet flows against a running fork stack when `FORK_API_URL`, `FORK_RPC_URL` and `FORK_DEPLOYMENT` are set (skipped otherwise).
 
 ```
 cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build   # output in web/dist
 npm run dev                                                              # local dev server
 ```
 
-`web/vercel.json` serves `index.html` for `/dashboard` and its query-string views; real assets are served as files. CI and `scripts/ci-local.sh` run the `web` job (install, typecheck, build).
+`web/vercel.json` serves `index.html` for `/dashboard` and its query-string views; real assets are served as files. CI and `scripts/ci-local.sh` run the `web` job (install, typecheck, `bun test`, build).
 
 ### Contracts (`contracts/src`)
 
@@ -240,6 +251,7 @@ All routes except `/health` are versioned under `/v1`. The OpenAPI spec is at `/
 | `GET /v1/fees` | Fee splits as read from chain, and fee totals |
 | `GET /v1/risk` | Latest risk-sim run and cap plan, with its age |
 | `GET /v1/hedges` | Recent hedge positions from the Governor ledger |
+| `POST /v1/compat/{procedure}` | The website contract (12 procedures, typed `ServiceErrorCode` errors) over the routes above |
 
 ## Checks
 

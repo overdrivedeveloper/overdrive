@@ -107,6 +107,7 @@ export function useOverdriveWallet() {
   }, []);
 
   return {
+    provider,
     address,
     chainId,
     connected: Boolean(address),

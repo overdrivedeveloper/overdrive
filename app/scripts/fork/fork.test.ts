@@ -4,6 +4,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { encodeAbiParameters, keccak256 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 const HERE = import.meta.dir;
@@ -147,6 +148,21 @@ describe("fork stack", () => {
     expect(setup.pythFromFeed(150_00000000n, 2n * 10n ** 18n)).toBe(75_00000000n);
     expect(setup.pythFromFeed(150_00000000n, undefined)).toBe(150_00000000n);
     expect(setup.marketId("ETH")).toBe(`0x455448${"0".repeat(58)}`);
+    // The vol engine posts under the deployment's market ids (padded bytes32), not its keccak256(symbol) default: the minter
+    // reads the padded id, so a keccak post never clears VOL_HARD_STALE.
+    const rec = join(tmp, "vol-deployment.json");
+    writeFileSync(rec, JSON.stringify({
+      contracts: { ODVolOracle: "0xe7213b68dc25bf30bc7f1de9baead075c66979f9" },
+      markets: [{ symbol: "NVDA", id: setup.marketId("NVDA") }, { symbol: "AMD" }],
+      gears: [{ marketA: "NVDA", marketB: null }, { marketA: "NVDA", marketB: "AMD" }],
+    }));
+    const vol = setup.volEngineEnv(rec);
+    expect(vol.VOL_ORACLE_ADDRESS).toBe("0xe7213b68DC25bf30bC7f1DE9BAead075c66979F9");
+    const keys = vol.VOL_KEYS!.split(",");
+    expect(keys[0]).toBe(`NVDA=${setup.marketId("NVDA")}`);
+    expect(keys[1]).toBe(`AMD=${setup.marketId("AMD")}`);
+    expect(keys[2]).toBe(`NVDA/AMD=${keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [setup.marketId("NVDA"), setup.marketId("AMD")]))}`);
+    expect(setup.volEngineEnv(join(tmp, "missing.json"))).toEqual({});
     // Applied as the timelock (impersonated), never in the deploy script.
     const s = src("setup.ts");
     expect(s).toMatch(/asTimelock\(async \(wallet, timelock\)[\s\S]*functionName: "setMarket"/);

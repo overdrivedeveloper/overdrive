@@ -5,7 +5,8 @@
 #                                    clear dev-account delegations -> Postgres od_fork -> deploy (app/scripts/deploy-fork.sh:
 #                                    DeploySystem, handoff, post-deploy check, list-gears batch; skips finished stages) ->
 #                                    fork relaxations -> env files -> migrate -> indexer, api, crank, hedger (mock venue),
-#                                    liquidator, mcp (http), vol-engine, web; health-checks each
+#                                    liquidator, mcp (http), vol-engine (posts under the deployment's market ids) ->
+#                                    Governor capital seed (once) -> web; health-checks each
 #   /bin/bash scripts/fork/down.sh   stops what up.sh started (state, database and deployment kept)
 #   /bin/bash scripts/fork/reset.sh  down + delete state, deployment and database
 #
@@ -87,7 +88,7 @@ case "$("$CAST" rpc web3_clientVersion --rpc-url "$ANVIL_URL")" in *anvil/*) ;; 
 chmod 600 "$FORK_DIR/anvil-accounts.json"
 echo "up: fork of mainnet block $FORK_BLOCK on $ANVIL_URL (chain 31337)"
 if [ ! -s "$FORK_DIR/warmed" ]; then
-  "$BUN" scripts/fork/warm.ts 2>&1 | tail -1 | sed 's/^/up: /'
+  (cd "$APP" && "$BUN" scripts/fork/warm.ts) 2>&1 | tail -1 | sed 's/^/up: /'
   date -u +%Y-%m-%dT%H:%M:%SZ >"$FORK_DIR/warmed"
 else
   echo "up: warm skip (done $(cat "$FORK_DIR/warmed"))"
@@ -149,7 +150,8 @@ if want indexer || [ ! -s "$FORK_DIR/gears-listed.json" ]; then start indexer no
 (cd "$APP" && "$BUN" scripts/fork/setup.ts --relax --list-gears) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
   || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "relaxations or gear listing failed"; }
 # The deploy wrote `gears: []`; the API resolves gears only from this file, so fill it from the registry before the API starts.
-(cd "$APP" && "$BUN" scripts/fork/setup.ts --fill-gears) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
+# --env again after the fill: the vol engine keys pair gears from the filled record (setup.ts volEngineEnv).
+(cd "$APP" && "$BUN" scripts/fork/setup.ts --fill-gears --env) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
   || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "filling the deployment gears failed"; }
 
 if want api; then start api "http://127.0.0.1:$API_PORT/health" -- "$BUN" src/bin/api.ts; fi
@@ -165,9 +167,13 @@ if want vol-engine; then
     echo "up: vol-engine not started: no Python with vol_engine installed (python3 -m venv vol-engine/.venv && vol-engine/.venv/bin/pip install -e vol-engine, or set VOL_ENGINE_PYTHON)"
   fi
 fi
+# Governor capital, once (its totalSupply is the marker): with no equity the cap is 0 and every buy closes with CAP.
+(cd "$APP" && "$BUN" scripts/fork/setup.ts --seed-capital) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
+  || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "seeding Governor capital failed"; }
 if want web; then
   if [ -f "$ROOT/web/package.json" ]; then
-    start web "http://127.0.0.1:$WEB_PORT/" -- /bin/sh -c "cd '$ROOT/web' && exec '$BUN' run dev --port $WEB_PORT --mode fork"
+    # exec vite itself (not `bun run dev`, which forks it) so the pid file names the process that holds the port.
+    start web "http://127.0.0.1:$WEB_PORT/" -- /bin/sh -c "cd '$ROOT/web' && exec ./node_modules/.bin/vite --host 127.0.0.1 --port $WEB_PORT --mode fork"
   else
     echo "up: web not started: no web/ in this checkout"
   fi

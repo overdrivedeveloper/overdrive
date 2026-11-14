@@ -1,7 +1,7 @@
 // Every chain read the API makes, behind one interface so tests (and the mock hook) can stand in. Reads only: the API holds
 // no key and sends nothing. The real implementation uses the "state" client of the rpc pool.
 import { BaseError, ContractFunctionRevertedError, parseAbi, type PublicClient } from "viem";
-import { IODBackerAbi, IODFeesAbi, IODGovernorAbi, IODMinterAbi } from "../abi";
+import { IODBackerAbi, IODFeesAbi, IODGovernorAbi, IODMinterAbi, IODStakeAbi } from "../abi";
 import type { Deployment } from "../lib/deployments";
 import type { BlockQuote, RawQuote, Side } from "./quote/model";
 
@@ -45,7 +45,17 @@ export interface ApiChain {
   backerIsOperator(owner: string, operator: string): Promise<boolean>;
   /** ODMinter.queuedSell; a ticket that is gone (filled, cancelled, never existed) has the zero address as owner. */
   queuedSell(ticket: bigint): Promise<QueuedSellState>;
+  /** ODStake for one account: the OVRD token, its wallet balance and the fee discount. Optional: absent in mocks that do not model staking. */
+  stakeAccount?(account: string): Promise<StakeAccountState>;
+  /** A transaction receipt by hash; null while unknown to the node. Optional for the same reason. */
+  receipt?(hash: string): Promise<ReceiptState | null>;
+  /** The latest block's timestamp (seconds). Optional: intent deadlines fall back to the wall clock without it. */
+  blockTimestamp?(): Promise<bigint>;
 }
+
+export interface StakeAccountState { ovrd: string; balance: bigint; feeDiscountBps: number; blockNumber: bigint }
+export interface ReceiptState { status: "success" | "reverted"; blockNumber: bigint }
+const stakeExtraAbi = parseAbi(["function ovrd() view returns (address)", "function balanceOf(address) view returns (uint256)"]);
 
 /** Uniswap v4 pool parameters of a gear pool: ODHook.POOL_FEE and ODHook.TICK_SPACING (a test pins both to the contract source).
  * The fee is 0 and not the dynamic-fee flag: pricing is the minter's spread and the pools are initialised with fee 0. */
@@ -102,6 +112,7 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
   };
   return {
     blockNumber: () => client.getBlockNumber(),
+    blockTimestamp: async () => (await client.getBlock({ blockTag: "latest" })).timestamp,
     quoter,
     minterQuote,
     minterTollPerDay: async (gearId) => (await client.readContract({ address: minter, abi: IODMinterAbi, functionName: "tollPerDay", args: [gearId as `0x${string}`] })),
@@ -147,6 +158,25 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
     queuedSell: async (ticket) => {
       const [gearId, owner, recipient, tokens, minUsdgOut] = await client.readContract({ address: minter, abi: IODMinterAbi, functionName: "queuedSell", args: [ticket] });
       return { gearId, owner, recipient, tokens, minUsdgOut };
+    },
+    stakeAccount: async (account) => {
+      const stake = deployment.contracts.ODStake as `0x${string}`;
+      const blockNumber = await client.getBlockNumber();
+      const ovrd = await client.readContract({ address: stake, abi: stakeExtraAbi, functionName: "ovrd", blockNumber });
+      const [balance, discount] = await Promise.all([
+        client.readContract({ address: ovrd, abi: stakeExtraAbi, functionName: "balanceOf", args: [account as `0x${string}`], blockNumber }),
+        client.readContract({ address: stake, abi: IODStakeAbi, functionName: "feeDiscountOf", args: [account as `0x${string}`], blockNumber }),
+      ]);
+      return { ovrd, balance, feeDiscountBps: Number(discount), blockNumber };
+    },
+    receipt: async (hash) => {
+      try {
+        const r = await client.getTransactionReceipt({ hash: hash as `0x${string}` });
+        return { status: r.status, blockNumber: r.blockNumber };
+      } catch (error) {
+        if (error instanceof BaseError && /not be found|not found/i.test(error.message)) return null;
+        throw error;
+      }
     },
   };
 }

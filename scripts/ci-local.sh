@@ -57,7 +57,7 @@ job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
 job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
-job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build); }
+job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build && bun test); }
 job_python() { bash scripts/check-python-locks.sh; }
 
 failed=0

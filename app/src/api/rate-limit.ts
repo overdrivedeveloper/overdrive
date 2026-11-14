@@ -154,7 +154,10 @@ export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
     const windowSeconds = Math.round(options.windowMs / 1000);
     if (retryAfter !== undefined) {
       context.header("Retry-After", String(retryAfter));
-      const response = context.json({ error: "RATE_LIMITED", message: "Too many requests." }, 429);
+      // The website compat routes answer only with the 14 service codes (24b R5).
+      const response = context.req.path.startsWith("/v1/compat/")
+        ? context.json({ code: "SERVICE_UNAVAILABLE", message: "Too many requests.", retryable: true, retryAfterMs: retryAfter * 1000 }, 429)
+        : context.json({ error: "RATE_LIMITED", message: "Too many requests." }, 429);
       response.headers.set("RateLimit-Limit", String(tightest!.limit));
       response.headers.set("RateLimit-Remaining", "0");
       response.headers.set("RateLimit-Reset", String(retryAfter));

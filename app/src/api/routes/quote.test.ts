@@ -70,3 +70,26 @@ test("intents are unsigned calldata from a fresh quote and refuse what cannot ex
   const big = await h.app.request("/v1/intent/buy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ gear: "TSLA-SPORT", account, usdg: "1", pad: "x".repeat(17_000) }) });
   expect(big.status).toBe(400);
 });
+
+test("intent deadline counts from the chain clock when the chain is ahead of the wall clock", async () => {
+  if (!h) return;
+  const { decodeFunctionData } = await import("viem");
+  const { IODMinterAbi } = await import("../../abi");
+  const account = "0x00000000000000000000000000000000000a11ce";
+  const chain = h.deps.chain as { blockTimestamp?: () => Promise<bigint> };
+  const prior = chain.blockTimestamp;
+  const wall = BigInt(Math.floor((h.deps.now ? h.deps.now() : new Date()).getTime() / 1000)); // the harness may pin the clock
+  const deadlineOf = async () => {
+    h.deps.cache.sweep(Number.MAX_SAFE_INTEGER);
+    const r = await h.app.request("/v1/intent/buy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ gear: "TSLA-SPORT", account, usdg: "5000000", deadlineSec: 300 }) });
+    const body = (await r.json()) as { tx: { data: `0x${string}` } };
+    return decodeFunctionData({ abi: IODMinterAbi, data: body.tx.data }).args![4] as bigint;
+  };
+  try {
+    chain.blockTimestamp = async () => wall + 3n * 86_400n; // a fork warped three days ahead
+    expect(await deadlineOf()).toBe(wall + 3n * 86_400n + 300n);
+    chain.blockTimestamp = async () => wall - 600n; // a lagging block time: the wall clock wins
+    const d = await deadlineOf();
+    expect(d >= wall + 300n && d <= wall + 310n).toBe(true);
+  } finally { if (prior) chain.blockTimestamp = prior; else delete chain.blockTimestamp; }
+});

@@ -4,4 +4,6 @@ import {defineConfig} from 'vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The wallet flow reads the committed deployment files in ../app/deployments.
+  server: {fs: {allow: ['..']}},
 });

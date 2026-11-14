@@ -2585,6 +2585,1499 @@
           "decimals",
           "hedges"
         ]
+      },
+      "CompatMarketList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "underlying": {
+                  "type": "string"
+                },
+                "gear": {
+                  "type": "string"
+                },
+                "power": {
+                  "type": "string"
+                },
+                "token": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "decimals": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "symbol",
+                    "decimals"
+                  ]
+                },
+                "poolId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "availability": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "canBuy": {
+                  "type": "boolean"
+                },
+                "canSell": {
+                  "type": "boolean"
+                },
+                "canQueueSell": {
+                  "type": "boolean"
+                },
+                "capUsd": {
+                  "type": "string"
+                },
+                "openValueUsd": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "spreadBps": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "underlying",
+                "gear",
+                "power",
+                "token",
+                "poolId",
+                "availability",
+                "canBuy",
+                "canSell",
+                "canQueueSell",
+                "capUsd",
+                "openValueUsd",
+                "spreadBps"
+              ]
+            }
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "ServiceError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "WRONG_CHAIN",
+              "NOT_DEPLOYED",
+              "MARKET_CLOSED",
+              "FEED_STALE",
+              "FEED_PAUSED",
+              "CAP_REACHED",
+              "RACE_VOL_LIMIT",
+              "INSUFFICIENT_BALANCE",
+              "ALLOWANCE_REQUIRED",
+              "QUOTE_EXPIRED",
+              "SLIPPAGE_EXCEEDED",
+              "INSUFFICIENT_COLLATERAL",
+              "EXIT_QUEUED",
+              "SERVICE_UNAVAILABLE"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "retryAfterMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ]
+      },
+      "CompatGearSnapshot": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "gearId": {
+                "type": "string"
+              },
+              "underlyingPrice": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "valuePerToken": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "priceCurrency": {
+                "type": "string",
+                "enum": [
+                  "USDG"
+                ]
+              },
+              "normalisation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "annualVolatilityPct": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dailyTollPct": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "usageDailyTollPct": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "availability": {
+                "type": "string"
+              },
+              "feedUpdatedAt": {
+                "type": "string"
+              },
+              "raceEligible": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "gearId",
+              "underlyingPrice",
+              "valuePerToken",
+              "priceCurrency",
+              "normalisation",
+              "annualVolatilityPct",
+              "dailyTollPct",
+              "usageDailyTollPct",
+              "availability",
+              "feedUpdatedAt",
+              "raceEligible"
+            ]
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatQuote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "integer"
+              },
+              "account": {
+                "type": "string"
+              },
+              "gearId": {
+                "type": "string"
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "buy",
+                  "sell"
+                ]
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "decimals": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "address",
+                      "symbol",
+                      "decimals"
+                    ]
+                  },
+                  "baseUnits": {
+                    "type": "string",
+                    "description": "Integer in the token's base units."
+                  }
+                },
+                "required": [
+                  "token",
+                  "baseUnits"
+                ]
+              },
+              "slippageBps": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "chainId",
+              "account",
+              "gearId",
+              "side",
+              "input",
+              "slippageBps"
+            ]
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "execution": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "queued"
+            ]
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "decimals": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "address",
+                  "symbol",
+                  "decimals"
+                ]
+              },
+              "baseUnits": {
+                "type": "string",
+                "description": "Integer in the token's base units."
+              }
+            },
+            "required": [
+              "token",
+              "baseUnits"
+            ]
+          },
+          "minimumOutput": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "decimals": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "address",
+                  "symbol",
+                  "decimals"
+                ]
+              },
+              "baseUnits": {
+                "type": "string",
+                "description": "Integer in the token's base units."
+              }
+            },
+            "required": [
+              "token",
+              "baseUnits"
+            ]
+          },
+          "dailyTollPct": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spreadBps": {
+            "type": "number"
+          },
+          "priceImpactPct": {
+            "type": "string"
+          },
+          "gasEstimateBaseUnits": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "decimals": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "symbol",
+                    "decimals"
+                  ]
+                },
+                "spender": {
+                  "type": "string"
+                },
+                "requiredBaseUnits": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "approve",
+                    "verified_permit"
+                  ]
+                }
+              },
+              "required": [
+                "token",
+                "spender",
+                "requiredBaseUnits",
+                "method"
+              ]
+            }
+          },
+          "transaction": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "account": {
+                "type": "string"
+              },
+              "contract": {
+                "type": "string"
+              },
+              "functionName": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {}
+              },
+              "valueBaseUnits": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "account",
+              "contract",
+              "functionName",
+              "args",
+              "valueBaseUnits",
+              "expiresAt"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "input",
+          "stamp",
+          "expiresAt",
+          "execution",
+          "output",
+          "minimumOutput",
+          "dailyTollPct",
+          "spreadBps",
+          "priceImpactPct",
+          "gasEstimateBaseUnits",
+          "approvals",
+          "transaction"
+        ]
+      },
+      "CompatTradeStatus": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "chainId": {
+                "type": "number"
+              },
+              "account": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "transactionHash": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "submitted",
+                  "confirming",
+                  "confirmed",
+                  "failed",
+                  "replaced"
+                ]
+              },
+              "replacementHash": {
+                "type": "string"
+              },
+              "blockNumber": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "summary": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "chainId",
+              "account",
+              "kind",
+              "timestamp",
+              "transactionHash",
+              "status",
+              "blockNumber",
+              "summary"
+            ]
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatExitQueue": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "ticket": {
+                  "type": "string"
+                },
+                "gearId": {
+                  "type": "string"
+                },
+                "account": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "decimals": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "symbol",
+                        "decimals"
+                      ]
+                    },
+                    "baseUnits": {
+                      "type": "string",
+                      "description": "Integer in the token's base units."
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "baseUnits"
+                  ]
+                },
+                "minimumOutput": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "decimals": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "symbol",
+                        "decimals"
+                      ]
+                    },
+                    "baseUnits": {
+                      "type": "string",
+                      "description": "Integer in the token's base units."
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "baseUnits"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "canCancel": {
+                  "type": "boolean"
+                },
+                "settlement": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ticket",
+                "gearId",
+                "account",
+                "quantity",
+                "minimumOutput",
+                "createdAt",
+                "status",
+                "canCancel",
+                "settlement"
+              ]
+            }
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatPositions": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "gearId": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "decimals": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "symbol",
+                        "decimals"
+                      ]
+                    },
+                    "baseUnits": {
+                      "type": "string",
+                      "description": "Integer in the token's base units."
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "baseUnits"
+                  ]
+                },
+                "valueUsd": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "accruedTollUsd": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "gearId",
+                "quantity",
+                "valueUsd",
+                "accruedTollUsd"
+              ]
+            }
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatVaults": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "gearId": {
+                  "type": "string"
+                },
+                "collateral": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "decimals": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "symbol",
+                        "decimals"
+                      ]
+                    },
+                    "baseUnits": {
+                      "type": "string",
+                      "description": "Integer in the token's base units."
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "baseUnits"
+                  ]
+                },
+                "debt": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "decimals": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "symbol",
+                        "decimals"
+                      ]
+                    },
+                    "baseUnits": {
+                      "type": "string",
+                      "description": "Integer in the token's base units."
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "baseUnits"
+                  ]
+                },
+                "collateralRatioPct": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "initialRatioPct": {
+                  "type": "string"
+                },
+                "maintenanceRatioPct": {
+                  "type": "string"
+                },
+                "health": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "weekendUpliftPct": {
+                  "type": "string"
+                },
+                "canMint": {
+                  "type": "boolean"
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "owner",
+                "gearId",
+                "collateral",
+                "debt",
+                "collateralRatioPct",
+                "initialRatioPct",
+                "maintenanceRatioPct",
+                "health",
+                "weekendUpliftPct",
+                "canMint",
+                "status"
+              ]
+            }
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatActionQuote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "decimals": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "symbol",
+                    "decimals"
+                  ]
+                },
+                "spender": {
+                  "type": "string"
+                },
+                "requiredBaseUnits": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "approve",
+                    "verified_permit"
+                  ]
+                }
+              },
+              "required": [
+                "token",
+                "spender",
+                "requiredBaseUnits",
+                "method"
+              ]
+            }
+          },
+          "transaction": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "account": {
+                "type": "string"
+              },
+              "contract": {
+                "type": "string"
+              },
+              "functionName": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {}
+              },
+              "valueBaseUnits": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "account",
+              "contract",
+              "functionName",
+              "args",
+              "valueBaseUnits",
+              "expiresAt"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "stamp",
+          "expiresAt",
+          "approvals",
+          "transaction"
+        ]
+      },
+      "CompatGovernor": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "equityUsd": {
+                "type": "string"
+              },
+              "exitReserveUsd": {
+                "type": "string"
+              },
+              "exitReserveFloorUsd": {
+                "type": "string"
+              },
+              "deltaUsd": {
+                "type": "string"
+              },
+              "gammaUsd": {
+                "type": "string"
+              },
+              "hedgeDeltaUsd": {
+                "type": "string"
+              },
+              "riskState": {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "reduced",
+                  "paused"
+                ]
+              }
+            },
+            "required": [
+              "equityUsd",
+              "exitReserveUsd",
+              "exitReserveFloorUsd",
+              "deltaUsd",
+              "gammaUsd",
+              "hedgeDeltaUsd",
+              "riskState"
+            ]
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatStake": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "available": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "decimals": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "address",
+                      "symbol",
+                      "decimals"
+                    ]
+                  },
+                  "baseUnits": {
+                    "type": "string",
+                    "description": "Integer in the token's base units."
+                  }
+                },
+                "required": [
+                  "token",
+                  "baseUnits"
+                ]
+              },
+              "staked": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "decimals": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "address",
+                      "symbol",
+                      "decimals"
+                    ]
+                  },
+                  "baseUnits": {
+                    "type": "string",
+                    "description": "Integer in the token's base units."
+                  }
+                },
+                "required": [
+                  "token",
+                  "baseUnits"
+                ]
+              },
+              "slashable": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "decimals": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "address",
+                      "symbol",
+                      "decimals"
+                    ]
+                  },
+                  "baseUnits": {
+                    "type": "string",
+                    "description": "Integer in the token's base units."
+                  }
+                },
+                "required": [
+                  "token",
+                  "baseUnits"
+                ]
+              },
+              "feeDiscountBps": {
+                "type": "number"
+              },
+              "termsVersion": {
+                "type": "string"
+              },
+              "unstakeAvailableAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "available",
+              "staked",
+              "slashable",
+              "feeDiscountBps",
+              "termsVersion",
+              "unstakeAvailableAt"
+            ]
+          },
+          "stamp": {
+            "type": "object",
+            "properties": {
+              "chainId": {
+                "type": "number"
+              },
+              "blockNumber": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "blockNumber",
+              "observedAt"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "stamp",
+          "stale"
+        ]
+      },
+      "CompatActivity": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "chainId": {
+                  "type": "number"
+                },
+                "account": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "transactionHash": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "submitted",
+                    "confirming",
+                    "confirmed",
+                    "failed",
+                    "replaced"
+                  ]
+                },
+                "replacementHash": {
+                  "type": "string"
+                },
+                "blockNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "summary": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "chainId",
+                "account",
+                "kind",
+                "timestamp",
+                "transactionHash",
+                "status",
+                "blockNumber",
+                "summary"
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rows",
+          "nextCursor"
+        ]
       }
     },
     "parameters": {}
@@ -4409,6 +5902,1204 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Hedges"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/market.list": {
+      "get": {
+        "summary": "Catalog with stable ids, deployed addresses and live availability",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Must equal the service chain when given."
+            },
+            "required": false,
+            "description": "Must equal the service chain when given.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatMarketList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/gear.snapshot": {
+      "get": {
+        "summary": "Price, value per token, normalisation, volatility, daily toll and availability of one gear",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Gear symbol (TSLA-SPORT) or bytes32 id."
+            },
+            "required": false,
+            "description": "Gear symbol (TSLA-SPORT) or bytes32 id.",
+            "name": "gearId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatGearSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/trade.quote": {
+      "post": {
+        "summary": "A bounded quote with its unsigned transaction intent",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "integer"
+                  },
+                  "account": {
+                    "type": "string"
+                  },
+                  "gearId": {
+                    "type": "string"
+                  },
+                  "side": {
+                    "type": "string",
+                    "enum": [
+                      "buy",
+                      "sell"
+                    ]
+                  },
+                  "input": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "decimals": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "address",
+                          "symbol",
+                          "decimals"
+                        ]
+                      },
+                      "baseUnits": {
+                        "type": "string",
+                        "description": "Integer in the token's base units."
+                      }
+                    },
+                    "required": [
+                      "token",
+                      "baseUnits"
+                    ]
+                  },
+                  "slippageBps": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "account",
+                  "gearId",
+                  "side",
+                  "input",
+                  "slippageBps"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatQuote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/trade.status": {
+      "get": {
+        "summary": "Receipt or indexed status of a submitted transaction",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Transaction hash."
+            },
+            "required": false,
+            "description": "Transaction hash.",
+            "name": "hash",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatTradeStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/exit.queueStatus": {
+      "get": {
+        "summary": "A wallet's queued sells with their settlement rule",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Wallet address."
+            },
+            "required": false,
+            "description": "Wallet address.",
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatExitQueue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/portfolio.positions": {
+      "get": {
+        "summary": "A wallet's gear token quantities and values",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Wallet address."
+            },
+            "required": false,
+            "description": "Wallet address.",
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatPositions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/backer.vaults": {
+      "get": {
+        "summary": "A wallet's backer vaults with health and current requirements",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Wallet address."
+            },
+            "required": false,
+            "description": "Wallet address.",
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatVaults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/backer.quoteAction": {
+      "post": {
+        "summary": "Unsigned backer transaction: open, deposit, withdraw, mint or repay",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "integer"
+                  },
+                  "account": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "deposit",
+                      "withdraw",
+                      "mint",
+                      "repay"
+                    ]
+                  },
+                  "gearId": {
+                    "type": "string"
+                  },
+                  "vaultId": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "account",
+                  "action",
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatActionQuote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/governor.snapshot": {
+      "get": {
+        "summary": "Governor equity, exit reserve and floor, exposures and risk state",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatGovernor"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/stake.account": {
+      "get": {
+        "summary": "OVRD available and staked, slashable amount, fee discount and terms",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Wallet address."
+            },
+            "required": false,
+            "description": "Wallet address.",
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatStake"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/stake.quoteAction": {
+      "post": {
+        "summary": "Unsigned stake, requestUnstake or unstake transaction",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "integer"
+                  },
+                  "account": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "stake",
+                      "requestUnstake",
+                      "unstake"
+                    ]
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "account",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatActionQuote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/compat/activity.list": {
+      "get": {
+        "summary": "A wallet's indexed on-chain events, newest first, paged by cursor",
+        "tags": [
+          "compat"
+        ],
+        "description": "Website contract procedure. Amounts are integer strings in base units; missing values are null; errors are a ServiceError with one of 14 codes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Wallet address."
+            },
+            "required": false,
+            "description": "Wallet address.",
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "From nextCursor."
+            },
+            "required": false,
+            "description": "From nextCursor.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "1..200, default 50."
+            },
+            "required": false,
+            "description": "1..200, default 50.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Optional chain check."
+            },
+            "required": false,
+            "description": "Optional chain check.",
+            "name": "chainId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompatActivity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceError"
                 }
               }
             }

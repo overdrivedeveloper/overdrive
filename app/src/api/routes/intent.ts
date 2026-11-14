@@ -34,7 +34,11 @@ export function registerIntentRoutes(app: OpenAPIHono, deps: ApiDependencies, se
     const o = await service.quote({ gear: ref.id, side, exactIn: amount, account: body.account });
     const minter = deps.deployment.contracts.ODMinter as `0x${string}`;
     const recipient = (body.recipient ?? body.account) as `0x${string}`;
-    const deadline = BigInt(Math.floor(nowOf(deps).getTime() / 1000) + body.deadlineSec);
+    // The contract checks the deadline against block.timestamp: count from the later of the wall clock and the chain's clock,
+    // so a chain ahead of the wall (a warped fork) does not get an intent that is already expired.
+    const wallSec = BigInt(Math.floor(nowOf(deps).getTime() / 1000));
+    const chainSec = deps.chain.blockTimestamp ? await deps.chain.blockTimestamp().catch(() => 0n) : 0n;
+    const deadline = (chainSec > wallSec ? chainSec : wallSec) + BigInt(body.deadlineSec);
     const base = { asOfBlock: o.blockNumber.toString(), asOf: new Date(o.asOfMs).toISOString(), stale: false, decimals: { usdg: 6 as const, token: 18 as const, value: 18 as const }, quoteId: o.quoteId, blockNumber: o.blockNumber.toString(), permit2: null };
     if (o.sellMode === "queued" && o.minter) {
       const minOut = BigInt(body.minOut ?? minOutSuggested(o.minter.amountOut).toString());
