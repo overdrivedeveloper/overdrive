@@ -46,6 +46,8 @@ export class MockBacker {
   holders = new Map<string, bigint>();
   /** Next executeBatch voids the batch with this reason instead of liquidating. */
   voidNext: string | undefined;
+  /** Next executeBatch reverts ExecuteOutOfGas (M-6: too little gas for a vault); the batch stays open. */
+  outOfGasNext = false;
   /** Counts of reads per function, for "read from the chain on every pass" assertions. */
   readCount = new Map<string, number>();
 
@@ -162,6 +164,7 @@ export class MockBacker {
     const readyAt = b!.sealedAt + this.sealDelay;
     if (this.chain.nowSeconds < readyAt) rev("BatchNotReady", [readyAt]);
     if (this.chain.nowSeconds > b!.sealedAt + this.batchTtl) rev("BatchExpired");
+    if (this.outOfGasNext) { this.outOfGasNext = false; rev("ExecuteOutOfGas"); }
     if (!commit) return 60_000n + 50_000n * BigInt(b!.vaultIds.length);
     this.block++;
     if (this.voidNext) {

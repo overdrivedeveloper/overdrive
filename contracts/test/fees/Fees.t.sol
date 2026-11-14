@@ -104,6 +104,55 @@ contract FeesTest is ODTest {
         assertEq(usdg.balanceOf(treasury), 10e6);
     }
 
+    /// L-3 (audit): USDG sent without a successful notify (here a Governor the deploy forgot to make a notifier) was
+    /// stuck forever: distribute never saw it and there is no sweep. sync() books it into the split; nothing else moves.
+    function test_L3_UnnotifiedUsdgSyncsIntoSplit() public {
+        vm.prank(admin);
+        fees.setNotifier(address(gov), false);
+        usdg.mint(address(gov), 3_000e6);
+        vm.prank(address(gov));
+        usdg.transfer(address(fees), 3_000e6);
+        vm.prank(address(gov));
+        try fees.notify("TOLL", GEAR, 3_000e6) {} catch {} // the Governor ignores a failed notify
+        assertEq(fees.distributable(), 0, "stuck before sync");
+        vm.prank(alice); // anyone
+        assertEq(fees.sync(), 3_000e6);
+        assertEq(fees.distributable(), 3_000e6);
+        assertEq(fees.sync(), 0, "idempotent");
+        vm.warp(vm.getBlockTimestamp() + 7 days);
+        assertEq(fees.distribute(), 3_000e6);
+        assertEq(usdg.balanceOf(treasury), 300e6, "the split, not a sweep");
+        assertEq(usdg.balanceOf(address(fees)), fees.totalHeld() + fees.distributable());
+    }
+
+    /// Property: after any mix of notified fees, plain transfers, held buckets and distributions, the books never
+    /// exceed the balance, and a sync makes them equal (no USDG in ODFees is ever unreachable by the split).
+    function testFuzz_L3_SyncMakesBooksEqualBalance(uint96 a, uint96 d1, uint96 d2, bool holdKeepers, bool dist)
+        public
+    {
+        if (holdKeepers) {
+            bytes32 bk = fees.B_KEEPERS();
+            vm.prank(admin);
+            fees.setRecipient(bk, address(0));
+        }
+        uint256 x = bound(a, 0, 1e15);
+        if (x != 0) _feed(minter, "SPREAD", x);
+        usdg.mint(address(fees), bound(d1, 0, 1e15));
+        if (dist) {
+            vm.warp(vm.getBlockTimestamp() + 7 days);
+            fees.distribute();
+        }
+        usdg.mint(address(fees), bound(d2, 0, 1e15));
+        uint256 bal = usdg.balanceOf(address(fees));
+        assertLe(fees.distributable() + fees.totalHeld(), bal);
+        uint256 pendingBefore = fees.distributable();
+        uint256 got = fees.sync();
+        assertEq(fees.distributable() + fees.totalHeld(), usdg.balanceOf(address(fees)));
+        assertEq(fees.distributable(), pendingBefore + got);
+        assertEq(usdg.balanceOf(address(fees)), bal, "sync moves no USDG");
+        if (x != 0) _feed(minter, "SPREAD", x); // notify still works after a sync
+    }
+
     // ---- R2
 
     function test_SplitDefault() public {

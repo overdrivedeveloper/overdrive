@@ -136,6 +136,8 @@ contract ODAgentRouter is ReentrancyGuardTransient, IODAgentRouter {
         usdgOut = MINTER.sell(gearId, tokens, minUsdgOut, owner, deadline);
         token.forceApprove(address(MINTER), 0);
         if (token.balanceOf(address(this)) != 0 || USDG.balanceOf(address(this)) != 0) revert RouterKeptFunds();
+        // L-4: a sell is charged its USDG value against the per-trade cap and the budget (reverts the sell if over)
+        _charge(p, usdgOut);
         emit AgentTrade(owner, msg.sender, gearId, ACTION_SELL, usdgOut);
     }
 
@@ -160,8 +162,6 @@ contract ODAgentRouter is ReentrancyGuardTransient, IODAgentRouter {
             if (vOwner != owner) revert IODBacker.NotVaultOwner(vaultId);
             if (vGear != gearId) revert VaultGearMismatch(vaultId, gearId);
         }
-        _charge(p, collateralUsdg);
-
         vaultIdOut = vaultId;
         if (collateralUsdg != 0 || vaultId == 0) {
             // slither-disable-next-line arbitrary-send-erc20
@@ -173,6 +173,8 @@ contract ODAgentRouter is ReentrancyGuardTransient, IODAgentRouter {
         }
         if (mintTokens != 0) proceeds = BACKER.mintFor(vaultIdOut, mintTokens, minProceedsUsdg);
         if (USDG.balanceOf(address(this)) != 0) revert RouterKeptFunds();
+        // L-4: the collateral moved plus the minted debt (its sale proceeds) count against the cap and the budget
+        _charge(p, collateralUsdg + proceeds);
         emit AgentTrade(owner, msg.sender, gearId, ACTION_BACK, collateralUsdg);
     }
 

@@ -54,7 +54,10 @@ contract HedgeJumpWindowTest is GovernorFixture {
         gov.postHedge(NVDA, 0, 5_000e6, t);
         vm.warp(t + gov.hedgeMaxAge());
         uint64 t2 = uint64(vm.getBlockTimestamp());
-        gov.postHedge(TSLA, 0, 5_000e6, t2); // new window, new anchor
+        // new window, new anchor: equity less hedge equity (L-5), 100,000 - 5,000, so 4,750 of room
+        vm.expectRevert(abi.encodeWithSelector(IODGovernor.HedgeJump.selector, 0, 4_751e6, 4_750e6));
+        gov.postHedge(TSLA, 0, 4_751e6, t2);
+        gov.postHedge(TSLA, 0, 4_750e6, t2);
         vm.stopPrank();
     }
 

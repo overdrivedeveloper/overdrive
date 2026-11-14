@@ -94,6 +94,7 @@ interface IODBacker {
     error SealRefused(bytes32 reason); // NOT_LIVE, REF_UNAVAILABLE, STALE_ROUND, SETTLED, NONE_UNHEALTHY
     error UnknownBatch(uint256 batchId);
     error BatchDone(uint256 batchId);
+    error ExecuteOutOfGas(); // M-6: an execute without enough gas for every vault reverts; the batch stays open
     function MAX_SEAL_DRIFT_BPS() external view returns (uint16); // execute only within 1% of the sealed value
     function MIN_REWARD_USDG() external view returns (uint64); // executor floor per vault, min(bonus, this)
     function MAX_BATCH() external view returns (uint8);

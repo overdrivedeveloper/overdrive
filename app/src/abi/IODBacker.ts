@@ -1057,6 +1057,11 @@ export const IODBackerAbi = [
   },
   {
     "type": "error",
+    "name": "ExecuteOutOfGas",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "Healthy",
     "inputs": [
       {

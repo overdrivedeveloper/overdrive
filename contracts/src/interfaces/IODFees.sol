@@ -21,6 +21,8 @@ interface IODFees {
     error InvalidParams();
     function notify(bytes32 kind, bytes32 gearId, uint256 usdg) external; // caller has transferred first; Governor/Backer only
     function distribute() external returns (uint256 amount); // anyone, once per 7 days
+    event Synced(uint256 usdg);
+    function sync() external returns (uint256 usdg); // anyone: books USDG that arrived without a notify as pending (L-3)
     function distributable() external view returns (uint256);
     function nextDistributionAt() external view returns (uint256);
     function protocolSpreadShareBps() external view returns (uint16); // default 1000

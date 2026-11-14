@@ -20,6 +20,7 @@ import {ODRoles} from "../interfaces/ODRoles.sol";
 import {ODIndex} from "../math/ODIndex.sol";
 import {ODBackerMath as M} from "./ODBackerMath.sol";
 import {ODLiquidation as L} from "./ODLiquidation.sol";
+import {ODMinterPricing} from "../governor/ODMinterPricing.sol";
 
 /// @title ODBacker
 /// @notice Backer vaults. A backer posts USDG (from 50), mints gear tokens against it at a collateral ratio of 200%
@@ -47,6 +48,9 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     uint64 public constant MIN_REWARD_USDG = 1e6;
     uint8 public constant MAX_BATCH = 50;
     uint32 public constant MAX_ROUND_AGE = 15 minutes;
+    /// M-6: gas required before each vault of an execute (one liquidation with insurance and stake cover measured at
+    /// about 0.3M on mocks); less reverts the whole execute and leaves the batch open
+    uint256 internal constant MIN_VAULT_GAS = 400_000;
     bytes32 public constant FEE_KIND = "BACKER_TOLL";
     uint256 internal constant BPS = 10_000;
 
@@ -321,7 +325,9 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     /// @dev Only in [sealedAt + SEAL_DELAY, sealedAt + BATCH_TTL]. Voids the batch (vaults free) when the reading is not
     /// live or the current high-side value drifted more than MAX_SEAL_DRIFT_BPS from the sealed value. Each vault is
     /// liquidated in its own self-call under try/catch, so no vault (or its owner) can make the batch revert. No pause
-    /// stops it: liquidations reduce risk.
+    /// stops it: liquidations reduce risk. M-6: under MIN_VAULT_GAS before a vault, or a caught failure that was out of
+    /// gas, reverts ExecuteOutOfGas (the batch stays open); the batch is done only when every vault returned cleanly
+    /// (liquidated or released), so a failing vault (e.g. an executor that cannot receive USDG) leaves it open.
     function executeBatch(uint256 batchId) external nonReentrant returns (uint256 liquidated) {
         Batch storage b = _batches[batchId];
         uint256 s = b.sealedAt;
@@ -329,10 +335,14 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (b.done) revert BatchDone(batchId);
         if (block.timestamp < s + SEAL_DELAY) revert BatchNotReady(uint64(s + SEAL_DELAY));
         if (block.timestamp > s + BATCH_TTL) revert BatchExpired();
-        b.done = true;
+        b.done = true; // reopened below when a vault failed (M-6)
         bytes32 g = b.gearId;
         GearConfig memory cfg = registry.gear(g);
-        try minter.accrue(g) {} catch {}
+        uint256 g0 = gasleft();
+        try minter.accrue(g) {}
+        catch {
+            _gasGuard(g0);
+        }
         PriceReading memory r = _read(cfg);
         if (!_live(r) || r.refP == 0 || minter.settledValue(g) != 0) {
             emit BatchVoided(batchId, "NOT_LIVE");
@@ -348,10 +358,24 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         uint256 maint = cfg.maintenanceBps + _upliftOf(cfg);
         uint256 n = b.vaultIds.length;
         for (uint256 i; i < n; ++i) {
+            g0 = gasleft();
+            if (g0 < MIN_VAULT_GAS) revert ExecuteOutOfGas();
             try this.liquidateVault(batchId, b.vaultIds[i], msg.sender, maint) returns (bool ok) {
                 if (ok) ++liquidated;
-            } catch {}
+            } catch {
+                // M-6: a starved vault (here, or nested: the inner guards revert with at most 1/64 + 1/4096 left)
+                // reverts the whole execute; a real revert keeps the batch open for another executor
+                _gasGuard(g0);
+                b.done = false;
+            }
         }
+    }
+
+    /// M-6: after a caught failure, revert the whole call when the callee used (almost) all the gas it was given
+    /// (63/64 forwarded, so about 1/64 is left on an out-of-gas, plus 1/64 of that per nested level; 1/32 covers
+    /// starvation a few calls deep): a gas-starved try never passes as handled.
+    function _gasGuard(uint256 g0) private view {
+        if (gasleft() <= g0 / 32) revert ExecuteOutOfGas();
     }
 
     /// One vault of an executing batch. Self-call only (its own revert scope, R6). Returns false when the vault was
@@ -395,14 +419,22 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     function _recover(uint256 gap) private returns (uint256 got) {
         uint256 before = usdg.balanceOf(address(this));
         if (address(insurance) != address(0)) {
-            try insurance.cover(gap) {} catch {}
+            uint256 g0 = gasleft();
+            try insurance.cover(gap) {}
+            catch {
+                _gasGuard(g0);
+            }
         }
         got = usdg.balanceOf(address(this)) - before;
         if (got >= gap) return got;
         // the stake is optional (todo 09); its slash never reverts (SlashFailed returns 0), guarded anyway
         address st = stake;
         if (st != address(0)) {
-            try IODStake(st).slash(gap - got) {} catch {}
+            uint256 g1 = gasleft();
+            try IODStake(st).slash(gap - got) {}
+            catch {
+                _gasGuard(g1);
+            }
         }
         got = usdg.balanceOf(address(this)) - before;
     }
@@ -411,7 +443,11 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     /// with zero tokens (pays `amount` from tracked cash, no debt change). Returns what arrived (0 if refused).
     function _governorPays(bytes32 g, uint256 amount) private returns (uint256 got) {
         uint256 before = usdg.balanceOf(address(this));
-        try governor.onBackerMint(g, 0, true, amount) {} catch {}
+        uint256 g0 = gasleft();
+        try governor.onBackerMint(g, 0, true, amount) {}
+        catch {
+            _gasGuard(g0);
+        }
         got = usdg.balanceOf(address(this)) - before;
         if (got > amount) got = amount;
     }
@@ -582,9 +618,14 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         v = high ? Math.max(v, w) : Math.min(v, w);
     }
 
+    /// Same lag floor as the minter (M-4, rescore 1): a mint-and-sell then repayWithUsdg (or the reverse) across a move
+    /// of up to lagBandBps that neither source shows yet never pays. Applied last.
     function _spreadBps(GearConfig memory cfg, PriceReading memory r) private view returns (uint256 s) {
+        IODMinter.TradeParams memory tp = minter.tradeParams();
         s = cfg.spreadBps;
-        if (r.session == Session.EXTENDED) s = s * minter.tradeParams().extendedSpreadMultBps / BPS;
+        if (r.session == Session.EXTENDED) s = s * tp.extendedSpreadMultBps / BPS;
+        uint256 f = ODMinterPricing.lagFloorBps(cfg.gear, tp.lagBandBps);
+        if (s < f) s = f;
         if (s > BPS) s = BPS;
     }
 

@@ -59,7 +59,8 @@ contract BackerRepayTest is BackerFixture {
         uint256 proceeds = _mint(alice, id, 400e18, true);
         uint256 cash0 = gov.trackedCash();
         uint256 v = _valueAt(sport, 250e18, Math.Rounding.Ceil);
-        uint256 price = Math.mulDiv(v, 10_000 + 30, 10_000, Math.Rounding.Ceil);
+        // the SPORT lag floor (51 bps at the 50 bps band, M-4) is above the 30 bps base spread
+        uint256 price = Math.mulDiv(v, 10_000 + 51, 10_000, Math.Rounding.Ceil);
         uint256 expected = Math.mulDiv(100e18, price, 1e30, Math.Rounding.Ceil);
         vm.prank(alice);
         vm.expectPartialRevert(IODBacker.Slippage.selector);

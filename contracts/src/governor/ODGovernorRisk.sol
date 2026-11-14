@@ -199,8 +199,17 @@ library ODGovernorRisk {
         }
         int256 worstS;
         int256 worstP;
+        int256 d = sh.hedgeDeltaWad; // L-2: clamped first so delta x shock cannot overflow
+        if (d > type(int128).max) d = type(int128).max;
+        else if (d < -type(int128).max) d = -type(int128).max;
         for (uint256 k; k < 4; ++k) {
-            int256 l = single[k] - sh.hedgeDeltaWad * shockAt(sh.sWad, k) / int256(WAD);
+            // L-2: the posted hedge P&L counts at most the book's own move at that shock, so a wrong or hostile delta
+            // can at most double the unhedged loss (it can never make stress unbounded)
+            int256 hp = d * shockAt(sh.sWad, k) / int256(WAD);
+            int256 bound = single[k] >= 0 ? single[k] : -single[k];
+            if (hp > bound) hp = bound;
+            else if (hp < -bound) hp = -bound;
+            int256 l = single[k] - hp;
             if (l > worstS) worstS = l;
             if (pair[k] > worstP) worstP = pair[k];
         }

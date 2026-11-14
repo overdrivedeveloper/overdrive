@@ -69,6 +69,23 @@ suite("liquidation service", () => {
     expect((await runs()).find((r) => r.batch_id === "2")).toMatchObject({ phase: "voided", error: "voided: PRICE_DOUBT" });
   });
 
+  test("execute_out_of_gas_keeps_the_batch_open", async () => {
+    // M-6: an execute without enough gas for every vault reverts ExecuteOutOfGas; the batch stays open and the next pass
+    // executes it (it is never recorded as voided or executed)
+    const h = harness(db.sql);
+    const v = h.backer.openVault(GEAR_TSLA, 100n * U, 100n * WAD);
+    h.backer.sealAsOther(GEAR_TSLA, [v]);
+    await h.index();
+    h.chain.warp(31);
+    h.backer.outOfGasNext = true;
+    const p = await h.pass();
+    expect(p.executed).toEqual([]);
+    expect(p.voided).toEqual([]);
+    expect(h.state.open.has(1n)).toBe(true);
+    const q = await h.pass();
+    expect(q.executed).toEqual(["1"]);
+  });
+
   test("execute_margin_lets_a_batch_lapse", async () => {
     // LIQUIDATOR_EXECUTE_MARGIN_SECONDS (60): inside the last minute of BATCH_TTL no executeBatch is sent
     const h = harness(db.sql, { executeMarginSeconds: 60 });

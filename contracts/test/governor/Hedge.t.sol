@@ -27,15 +27,16 @@ contract HedgeTest is GovernorFixture {
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.BadAsOf.selector, t - 1));
         gov.postHedge(TSLA, 0, 5_000e6, t - 1);
         vm.prank(hedger);
-        vm.expectRevert(abi.encodeWithSelector(IODGovernor.HedgeJump.selector, 5_000e6, 10_001e6, 5_000e6));
-        gov.postHedge(TSLA, 0, 10_001e6, t + 2 hours);
-        _post(hedger, TSLA, 10_000e6, t + 2 hours);
+        // L-5: the new window anchors on equity less hedge equity (100,000 - 5,000), so its room is 4,750
+        vm.expectRevert(abi.encodeWithSelector(IODGovernor.HedgeJump.selector, 5_000e6, 9_751e6, 4_750e6));
+        gov.postHedge(TSLA, 0, 9_751e6, t + 2 hours);
+        _post(hedger, TSLA, 9_750e6, t + 2 hours);
         vm.warp(t + 4 hours); // next window: room for the second market
         // A different market has its own previous post; the total counts in NAV.
         _post(hedger, NVDA, 2_000e6, t + 4 hours);
         (uint256 posted,) = gov.hedgeEquity();
-        assertEq(posted, 12_000e6);
-        assertEq(gov.equity(), 112_000e18);
+        assertEq(posted, 11_750e6);
+        assertEq(gov.equity(), 111_750e18);
         // The admin may post any jump (a correction).
         _post(admin, TSLA, 0, t + 4 hours);
         (posted,) = gov.hedgeEquity();

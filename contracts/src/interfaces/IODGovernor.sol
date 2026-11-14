@@ -94,7 +94,8 @@ interface IODGovernor is IERC4626 {
     function setDepositor(address account, bool allowed) external; // admin
     function requestWithdraw(uint256 shares) external returns (uint256 ticket);
     /// Pays the matured ticket at the low NAV edge, limited by free cash and the stress budget (the rest stays on the
-    /// ticket). Reverts HedgeStale while any hedge post is stale and ClaimBelowMin under `minAssetsOut`.
+    /// ticket). With `minAssetsOut == 0` reverts HedgeStale while any hedge post (or unabsorbed transit) is stale; with an
+    /// explicit minimum it pays at the hedge-free low edge (L-6). Reverts ClaimBelowMin under `minAssetsOut`.
     function claim(uint256 ticket, uint256 minAssetsOut) external returns (uint256 usdg);
     // views
     function exposure(bytes32 market)

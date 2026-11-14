@@ -147,6 +147,29 @@ contract RegistryTest is ODTest {
         reg.listGear(TSLA, extra, Gear.SPORT, 1e18, 1e24, 30, "TSLA/X-SPORT");
     }
 
+    /// L-1 (audit): the Governor's book walks every listed gear, so the total is capped at MAX_GEARS (32).
+    function test_L1_TotalGearCap() public {
+        uint256 cap = reg.MAX_GEARS();
+        assertEq(cap, 32);
+        Gear[4] memory gs = [Gear.CRUISE, Gear.SPORT, Gear.ECO, Gear.REVERSE];
+        string[4] memory sfx = ["X-CRUISE", "X-SPORT", "X-ECO", "X-REV"];
+        uint256 listed;
+        for (uint256 m; listed < cap; ++m) {
+            bytes32 mk = bytes32(uint256(0x3000 + m));
+            guard.setMarket(mk, 10e18, true, false, true);
+            for (uint256 k; k < 4 && listed < cap; ++k) {
+                vm.prank(admin);
+                reg.listGear(mk, NONE, gs[k], 1e18, 1e24, 30, sfx[k]);
+                ++listed;
+            }
+        }
+        assertEq(reg.gearCount(), cap);
+        // a fresh market with room for 12 still refuses the 33rd gear
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(ODGearRegistry.GearCapReached.selector, cap));
+        reg.listGear(SPY, NONE, Gear.SPORT, 1e18, 1e24, 30, "SPY-SPORT");
+    }
+
     function test_CollateralByGear() public {
         vm.prank(admin);
         vol.setBounds(SPY, 500, 4000);

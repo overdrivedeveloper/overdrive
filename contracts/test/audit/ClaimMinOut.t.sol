@@ -76,8 +76,9 @@ contract ClaimMinOutTest is GovernorFixture {
             return;
         }
         uint256 paid = abi.decode(ret, (uint256));
-        assertFalse(stale, "never pays while stale");
+        // L-6: while stale only an explicit minimum pays (at the hedge-free low edge)
+        if (stale) assertGt(minOut, 0, "a zero minimum never pays while stale");
         assertGe(paid, minOut);
-        assertGe(paid + gov.convertToAssets(left) + 2, before * 99 / 100, "value kept (low edge vs mid)");
+        if (!stale) assertGe(paid + gov.convertToAssets(left) + 2, before * 99 / 100, "value kept (low edge vs mid)");
     }
 }

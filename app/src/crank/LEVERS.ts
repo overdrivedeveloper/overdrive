@@ -19,6 +19,7 @@ export const LEVERS: Record<string, LeverCaller> = {
   "IODOracleGuard.setBuysPaused": { by: "other", reason: "guardian pause of one market; the crank only pauses through the Governor (R17) and alerts on this one" },
   "IODMarketHours.setSessionsWithKinds": { by: "crank", job: "sessions" },
   "IODFees.distribute": { by: "crank", job: "fees" },
+  "IODFees.sync": { by: "other", reason: "recovery only: books USDG that reached ODFees without a notify (a notifier slip) into the next split; anyone calls it once when the indexer shows balance above pending + held" },
   "IODBacker.sealBatch": { by: "liquidator" },
   "IODBacker.executeBatch": { by: "liquidator" },
   "IODBacker.sendFees": { by: "other", reason: "ODBacker sends charged toll fees itself at every vault action; this permissionless retry matters only if ODFees refused (admin fixes the notifier, then anyone calls it)" },

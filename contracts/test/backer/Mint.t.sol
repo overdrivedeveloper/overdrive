@@ -28,7 +28,8 @@ contract BackerMintTest is BackerFixture {
         uint256 supply0 = _token(sport).totalSupply();
         uint256 cash0 = gov.trackedCash();
         uint256 v = _valueAt(sport, 250e18, Math.Rounding.Floor);
-        uint256 expected = Math.mulDiv(400e18, Math.mulDiv(v, 10_000 - 30, 10_000), 1e30);
+        // the SPORT lag floor (51 bps at the 50 bps band, M-4) is above the 30 bps base spread
+        uint256 expected = Math.mulDiv(400e18, Math.mulDiv(v, 10_000 - 51, 10_000), 1e30);
         uint256 proceeds = _mint(alice, id, 400e18, true);
         assertEq(proceeds, expected);
         assertGt(proceeds, 390e6);

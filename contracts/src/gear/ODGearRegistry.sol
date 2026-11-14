@@ -24,6 +24,10 @@ contract ODGearRegistry is AccessControl, IODGearRegistry {
     uint16 public constant MIN_SPREAD_BPS = 10;
     /// @notice Bounds every per-market loop in the minter and backer.
     uint8 public constant MAX_GEARS_PER_MARKET = 12;
+    /// L-1: total gears ever listed (settled ones stay in the list). The Governor's book (pokeRisk, every LP deposit
+    /// and claim) walks all of them, about 0.23M gas per gear holding supply on the RHC fork (lane 08: 5.97M at 20,
+    /// 10.58M at 40), so 32 keeps pokeRisk near 8.7M and a claim or deposit under 10M.
+    uint8 public constant MAX_GEARS = 32;
     /// @notice RACE (p = 3) lists only on a market whose vol ceiling is at most 40% a year.
     uint64 public constant RACE_MAX_VOL_BPS = 4000;
     uint128 public constant MIN_UNIT_WAD = 1e18;
@@ -37,6 +41,7 @@ contract ODGearRegistry is AccessControl, IODGearRegistry {
     error MinterNotSet();
     error MarketNotReady(bytes32 market);
     error TooManyGears(bytes32 market);
+    error GearCapReached(uint256 cap);
     error SymbolInvalid(string symbol);
 
     IODOracleGuard public immutable guard;
@@ -94,6 +99,7 @@ contract ODGearRegistry is AccessControl, IODGearRegistry {
         id = idOf(marketA, marketB, gear_);
         if (_gears[id].token != address(0)) revert GearExists(id);
 
+        if (_ids.length >= MAX_GEARS) revert GearCapReached(MAX_GEARS);
         if (_byMarket[marketA].length >= MAX_GEARS_PER_MARKET) revert TooManyGears(marketA);
         if (pair && _byMarket[marketB].length >= MAX_GEARS_PER_MARKET) revert TooManyGears(marketB);
 

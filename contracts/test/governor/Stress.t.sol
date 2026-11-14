@@ -99,7 +99,12 @@ contract StressTest is GovernorFixture {
                 int256 f = int256(ODIndex.shockFactor(gs[i], shocks[k], Math.Rounding.Ceil)) - 1e18;
                 l += val * f / 1e18;
             }
-            l -= hedge * shocks[k] / 1e18;
+            // L-2: the hedge P&L counts at most the book's own move at that shock
+            int256 hp = hedge * shocks[k] / 1e18;
+            int256 cap = l >= 0 ? l : -l;
+            if (hp > cap) hp = cap;
+            else if (hp < -cap) hp = -cap;
+            l -= hp;
             if (l > worst) worst = l;
         }
         assertEq(_loss(TSLA), uint256(worst));

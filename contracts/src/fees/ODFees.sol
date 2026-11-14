@@ -93,6 +93,18 @@ contract ODFees is AccessControl, IODFees {
         emit Notified(kind, gearId, amount);
     }
 
+    /// @notice L-3: anyone books USDG that arrived without a successful `notify` (a notify that failed or never came,
+    /// or a plain transfer) as pending, so it goes through the next split like any fee. Pays nothing out and moves
+    /// nothing; afterwards balance == pending + totalHeld.
+    function sync() external override returns (uint256 amount) {
+        uint256 booked = pending + totalHeld;
+        uint256 bal = usdg.balanceOf(address(this));
+        if (bal <= booked) return 0;
+        amount = bal - booked;
+        pending += amount;
+        emit Synced(amount);
+    }
+
     // ------------------------------------------------------------------------------------------------ split
 
     /// @inheritdoc IODFees

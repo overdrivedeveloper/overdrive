@@ -293,7 +293,7 @@ contract AgentRouterTest is ODTest {
         assertEq(usdg.balanceOf(owner), usdgBefore + out);
         assertEq(usdg.balanceOf(agent), agentBefore);
         assertEq(tAapl.balanceOf(owner), 0);
-        assertEq(router.policyOf(owner, agent).spentUsdg, 200e6, "sells spend no budget");
+        assertEq(router.policyOf(owner, agent).spentUsdg, 200e6 + out, "L-4: the sell is charged its USDG value");
         _assertRouterEmpty();
     }
 
@@ -393,6 +393,84 @@ contract AgentRouterTest is ODTest {
         vm.prank(agent);
         vm.expectRevert(abi.encodeWithSelector(IODAgentRouter.BudgetExceeded.selector, 100e6, 60e6, 150e6));
         router.backFor(owner, 0, G_AAPL, 60e6, 0, 0, deadline);
+    }
+
+    /// L-4 (audit): sellFor charged nothing, so an agent with canSell could sell the owner's whole approved balance
+    /// past the per-trade cap and the budget. Now the sell's USDG value is charged.
+    function test_L4_SellChargedAgainstCapAndBudget() public {
+        _policy(1_000e6, 300e6, true, false, _markets1(AAPL));
+        uint256 tokens = _buy(G_AAPL, 300e6);
+        tokens += _buy(G_AAPL, 300e6);
+        vm.prank(owner);
+        tAapl.approve(address(router), type(uint256).max);
+        // the whole balance (about 600 USDG) is over the 300 per-trade cap
+        vm.prank(agent);
+        vm.expectRevert();
+        router.sellFor(owner, G_AAPL, tokens, 0, deadline);
+        // half of it fits the cap, but 600 spent + about 300 left of 1,000 budget: the second half is over budget
+        vm.prank(agent);
+        uint256 out = router.sellFor(owner, G_AAPL, tokens / 2, 0, deadline);
+        assertEq(router.policyOf(owner, agent).spentUsdg, 600e6 + out);
+        vm.prank(agent);
+        vm.expectRevert();
+        router.sellFor(owner, G_AAPL, tokens - tokens / 2, 0, deadline);
+        _assertRouterEmpty();
+    }
+
+    /// L-4 (audit): backFor with collateralUsdg = 0 charged 0 and could mint an existing vault down to the minimum
+    /// ratio. Now the minted debt (its sale proceeds) is charged too.
+    function test_L4_BackerMintCharged() public {
+        _policy(150e6, 100e6, false, true, _markets1(AAPL));
+        vm.prank(agent);
+        (uint256 id, uint256 p1) = router.backFor(owner, 0, G_AAPL, 50e6, 2e18, 0, deadline);
+        assertEq(router.policyOf(owner, agent).spentUsdg, 50e6 + p1);
+        vm.prank(agent);
+        (, uint256 p2) = router.backFor(owner, id, G_AAPL, 0, 1e18, 0, deadline);
+        assertGt(p2, 0);
+        assertEq(router.policyOf(owner, agent).spentUsdg, 50e6 + p1 + p2, "a mint with no collateral is charged");
+        // a mint worth more than the per-trade cap reverts
+        vm.prank(agent);
+        vm.expectRevert();
+        router.backFor(owner, id, G_AAPL, 0, 11e18, 0, deadline);
+    }
+
+    /// Property: whatever the agent does, spentUsdg equals the USDG it moved (buys in, sells out, collateral plus
+    /// mint proceeds) and never exceeds the budget.
+    function testFuzz_L4_BudgetCoversEveryAction(uint256 seed, uint128 budget, uint128 perTrade) public {
+        budget = uint128(bound(budget, 1e6, 5_000e6));
+        perTrade = uint128(bound(perTrade, 1e6, budget));
+        _policy(budget, perTrade, true, true, _markets1(AAPL));
+        vm.prank(owner);
+        tAapl.approve(address(router), type(uint256).max);
+        uint256 vaultId;
+        uint256 moved;
+        for (uint256 i; i < 12; ++i) {
+            seed = uint256(keccak256(abi.encode(seed, i)));
+            uint256 action = seed % 3;
+            uint256 amt = bound(seed >> 8, 1, uint256(perTrade) * 2);
+            vm.prank(agent);
+            if (action == 0) {
+                try router.buyFor(owner, G_AAPL, amt, 0, deadline) {
+                    moved += amt;
+                } catch {}
+            } else if (action == 1) {
+                uint256 bal = tAapl.balanceOf(owner);
+                if (bal == 0) continue;
+                try router.sellFor(owner, G_AAPL, bound(amt, 1, bal), 0, deadline) returns (uint256 out) {
+                    moved += out;
+                } catch {}
+            } else {
+                uint256 c = (seed >> 100) % 2 == 0 ? 0 : amt;
+                try router.backFor(owner, vaultId, G_AAPL, vaultId == 0 ? amt : c, amt * 1e10, 0, deadline) returns (
+                    uint256 id, uint256 pr
+                ) {
+                    moved += (vaultId == 0 ? amt : c) + pr;
+                    vaultId = id;
+                } catch {}
+            }
+            assertEq(router.policyOf(owner, agent).spentUsdg, moved, "every action charged");
+            assertLe(moved, budget);
+        }
     }
 
     // -------------------------------------------------------------------------------------------- R5
