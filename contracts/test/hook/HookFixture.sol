@@ -110,7 +110,7 @@ abstract contract HookFixture is SystemFixture {
 
     function setUp() public virtual override {
         super.setUp();
-        pm = new PoolManager(admin);
+        pm = _newPoolManager();
         router = new HookRouter(IPoolManager(address(pm)));
         bytes memory code = _hookCode(address(pm));
         address predicted;
@@ -130,6 +130,11 @@ abstract contract HookFixture is SystemFixture {
         hook.initializeGearPool(pair);
         vm.stopPrank();
         if (_seedPoolManager()) _seed();
+    }
+
+    /// The PoolManager the hook binds to: a fresh local one here; the fork suite returns the deployed singleton.
+    function _newPoolManager() internal virtual returns (PoolManager) {
+        return new PoolManager(admin);
     }
 
     /// See docs: the hook moves the input currency out of the PoolManager before the swapper settles, so the PM must
