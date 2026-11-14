@@ -11,5 +11,5 @@ OD_API_URL=http://127.0.0.1:3100 node dist/cli.js            # stdio, for an age
 OD_API_URL=http://127.0.0.1:3100 node dist/cli.js --http     # read only, no key, POST /mcp
 ```
 
-Modes, tools, environment and limits are in `../MCP.md`. The package carries no key; a signing agent supplies its own
+Modes, tools, environment and limits are in `MCP.md`. The package carries no key; a signing agent supplies its own
 keystore (`AGENT_KEYSTORE` and `AGENT_KEYSTORE_PASSWORD_FILE`).

@@ -89,6 +89,8 @@ const envSchema = z.object({
   GAS_WATCH_MIN_ETH_VOL_SENDER: z.coerce.number().min(0).default(0.01),
   GAS_WATCH_REALERT_HOURS: z.coerce.number().positive().default(6),
   TELEGRAM_ENV_FILE: z.string().default(""),
+  /** Bot API base: the real endpoint, or a local test server (checked where it is used). */
+  TELEGRAM_API_BASE: z.string().default("https://api.telegram.org"),
   LOG_LEVEL: z.string().default("info"),
   EXPECT_ADDRESS: addressOrEmpty,
   // API (todo 19a). The API reads Postgres through a SELECT-only role and holds no key.

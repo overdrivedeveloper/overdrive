@@ -253,7 +253,7 @@ export async function bootCrank(env: Record<string, string | undefined>, options
     }, config);
   }
   const sql = options.sql ?? createDbClient(config).sql;
-  if (config.TELEGRAM_ENV_FILE) setAlertSender(createTelegramSender(config.TELEGRAM_ENV_FILE));
+  if (config.TELEGRAM_ENV_FILE) setAlertSender(createTelegramSender(config.TELEGRAM_ENV_FILE, config.TELEGRAM_API_BASE));
   const abort = new AbortController();
   const signal = options.signal;
   onAbort(signal, () => abort.abort());
