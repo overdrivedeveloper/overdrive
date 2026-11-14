@@ -11,3 +11,9 @@ web/dist/
 .logs/
 .ci-local/
 app/node_modules/
+
+vol-engine/.venv/
+vol-engine/**/__pycache__/
+vol-engine/*.egg-info/
+vol-engine/.pytest_cache/
+vol-engine/tests/fixtures/test.*

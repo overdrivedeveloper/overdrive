@@ -1,0 +1,12 @@
+eth-account==0.14.0
+psycopg[binary]==3.3.6
+tzdata==2026.5
+
+[:python_version < "3.12"]
+numpy==2.4.6
+
+[:python_version >= "3.12"]
+numpy==2.5.3
+
+[dev]
+pytest==9.1.1

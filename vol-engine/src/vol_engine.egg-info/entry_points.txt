@@ -1,0 +1,2 @@
+[console_scripts]
+vol-engine = vol_engine.cli:main

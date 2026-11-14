@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: vol-engine
+Version: 0.1.0
+Summary: Volatility engine: computes sigma per market (name or pair) and signs EIP-712 VolPost posts for ODVolOracle
+Requires-Python: >=3.11
+Requires-Dist: numpy==2.4.6; python_version < "3.12"
+Requires-Dist: numpy==2.5.3; python_version >= "3.12"
+Requires-Dist: eth-account==0.14.0
+Requires-Dist: psycopg[binary]==3.3.6
+Requires-Dist: tzdata==2026.5
+Provides-Extra: dev
+Requires-Dist: pytest==9.1.1; extra == "dev"

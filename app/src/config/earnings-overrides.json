@@ -1,0 +1,3 @@
+{
+  "_comment": "Report dates the company itself published (source company_ir), e.g. \"NVDA\": [{\"date\": \"2026-11-19\", \"session\": \"post\"}]. Empty until filled from each investor-relations page; a name with no date here never confirms an earnings date."
+}
