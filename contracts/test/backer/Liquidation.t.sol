@@ -355,6 +355,7 @@ contract LiquidationTest is BackerFixture {
         _drain(id, _coll(id) - 1000, stranger);
         uint256 b = _seal(sport, id);
         uint256 cash = gov.freeCash();
+        uint256 lock0 = gov.backerLock(sport); // M-7: the liquidation releases the vault's share of the lock to free cash
         uint256 govBal = usdg.balanceOf(address(gov));
         vm.recordLogs();
         assertEq(_execute(b), 1);
@@ -364,7 +365,8 @@ contract LiquidationTest is BackerFixture {
         assertEq(usdg.balanceOf(keeper), floor, "executor always paid the floor");
         uint256 seized = _seized();
         assertEq(govBal - usdg.balanceOf(address(gov)), floor - seized, "Governor cash topped it up");
-        assertEq(cash - gov.freeCash(), floor - seized);
+        assertGt(lock0, gov.backerLock(sport), "lock released");
+        assertEq(cash + (lock0 - gov.backerLock(sport)) - gov.freeCash(), floor - seized);
         assertEq(_lastBadDebt(), d);
     }
 

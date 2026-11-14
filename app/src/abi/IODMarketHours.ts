@@ -289,6 +289,22 @@ export const IODMarketHoursAbi = [
   },
   {
     "type": "error",
+    "name": "SessionCoversClosed",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "closedAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "SessionKindsLength",
     "inputs": [
       {

@@ -45,6 +45,15 @@ abstract contract Ghosts {
     uint256 public reservePaidToHolders; // of which inside a holder payout of at least that size
     uint256 internal _holderPaidThisCall;
 
+    // ---------------------------------------------------------------------------------------- M-7 below-zero sells
+    uint256 public m7Checked; // successful minter sells (holder, backer, queue fill) checked
+    uint256 public m7BelowZero; // ...that left the gear's net below zero
+    uint256 public m7BelowZeroDirect; // ...of which wholly above the own-minted debt (paid like any sell)
+    uint256 public m7DrawViolations; // reserve + insurance drawn beyond the share above the own-minted debt
+    uint256 public m7LockViolations; // a sell raised a backer sale lock or took more from it than its share
+    uint256 public backerSells; // successful sells of backer-minted tokens by the vault owner
+    uint256 public backerSellsRefused; // ...refused UseQueue (below-zero share over the lock plus free cash)
+
     // ---------------------------------------------------------------------------------------- R9 donations
     uint256 public donationChecks;
     uint256 public donationEffects;

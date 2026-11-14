@@ -24,8 +24,8 @@ import {ODMinterPricing as P} from "./ODMinterPricing.sol";
 /// never price off one source alone: no reference means `UseQueue` (R8, ORC-FAILCLOSED). One pricing path
 /// (ODMinterPricing) serves quote and execution, so a quote equals execution to the wei (QUOTE-1).
 /// Money order: buys move USDG payer -> Governor, mint, then `onBuy` (which checks the USDG arrived); sells check
-/// `canPay`, burn, `onSell`, then `pay` (false reverts `UseQueue`, undoing the burn). Fees are booked and paid by the
-/// Governor (it notifies ODFees only after the USDG moved).
+/// `canPaySell`, burn, then `onSell`, which books and pays (false reverts `UseQueue`, undoing the burn). Fees are
+/// booked and paid by the Governor (it notifies ODFees only after the USDG moved).
 contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
     using SafeERC20 for IERC20;
 
@@ -318,7 +318,7 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
             if (t.usdg < _tp.minTradeUsdg || t.tokens == 0) revert BelowMinimum();
             (q.amountIn, q.amountOut) = (t.usdg, t.tokens);
         } else {
-            q.queued = t.queued || !governor.canPay(t.usdg + c.feeDrain);
+            q.queued = t.queued || !governor.canPaySell(gearId, t.tokens, t.usdg, c.feeDrain);
             (q.amountIn, q.amountOut) = (t.tokens, t.usdg);
         }
         q.valuePerTokenWad = t.value;
@@ -431,15 +431,14 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
     ) private returns (P.Trade memory t) {
         _commit(c);
         t = P.trade(c, _tp, false, exactIn, amount, _discount(account));
-        if (t.queued || !governor.canPay(t.usdg)) _refuse(ticket);
+        if (t.queued || !governor.canPaySell(c.id, t.tokens, t.usdg, 0)) _refuse(ticket);
         if (t.tokens == 0) revert BelowMinimum();
         if (exactIn ? t.usdg < limit : t.tokens > limit) {
             if (ticket != 0) revert NotFillable(ticket);
             revert Slippage(exactIn ? t.usdg : t.tokens, limit);
         }
         IODGear(c.cfg.token).burn(from, t.tokens);
-        governor.onSell(c.id, t.tokens, t.spreadUsdg);
-        if (!governor.pay(to, t.usdg)) _refuse(ticket);
+        if (!governor.onSell(c.id, t.tokens, t.spreadUsdg, to, t.usdg)) _refuse(ticket);
         emit Sold(c.id, from, to, t.tokens, t.usdg, t.value, t.spreadBps, viaHook, c.r.session);
     }
 

@@ -15,13 +15,13 @@ contract LivenessTest is GovernorFixture {
         _fundReserve(50e6);
         assertFalse(minter.payOut(seller, 150e6 + 1));
         assertTrue(minter.payOut(seller, 150e6));
-        assertEq(gov.trackedCash(), 0);
+        assertEq(gov.freeCash(), 0);
         assertEq(gov.exitReserve(), 0);
         assertFalse(minter.payOut(seller, 1));
         // onToll: fee exactly equal to cash, then with zero cash (owed, no underflow).
         _fundCash(10e6);
         minter.toll(id, 100e18);
-        assertEq(gov.trackedCash(), 0);
+        assertEq(gov.freeCash(), 0);
         minter.toll(id, 100e18);
         assertEq(gov.feeOwed(), 10e6);
         // onSell with zero cash, with fees owed and a spread share: books owed, never reverts.
@@ -37,7 +37,7 @@ contract LivenessTest is GovernorFixture {
         vm.prank(lp);
         uint256 paid = gov.claim(t, 0);
         assertGt(paid, 0);
-        assertApproxEqAbs(gov.trackedCash(), 0, 1);
+        assertApproxEqAbs(gov.freeCash(), 0, 1);
         vm.prank(lp);
         assertEq(gov.claim(t, 0), 0);
         // claim with stress exactly at the budget: room 0, pays 0.

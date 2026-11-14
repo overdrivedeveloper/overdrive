@@ -13,7 +13,8 @@ import {ODCalendar} from "./ODCalendar.sol";
 /// @dev When the pushed calendar covers a timestamp ([first open, last close)) it is authoritative: inside a session
 /// its kind, in a gap CLOSED. Outside that range the fallback calendar answers when enabled, else UNKNOWN. The stock
 /// feeds print 24/5, so the keeper pushes one OPEN or EXTENDED window per trading week (Sunday 20:00 ET to Friday
-/// 20:00 ET, split where it wants); each window must be shorter than 7 days. Constructor-initialised, no proxy.
+/// 20:00 ET, split where it wants); each window must be shorter than 7 days and may not cover calendar-CLOSED time
+/// (L-9). Constructor-initialised, no proxy.
 contract ODMarketHours is AccessControl, IODMarketHours {
     uint256 public constant MAX_SESSIONS = 64;
     uint256 public constant MAX_SESSION_LENGTH = 7 days - 1;
@@ -47,6 +48,7 @@ contract ODMarketHours is AccessControl, IODMarketHours {
             SessionWindow calldata w = s[i];
             if (w.close <= w.open) revert InvalidSession(i);
             if (uint256(w.close) - uint256(w.open) > MAX_SESSION_LENGTH) revert SessionTooLong(i);
+            _checkCalendar(i, w.open, w.close);
             if (i != 0) {
                 if (w.open < s[i - 1].open) revert SessionsUnsorted(i);
                 if (w.open < s[i - 1].close) revert SessionsOverlap(i);
@@ -152,6 +154,20 @@ contract ODMarketHours is AccessControl, IODMarketHours {
     /// @inheritdoc IODMarketHours
     function fallbackEnabled() external view returns (bool) {
         return _fallbackEnabled;
+    }
+
+    /// @dev L-9: a pushed window wins over the calendar, so the keeper key alone must not be able to open time the
+    /// built-in calendar calls CLOSED (the weekend from Friday 20:00 to Sunday 20:00 Eastern, a listed full holiday).
+    /// Walks the calendar's own boundaries across [open, close); its kind is constant between two boundaries. Time
+    /// outside the supported years is UNKNOWN to the calendar and stays the keeper's call.
+    function _checkCalendar(uint256 i, uint256 open, uint256 close) private view {
+        uint256 t = open;
+        while (t < close) {
+            if (ODCalendar.kindAt(t, _holidays) == Session.CLOSED) revert SessionCoversClosed(i, t);
+            uint256 next = ODCalendar.nextBoundary(t, _holidays);
+            if (next == 0) return;
+            t = next;
+        }
     }
 
     /// @dev Number of sessions whose open is <= ts (binary search; sessions are sorted and disjoint).

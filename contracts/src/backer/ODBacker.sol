@@ -557,10 +557,12 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (r.buysPaused) revert MintingClosed(r.reason == 0 ? bytes32("BUYS_PAUSED") : r.reason);
         if (r.refP == 0) revert MintingClosed("REF_UNAVAILABLE");
         v.debtTokens += tokens;
+        // the sale value: paid out when sold to the Governor, held back in the Governor's lock when minted to the owner
+        uint256 value = M.proceedsUsdg(tokens, _perToken(cfg, g, r, false), _spreadBps(cfg, r));
         if (sell) {
             (bool paused, bytes32 why) = governor.buysPaused();
             if (paused) revert MintingClosed(why);
-            proceeds = M.proceedsUsdg(tokens, _perToken(cfg, g, r, false), _spreadBps(cfg, r));
+            proceeds = value;
             if (proceeds < minProceeds) revert Slippage(proceeds, minProceeds);
             uint256 before = usdg.balanceOf(address(this));
             if (!governor.onBackerMint(g, tokens, true, proceeds)) revert MintingClosed("GOVERNOR_CASH");
@@ -572,7 +574,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         } else {
             // supply first, then the book, so the Governor's net never dips by the new debt alone
             minter.backerMint(g, v.owner, tokens);
-            governor.onBackerMint(g, tokens, false, 0);
+            if (!governor.onBackerMint(g, tokens, false, value)) revert MintingClosed("GOVERNOR_CASH");
         }
         _requireRatio(v, cfg, r, cfg.collateralBps);
         emit Minted(vaultId, tokens, sell, proceeds);

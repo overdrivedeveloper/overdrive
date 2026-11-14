@@ -28,7 +28,7 @@ contract VaultTest is GovernorFixture {
         gov.redeem(1, lp, lp);
         vm.stopPrank();
         _deposit(lp, 10e6);
-        assertEq(gov.trackedCash(), 10e6);
+        assertEq(gov.freeCash(), 10e6);
     }
 
     function test_DepositPricedAtHighNav() public {

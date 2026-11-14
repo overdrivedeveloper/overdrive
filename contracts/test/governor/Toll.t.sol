@@ -18,7 +18,7 @@ contract TollTest is GovernorFixture {
         minter.toll(id, 5_000e18);
         assertEq(fees.notified("TOLL"), 500e6);
         assertEq(usdg.balanceOf(address(fees)), 500e6);
-        assertEq(gov.trackedCash(), 9_500e6);
+        assertEq(gov.freeCash(), 9_500e6);
         assertEq(gov.feeOwed(), 0);
     }
 
@@ -51,7 +51,7 @@ contract TollTest is GovernorFixture {
         minter.toll(id, -5_000e18);
         assertEq(gov.feeOwed(), 0);
         assertEq(usdg.balanceOf(address(fees)), 0);
-        assertEq(gov.trackedCash(), 1_000e6);
+        assertEq(gov.freeCash(), 1_000e6);
     }
 
     function test_SpreadShareToFees() public {

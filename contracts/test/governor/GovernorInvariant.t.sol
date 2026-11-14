@@ -77,7 +77,7 @@ contract GovHandler is Test {
         uint256 bal = tok.balanceOf(alice);
         if (bal == 0) return;
         uint256 tokens = bound(frac, 1, bal);
-        uint256 cash = gov.trackedCash();
+        uint256 cash = gov.freeCash();
         if (cash != 0) {
             vm.prank(keeper);
             gov.moveToExitReserve(cash);
@@ -116,7 +116,7 @@ contract GovHandler is Test {
     }
 
     function hedgeOut(uint256 a) external {
-        a = bound(a, 0, gov.trackedCash());
+        a = bound(a, 0, gov.freeCash());
         vm.prank(hedger);
         try gov.sendToHedger(a) {} catch {}
     }
@@ -191,7 +191,7 @@ contract GovernorInvariantTest is GovernorFixture {
     }
 
     function invariant_BalanceCoversBooks() public view {
-        assertGe(usdg.balanceOf(address(gov)), gov.trackedCash() + gov.exitReserve());
+        assertGe(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve());
     }
 
     function invariant_ReserveAboveFloorPaysSells() public view {

@@ -117,6 +117,44 @@
   },
   {
     "type": "function",
+    "name": "backerLock",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "backerOwnDebt",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "balanceOf",
     "inputs": [
       {
@@ -229,6 +267,40 @@
     "inputs": [
       {
         "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "canPaySell",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "cashDrain",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1028,33 +1100,7 @@
         "name": "spreadUsdg",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "onToll",
-    "inputs": [
-      {
-        "name": "gearId",
-        "type": "bytes32",
-        "internalType": "bytes32"
       },
-      {
-        "name": "tollValueUsdWad",
-        "type": "int256",
-        "internalType": "int256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "pay",
-    "inputs": [
       {
         "name": "to",
         "type": "address",
@@ -1073,6 +1119,24 @@
         "internalType": "bool"
       }
     ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "onToll",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tollValueUsdWad",
+        "type": "int256",
+        "internalType": "int256"
+      }
+    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -1539,19 +1603,6 @@
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "trackedCash",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "usdg",
         "type": "uint256",
         "internalType": "uint256"
       }

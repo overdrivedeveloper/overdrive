@@ -26,6 +26,7 @@ import {ODHook} from "overdrive/hook/ODHook.sol";
 import {IODMinter} from "overdrive/interfaces/IODMinter.sol";
 import {IODGovernor} from "overdrive/interfaces/IODGovernor.sol";
 import {IODVolOracle, VolPost} from "overdrive/interfaces/IODVolOracle.sol";
+import {IODInsurance} from "overdrive/interfaces/IODInsurance.sol";
 import {Gear, GearConfig, NormState, PriceReading, Quote, Session} from "overdrive/interfaces/ODTypes.sol";
 import {ActorSet, ActorLib} from "./ActorSet.sol";
 import {Ghosts} from "./Ghosts.sol";
@@ -360,8 +361,12 @@ contract SystemHandler is Test, Ghosts {
         bool aboveFloor = reserve >= s.gov.exitReserveFloor();
         PriceReading memory r = _reading(g);
         uint256 payout = exactIn ? q.amountOut : amount;
+        // M-7: the reserve stands behind all supply above the backer debt minted to owners' wallets; the share of a
+        // sell that takes supply below that debt is paid from the backer sale lock then free cash, so R1 speaks while
+        // the sell keeps supply >= backerOwnDebt. Net below zero from sales to the Governor alone does not excuse it.
+        bool keepsNet = t.totalSupply() >= s.gov.backerOwnDebt(g) + (exactIn ? amount : q.amountIn);
         bool r1 = qok && aboveFloor && r.p != 0 && r.refP != 0 && payout != 0 && payout <= reserve
-            && s.minter.settledValue(g) == 0;
+            && s.minter.settledValue(g) == 0 && keepsNet;
         // The hook takes the input tokens out of the PoolManager before the swapper settles, so a hook sell needs the
         // PoolManager to physically hold that many gear tokens (other users' ERC-6909 balances; seeded here). A
         // larger sell goes direct instead and is counted: the minter path is the exit that must always work.
@@ -378,6 +383,7 @@ contract SystemHandler is Test, Ghosts {
         bool ok;
         uint256 res;
         bytes memory err;
+        M7Pre memory pre = _m7Pre(g);
         vm.startPrank(who);
         if (exactIn) {
             try s.minter.sell(g, amount, 0, who, _now64()) returns (uint256 out) {
@@ -398,6 +404,7 @@ contract SystemHandler is Test, Ghosts {
         if (ok) {
             expectedBal[who][address(t)] -= burned;
             _holderPaidThisCall = paidOut;
+            _m7Post(g, pre, burned, paidOut);
         } else {
             ++revertsOf["sell"];
             bytes4 sel = _sel(err);
@@ -443,10 +450,12 @@ contract SystemHandler is Test, Ghosts {
         (bytes32 g, address owner,, uint256 tokens,) = s.minter.queuedSell(ticket);
         if (tokens == 0) return;
         uint256 u0 = s.usdg.balanceOf(owner);
+        M7Pre memory pre = _m7Pre(g);
         vm.prank(a.keeper);
         try s.minter.fillQueued(ticket) {
             escrowOf[address(_tok(g))] -= tokens;
             _holderPaidThisCall = s.usdg.balanceOf(owner) - u0;
+            _m7Post(g, pre, tokens, _holderPaidThisCall);
         } catch {
             ++revertsOf["fillQueued"];
         }
@@ -638,6 +647,67 @@ contract SystemHandler is Test, Ghosts {
         }
     }
 
+    /// M-7: the vault owner sells tokens they minted to themselves through the minter, like a holder. The share of the
+    /// payout for tokens that take supply below the gear's own-minted debt comes from the gear's backer sale lock,
+    /// then free cash; never the reserve or insurance.
+    function backerSell(uint256 vaultIdx, uint256 tokens) external step("backerSell") {
+        (uint256 id, address owner, bytes32 g,) = _vault(vaultIdx);
+        if (id == 0) return;
+        IERC20 t = _tok(g);
+        uint256 bal = t.balanceOf(owner);
+        if (bal == 0) return;
+        tokens = _bound(tokens, 1, bal);
+        M7Pre memory pre = _m7Pre(g);
+        uint256 u0 = s.usdg.balanceOf(owner);
+        vm.prank(owner);
+        try s.minter.sell(g, tokens, 0, owner, _now64()) returns (uint256 out) {
+            ++backerSells;
+            _holderPaidThisCall = out; // indistinguishable from a holder sell for R8
+            _m7Post(g, pre, tokens, s.usdg.balanceOf(owner) - u0);
+        } catch (bytes memory e) {
+            ++revertsOf["backerSell"];
+            bytes4 sel = _sel(e);
+            if (sel == IODMinter.UseQueue.selector) ++backerSellsRefused;
+            else if (sel != IODMinter.BelowMinimum.selector) _gated("backerSell", e);
+        }
+    }
+
+    struct M7Pre {
+        uint256 room; // supply above the gear's own-minted backer debt: the tokens the reserve stands behind
+        uint256 res;
+        uint256 ins;
+        uint256 lock;
+    }
+
+    function _m7Pre(bytes32 g) internal view returns (M7Pre memory p) {
+        uint256 supply = _tok(g).totalSupply();
+        uint256 own = s.gov.backerOwnDebt(g);
+        p.room = supply > own ? supply - own : 0;
+        p.res = s.gov.exitReserve();
+        p.ins = IODInsurance(address(s.gov.insurance())).balance();
+        p.lock = s.gov.backerLock(g);
+    }
+
+    /// Reserve plus insurance drawn by a sell of `burned` tokens paying `paid` is at most the payout share of the
+    /// tokens that kept supply at or above the gear's own-minted backer debt (+1 for rounding); the gear's lock pays
+    /// at most the other share. With no own-minted debt open the whole payout is the first kind, at any net.
+    function _m7Post(bytes32 g, M7Pre memory p, uint256 burned, uint256 paid) internal {
+        ++m7Checked;
+        uint256 resNow = s.gov.exitReserve();
+        uint256 insNow = IODInsurance(address(s.gov.insurance())).balance();
+        uint256 drawn = (p.res > resNow ? p.res - resNow : 0) + (p.ins > insNow ? p.ins - insNow : 0);
+        uint256 above = p.room >= burned ? burned : p.room;
+        uint256 allowed = burned == 0 ? 0 : paid * above / burned + 1;
+        if (drawn > allowed) ++m7DrawViolations;
+        uint256 lockNow = s.gov.backerLock(g);
+        uint256 fromLock = p.lock > lockNow ? p.lock - lockNow : 0;
+        if (lockNow > p.lock || fromLock > paid - (allowed > paid ? paid : allowed) + 1) ++m7LockViolations;
+        if (s.gov.netTokens(g) < 0) {
+            ++m7BelowZero;
+            if (above == burned) ++m7BelowZeroDirect;
+        }
+    }
+
     /// Repay with tokens (never blocked, R4) when the owner holds some; otherwise with USDG.
     function backerRepay(uint256 actor, uint256 vaultIdx, uint256 tokens) external step("backerRepay") {
         actor;
@@ -764,7 +834,7 @@ contract SystemHandler is Test, Ghosts {
 
     /// Keeper moves free cash into the exit reserve: payouts then lean on the reserve (R1, R8).
     function keeperFundReserve(uint256 usdg) external step("keeperFundReserve") {
-        uint256 cash = s.gov.trackedCash();
+        uint256 cash = s.gov.freeCash();
         usdg = _bound(usdg, 0, cash);
         vm.prank(a.keeper);
         try s.gov.moveToExitReserve(usdg) {}
@@ -796,7 +866,7 @@ contract SystemHandler is Test, Ghosts {
         h = keccak256(
             abi.encode(
                 s.gov.sharePriceWad(),
-                s.gov.trackedCash(),
+                s.gov.freeCash(),
                 s.gov.exitReserve(),
                 s.gov.totalAssets(),
                 s.backer.totalCollateral(),

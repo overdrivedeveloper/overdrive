@@ -127,7 +127,9 @@ interface IODBacker {
     /// @param to The recipient address.
     function withdraw(uint256 vaultId, uint256 usdg, address to) external;
     /// @notice Mints gear tokens against the vault collateral.
-    /// @dev Only the vault owner may call. Reverts with Undercollateralized, MintingClosed or Slippage.
+    /// @dev Only the vault owner may call. Reverts with Undercollateralized, MintingClosed or Slippage. A mint to the
+    /// owner's wallet holds the tokens' sale value back in the Governor's lock: MintingClosed("GOVERNOR_CASH") when free
+    /// cash is short, CapExceeded when the gear's total backer debt x value would pass its cap.
     /// @param vaultId Id of the vault.
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param sellToGovernor True to sell the minted tokens to the Governor.

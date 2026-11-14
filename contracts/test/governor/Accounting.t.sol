@@ -13,21 +13,21 @@ contract AccountingTest is GovernorFixture {
         uint256 ta = gov.totalAssets();
         uint256 sp = gov.sharePriceWad();
         (int256 lo, int256 hi) = gov.navBand();
-        uint256 cash = gov.trackedCash();
+        uint256 cash = gov.freeCash();
         usdg.mint(address(gov), 1_000_000e6); // a plain transfer of 1,000,000 USDG
         assertEq(gov.totalAssets(), ta);
         assertEq(gov.sharePriceWad(), sp);
         (int256 lo2, int256 hi2) = gov.navBand();
         assertEq(lo2, lo);
         assertEq(hi2, hi);
-        assertEq(gov.trackedCash(), cash);
+        assertEq(gov.freeCash(), cash);
         // Deposits after the transfer are priced as before it.
         assertEq(gov.previewDeposit(1_000e6), gov.previewDeposit(1_000e6));
         // The admin sends the untracked amount to ODInsurance; the books do not move.
         vm.prank(admin);
         gov.skim();
         assertEq(ins.balance(), 1_000_000e6);
-        assertEq(usdg.balanceOf(address(gov)), gov.trackedCash() + gov.exitReserve());
+        assertEq(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve());
         assertEq(gov.totalAssets(), ta);
     }
 

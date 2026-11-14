@@ -22,8 +22,8 @@ import {ODGovernorRisk} from "./ODGovernorRisk.sol";
 /// @notice The house book: an ERC-4626 vault of USDG owned by backers (allowlisted depositors) that is the
 /// counterparty of every gear. It holds tracked cash, a ring-fenced exit reserve and hedge equity; it owes holders the
 /// value of their gears net of backer debt. Buys pass its caps, stress budget and pauses; sells are never gated.
-/// @dev Accounting is internal (`_cash`, `_reserve`): USDG sent by plain transfer changes neither NAV nor the share
-/// price and can only be skimmed to ODInsurance. Seeding is by `deposit` only (VAULT-1). Shares have a 1e6 virtual
+/// @dev Accounting is internal (`_b`: cash, exit reserve, backer sale lock): USDG sent by plain transfer changes
+/// neither NAV nor the share price and can only be skimmed to ODInsurance. Seeding is by `deposit` only (VAULT-1). Shares have a 1e6 virtual
 /// offset (12 dp) and the drawdown pause measures this vault's own share price, so an amount sent before the first
 /// deposit belongs to the virtual shares and never reads as a loss. Non-upgradeable (DECISIONS D2).
 contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGovernor {
@@ -48,8 +48,8 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     address public hedgerWallet;
 
     Params private _p;
-    uint256 private _cash;
-    uint256 private _reserve;
+    /// Free cash, the exit reserve and (M-7) the per-gear backer sale lock, tracked apart (see ODGovernorRisk.Books).
+    ODGovernorRisk.Books private _b;
     uint128 private _owedToll;
     uint128 private _owedSpread;
     bool private _paused;
@@ -151,7 +151,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// CapExceeded or StressBudget; the minter's quote reads the same check through `buyBlock` (QUOTE-1).
     function onBuy(bytes32 gearId, uint256, uint256 usdgIn, uint256 spreadUsdg) external onlyMinter nonReentrant {
         _received(usdgIn);
-        _cash += usdgIn;
+        _b.cash += usdgIn;
         (bytes32 reason, uint256 a, uint256 b, bytes32 market, uint256 loss) = _check(gearId, 0);
         if (reason == "CAP") revert CapExceeded(gearId, a, b);
         if (reason == "STRESS") revert StressBudget(a, b);
@@ -164,40 +164,20 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     /// @dev Never reverts for caps, stress, pauses or drawdown (PERP-2). Books the protocol share of the spread as owed
-    /// (paid from the next cash inflow) so a sell's own payout is exactly `pay`'s.
-    function onSell(bytes32 gearId, uint256, uint256 spreadUsdg) external onlyMinter nonReentrant {
+    /// (paid from the next cash inflow), then pays. M-7: the share for tokens that took supply below the gear's own-minted
+    /// backer debt comes from the gear's lock, then free cash, never the exit reserve or insurance; the rest (all of it
+    /// when no such debt is open) from free cash, the exit reserve, then ODInsurance cover.
+    /// Returns false (never reverts) when short or when the USDG transfer fails; a transfer failing for lack of gas
+    /// reverts so a caller cannot choose gas to force a queued sell.
+    function onSell(bytes32 gearId, uint256 tokens, uint256 spreadUsdg, address to, uint256 usdg)
+        external
+        onlyMinter
+        nonReentrant
+        returns (bool)
+    {
         _oweSpread(spreadUsdg);
-        _emitBook(gearId);
-    }
-
-    /// @inheritdoc IODGovernor
-    /// @dev Free cash first, then the exit reserve, then ODInsurance cover. Returns false (never reverts) when short or
-    /// when the USDG transfer fails; a transfer failing for lack of gas reverts so a caller cannot choose gas to force
-    /// a queued sell.
-    function pay(address to, uint256 usdg) external onlyMinter nonReentrant returns (bool) {
-        if (to == address(0)) return false;
-        if (usdg == 0) return true;
-        uint256 cash = _cash;
-        uint256 res = _reserve;
-        if (cash + res < usdg) {
-            uint256 got = _drawInsurance(usdg - cash - res);
-            cash += got;
-            _cash = cash;
-            if (cash + res < usdg) return false;
-        }
-        uint256 fromCash = cash >= usdg ? usdg : cash;
-        uint256 fromRes = usdg - fromCash;
-        _cash = cash - fromCash;
-        _reserve = res - fromRes;
-        uint256 g0 = gasleft();
-        if (!IERC20(asset()).trySafeTransfer(to, usdg)) {
-            if (gasleft() <= g0 / 63) revert PayOutOfGas();
-            _cash = cash;
-            _reserve = res;
-            return false;
-        }
-        emit PaidOut(to, usdg, fromRes != 0);
-        return true;
+        if (tokens != 0) _emitBook(gearId); // a bare payout (no tokens) books no gear
+        return ODGovernorRisk.paySell(_b, IERC20(asset()), insurance, registry, gearId, tokens, to, usdg);
     }
 
     /// @inheritdoc IODGovernor
@@ -225,21 +205,29 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     /// @dev `soldToGovernor`: the backer's minted tokens go to the Governor's account (no supply change), lowering
     /// net; the proceeds come from free cash only (never the exit reserve), false when short. A net long beyond the
-    /// gear's static cap reverts CapExceeded.
+    /// gear's static cap reverts CapExceeded. Minted to the owner's wallet (M-7): `proceedsUsdg` (the tokens' sale
+    /// value) moves from free cash into the gear's lock, false when short; reverts CapExceeded when the gear's total
+    /// backer debt x value (net if every holder exits) passes the static cap. The tokens join the gear's own-minted
+    /// debt (backerOwnDebt), the only debt that changes how a sell is paid.
     function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg)
         external
         onlyBacker
         nonReentrant
         returns (bool)
     {
-        if (soldToGovernor && proceedsUsdg > _cash) return false;
+        if (proceedsUsdg > _b.cash) return false;
         _debt[gearId] += tokens;
-        (uint256 open, uint256 cap, int256 net) = ODGovernorRisk.gearOpen(_ctx(), _debt, gearId, 0);
+        (uint256 open, uint256 cap, int256 net) = ODGovernorRisk.mintOpen(_ctx(), _debt, gearId, !soldToGovernor);
         if (net < 0 && open > cap) revert CapExceeded(gearId, open, cap);
-        if (soldToGovernor && proceedsUsdg != 0) {
-            _cash -= proceedsUsdg;
+        if (!soldToGovernor) {
+            _b.cash -= proceedsUsdg;
+            _b.lock[gearId] += proceedsUsdg;
+            _b.locked += proceedsUsdg;
+            _b.own[gearId] += tokens;
+        } else if (proceedsUsdg != 0) {
+            _b.cash -= proceedsUsdg;
             if (!IERC20(asset()).trySafeTransfer(msg.sender, proceedsUsdg)) {
-                _cash += proceedsUsdg;
+                _b.cash += proceedsUsdg;
                 _debt[gearId] -= tokens;
                 return false;
             }
@@ -249,23 +237,22 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     }
 
     /// @inheritdoc IODGovernor
+    /// @dev Releases the gear's lock to free cash, and its own-minted debt, pro rata to the debt repaid.
     function onBackerRepay(bytes32 gearId, uint256 tokens) external onlyBacker nonReentrant {
-        uint256 d = _debt[gearId];
-        _debt[gearId] = tokens >= d ? 0 : d - tokens;
+        _repay(gearId, tokens);
         _emitBook(gearId);
     }
 
     /// @inheritdoc IODGovernor
-    /// @dev The collateral (USDG) has already arrived; it becomes tracked cash.
+    /// @dev The collateral (USDG) has already arrived; it becomes tracked cash. Releases the lock like a repay.
     function absorbLiquidation(bytes32 gearId, uint256 debtTokens, uint256 collateralUsdg)
         external
         onlyBacker
         nonReentrant
     {
         _received(collateralUsdg);
-        uint256 d = _debt[gearId];
-        _debt[gearId] = debtTokens >= d ? 0 : d - debtTokens;
-        _cash += collateralUsdg;
+        _repay(gearId, debtTokens);
+        _b.cash += collateralUsdg;
         _settleFees();
         emit Liquidation(gearId, debtTokens, collateralUsdg);
         _emitBook(gearId);
@@ -276,7 +263,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     function fundCash(uint256 usdg) external nonReentrant {
         IERC20(asset()).safeTransferFrom(msg.sender, address(this), usdg);
-        _cash += usdg;
+        _b.cash += usdg;
         emit CashFunded(msg.sender, usdg);
         _settleFees();
     }
@@ -284,8 +271,8 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     function fundExitReserve(uint256 usdg) external nonReentrant {
         IERC20(asset()).safeTransferFrom(msg.sender, address(this), usdg);
-        _reserve += usdg;
-        emit ExitReserveMoved(usdg, _reserve);
+        _b.reserve += usdg;
+        emit ExitReserveMoved(usdg, _b.reserve);
     }
 
     /// @inheritdoc IODGovernor
@@ -293,17 +280,17 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender) && !hasRole(ODRoles.KEEPER_ROLE, msg.sender)) {
             revert AccessControlUnauthorizedAccount(msg.sender, ODRoles.KEEPER_ROLE);
         }
-        if (usdg > _cash) revert InsufficientCash(usdg, _cash);
-        _cash -= usdg;
-        _reserve += usdg;
-        emit ExitReserveMoved(usdg, _reserve);
+        if (usdg > _b.cash) revert InsufficientCash(usdg, _b.cash);
+        _b.cash -= usdg;
+        _b.reserve += usdg;
+        emit ExitReserveMoved(usdg, _b.reserve);
     }
 
     /// @inheritdoc IODGovernor
     function skim() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         IERC20 u = IERC20(asset());
         uint256 bal = u.balanceOf(address(this));
-        uint256 books = _cash + _reserve;
+        uint256 books = _b.cash + _b.reserve + _b.locked;
         if (bal <= books) return;
         uint256 extra = bal - books;
         u.forceApprove(address(insurance), extra);
@@ -344,11 +331,11 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     function sendToHedger(uint256 usdg) external onlyRole(ODRoles.HEDGER_ROLE) nonReentrant {
         address to = hedgerWallet;
         if (to == address(0)) revert NoHedger();
-        if (usdg > _cash) revert InsufficientCash(usdg, _cash);
+        if (usdg > _b.cash) revert InsufficientCash(usdg, _b.cash);
         uint256 afterUsdg = _hedgeTotal() + usdg;
         uint256 cap = _eqWad > 0 ? Math.mulDiv(uint256(_eqWad), _p.maxHedgeEquityBps, BPS * TO_WAD) : 0;
         if (afterUsdg > cap) revert HedgeCap(afterUsdg, cap);
-        _cash -= usdg;
+        _b.cash -= usdg;
         _setTransit(_transit + int256(usdg));
         IERC20(asset()).safeTransfer(to, usdg);
         emit SentToHedger(to, usdg);
@@ -357,7 +344,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     function returnFromHedger(uint256 usdg) external onlyRole(ODRoles.HEDGER_ROLE) nonReentrant {
         IERC20(asset()).safeTransferFrom(msg.sender, address(this), usdg);
-        _cash += usdg;
+        _b.cash += usdg;
         _setTransit(_transit - int256(usdg));
         emit ReturnedFromHedger(msg.sender, usdg);
         _settleFees();
@@ -408,7 +395,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         shares = _shares(assets, high, supply);
         if (shares == 0) revert InvalidParams();
         _deposit(msg.sender, receiver, assets, shares);
-        _cash += assets;
+        _b.cash += assets;
         _settleFees();
         _refresh(_equityWad(b.mid));
     }
@@ -459,7 +446,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         uint256 supply = totalSupply();
         uint256 value = low > 0 ? Math.mulDiv(shares, uint256(low) / TO_WAD + 1, supply + 10 ** _decimalsOffset()) : 0;
         paid = value;
-        if (paid > _cash) paid = _cash;
+        if (paid > _b.cash) paid = _b.cash;
         uint256 room = _claimRoom(mid);
         if (paid > room) paid = room;
         if (paid < minAssetsOut) revert ClaimBelowMin(paid, minAssetsOut);
@@ -467,7 +454,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
             uint256 burn = paid == value ? shares : Math.mulDiv(shares, paid, value, Math.Rounding.Ceil);
             if (burn > shares) burn = shares;
             t.shares = shares - burn;
-            _cash -= paid;
+            _b.cash -= paid;
             _burn(address(this), burn);
             IERC20(asset()).safeTransfer(msg.sender, paid);
             emit Withdraw(msg.sender, msg.sender, msg.sender, paid, burn);
@@ -607,13 +594,13 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     function canPay(uint256 usdg) external view returns (bool) {
-        uint256 have = _cash + _reserve;
-        if (have >= usdg) return true;
-        try insurance.balance() returns (uint256 ib) {
-            return have + ib >= usdg;
-        } catch {
-            return false;
-        }
+        return canPaySell(0, 0, usdg, 0);
+    }
+
+    /// @inheritdoc IODGovernor
+    /// @dev Mirrors onSell's payout split before the burn (QUOTE-1).
+    function canPaySell(bytes32 gearId, uint256 tokens, uint256 usdg, uint256 cashDrain) public view returns (bool) {
+        return ODGovernorRisk.canPaySell(_b, insurance, registry, gearId, tokens, usdg, cashDrain);
     }
 
     /// @inheritdoc IODGovernor
@@ -623,7 +610,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     function netTokens(bytes32 gearId) external view returns (int256) {
-        return int256(IERC20(registry.gear(gearId).token).totalSupply()) - int256(_debt[gearId]);
+        return _net(gearId);
     }
 
     /// @inheritdoc IODGovernor
@@ -651,7 +638,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     function exitReserve() external view returns (uint256) {
-        return _reserve;
+        return _b.reserve;
     }
 
     /// @inheritdoc IODGovernor
@@ -663,12 +650,17 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     function freeCash() external view returns (uint256) {
-        return _cash;
+        return _b.cash;
     }
 
     /// @inheritdoc IODGovernor
-    function trackedCash() external view returns (uint256) {
-        return _cash;
+    function backerLock(bytes32 gearId) external view returns (uint256) {
+        return _b.lock[gearId];
+    }
+
+    /// @inheritdoc IODGovernor
+    function backerOwnDebt(bytes32 gearId) external view returns (uint256) {
+        return _b.own[gearId];
     }
 
     /// @inheritdoc IODGovernor
@@ -842,7 +834,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     }
 
     function _assetsWad(bool withHedge) private view returns (int256) {
-        uint256 a = _cash + _reserve + (withHedge ? _hedgeTotal() : 0);
+        uint256 a = _b.cash + _b.reserve + _b.locked + (withHedge ? _hedgeTotal() : 0);
         return int256(a * TO_WAD) - int256((uint256(_owedToll) + _owedSpread) * TO_WAD);
     }
 
@@ -895,7 +887,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     }
 
     function _received(uint256 usdg) private view {
-        uint256 need = _cash + _reserve + usdg;
+        uint256 need = _b.cash + _b.reserve + _b.locked + usdg;
         uint256 bal = IERC20(asset()).balanceOf(address(this));
         if (bal < need) revert UsdgNotReceived(need, bal);
     }
@@ -921,24 +913,23 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     function _settleOne(bytes32 kind) private {
         bool toll = kind == "TOLL";
         uint256 owed = toll ? _owedToll : _owedSpread;
-        uint256 amt = owed < _cash ? owed : _cash;
+        uint256 amt = owed < _b.cash ? owed : _b.cash;
         if (amt == 0) return;
         if (!IERC20(asset()).trySafeTransfer(address(fees), amt)) return;
-        _cash -= amt;
+        _b.cash -= amt;
         if (toll) _owedToll = uint128(owed - amt);
         else _owedSpread = uint128(owed - amt);
         try fees.notify(kind, bytes32(0), amt) {} catch {}
         emit FeePaid(kind, amt);
     }
 
-    function _drawInsurance(uint256 usdg) private returns (uint256 got) {
-        IERC20 u = IERC20(asset());
-        uint256 before = u.balanceOf(address(this));
-        try insurance.cover(usdg) returns (uint256) {} catch {}
-        uint256 bal = u.balanceOf(address(this));
-        got = bal > before ? bal - before : 0;
-        if (got > usdg) got = usdg; // anything beyond the request stays untracked (skim)
-        emit InsuranceDrawn(usdg, got);
+    function _net(bytes32 gearId) private view returns (int256) {
+        return int256(IERC20(registry.gear(gearId).token).totalSupply()) - int256(_debt[gearId]);
+    }
+
+    /// Lowers the gear's backer debt by `tokens`; releases the same share of its lock and of its own-minted debt.
+    function _repay(bytes32 gearId, uint256 tokens) private {
+        ODGovernorRisk.repay(_b, _debt, gearId, tokens);
     }
 
     function _emitBook(bytes32 gearId) private {

@@ -28,7 +28,7 @@ contract QuoteEqualsExecutionTest is SystemFixture {
         bobTokens = _buy(bob, sport, 15_000e6);
         aliceTokens = _buy(alice, sport, 1_000e6);
         // nearly all free cash into the exit reserve: fees stay owed, payouts draw the reserve
-        uint256 cash = gov.trackedCash();
+        uint256 cash = gov.freeCash();
         vm.prank(admin);
         gov.moveToExitReserve(cash - 1e5);
         _warpFresh(1 days);
@@ -99,9 +99,9 @@ contract QuoteEqualsExecutionTest is SystemFixture {
         gov.fundCash(10e6);
         uint256 snap = vm.snapshotState();
         minter.accrue(sport);
-        uint256 avail = gov.trackedCash() + gov.exitReserve();
+        uint256 avail = gov.freeCash() + gov.exitReserve();
         vm.revertToState(snap);
-        assertLt(avail, gov.trackedCash() + gov.exitReserve(), "the accrual's fee drain moves the boundary");
+        assertLt(avail, gov.freeCash() + gov.exitReserve(), "the accrual's fee drain moves the boundary");
 
         Quote memory over = _quote(sport, false, false, avail + 1);
         assertTrue(over.queued, "one wei over: queued");
@@ -114,7 +114,7 @@ contract QuoteEqualsExecutionTest is SystemFixture {
         vm.prank(bob);
         uint256 used = minter.sellForExactUsdg(sport, avail, q.amountIn, bob, _now64());
         assertEq(used, q.amountIn);
-        assertEq(gov.trackedCash() + gov.exitReserve(), 0, "drew every dollar, reserve included");
+        assertEq(gov.freeCash() + gov.exitReserve(), 0, "drew every dollar, reserve included");
     }
 
     function testFuzz_QuoteEqualsExecution(uint8 mode, uint256 amount, uint32 dt, bool closed) public {

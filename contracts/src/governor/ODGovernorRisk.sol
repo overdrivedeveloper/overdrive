@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IODInsurance} from "../interfaces/IODInsurance.sol";
 import {GearConfig, GearStatus, NormState, PriceReading} from "../interfaces/ODTypes.sol";
 import {ODPowers} from "../interfaces/ODPowers.sol";
 import {IODGearRegistry} from "../interfaces/IODGearRegistry.sol";
@@ -18,6 +20,18 @@ import {ODIndex} from "../math/ODIndex.sol";
 /// net(g) = token supply - backer debt; a negative net is a Governor long (an asset).
 library ODGovernorRisk {
     uint256 internal constant WAD = 1e18;
+
+    /// The Governor's cash books: free cash, the exit reserve, and (M-7) per gear the backer sale lock, free cash a
+    /// backer mint to the owner's wallet held back (`locked` is its sum), and `own`, the backer debt still open from
+    /// such mints, in tokens. A sell's share for tokens that take supply below `own` is the share that debt answers
+    /// for: the lock pays it, then free cash. Debt sold to the Governor is not in `own` and changes no payout.
+    struct Books {
+        uint256 cash;
+        uint256 reserve;
+        uint256 locked;
+        mapping(bytes32 gearId => uint256) lock;
+        mapping(bytes32 gearId => uint256) own;
+    }
 
     struct Ctx {
         IODGearRegistry registry;
@@ -149,6 +163,142 @@ library ODGovernorRisk {
         int256 val = mulNet(net, v);
         openWad = uint256(val >= 0 ? val : -val);
         capUsdWad = cfg.capUsdWad;
+    }
+
+    /// M-7: open value and static cap checked at a backer mint. Sold to the Governor (`own` false): the live net, as
+    /// gearOpen. Minted to the owner's wallet (`own` true): the worst case once every holder has exited, net = -(total
+    /// backer debt), so later holder exits cannot push the gear past its cap.
+    function mintOpen(Ctx memory c, mapping(bytes32 => uint256) storage debt, bytes32 id, bool own)
+        external
+        view
+        returns (uint256 openWad, uint256 capUsdWad, int256 net)
+    {
+        GearConfig memory cfg = c.registry.gear(id);
+        net = own ? -int256(debt[id]) : int256(IERC20(cfg.token).totalSupply()) - int256(debt[id]);
+        (uint256 v,,) = _values(c, id, cfg, net >= 0);
+        int256 val = mulNet(net, v);
+        openWad = uint256(val >= 0 ? val : -val);
+        capUsdWad = cfg.capUsdWad;
+    }
+
+    // ------------------------------------------------------------------------------------------- payout
+
+    /// Pays a sell of `tokens` for `usdg` (IODGovernor.onSell), supply read here, after the burn. The share for tokens
+    /// that took supply below the gear's own-minted backer debt comes from the gear's lock, then free cash, never the
+    /// exit reserve or insurance; the rest (all of it when no such debt is open) from free cash, the exit reserve,
+    /// then ODInsurance cover. False when short or when the transfer fails (reverts when out of gas).
+    function paySell(
+        Books storage b,
+        IERC20 u,
+        IODInsurance ins,
+        IODGearRegistry reg,
+        bytes32 id,
+        uint256 tokens,
+        address to,
+        uint256 usdg
+    ) external returns (bool) {
+        if (to == address(0)) return false;
+        if (usdg == 0) return true;
+        (uint256 fromLock, uint256 cashBelow, uint256 above) = _split(b, id, _supply(reg, id, tokens), tokens, usdg);
+        uint256 cash = b.cash;
+        uint256 res = b.reserve;
+        if (cashBelow > cash) return false;
+        if (cash - cashBelow + res < above) {
+            cash += _drawInsurance(u, ins, above - (cash - cashBelow) - res);
+            b.cash = cash;
+            if (cash - cashBelow + res < above) return false;
+        }
+        uint256 fromCash = cash - cashBelow >= above ? usdg - fromLock : cash;
+        uint256 fromRes = usdg - fromLock - fromCash;
+        b.lock[id] -= fromLock;
+        b.locked -= fromLock;
+        b.cash = cash - fromCash;
+        b.reserve = res - fromRes;
+        uint256 g0 = gasleft();
+        if (!SafeERC20.trySafeTransfer(u, to, usdg)) {
+            if (gasleft() <= g0 / 63) revert IODGovernor.PayOutOfGas();
+            b.lock[id] += fromLock;
+            b.locked += fromLock;
+            b.cash = cash;
+            b.reserve = res;
+            return false;
+        }
+        emit IODGovernor.PaidOut(to, usdg, fromRes != 0);
+        return true;
+    }
+
+    /// Whether paySell would pay (QUOTE-1) for `tokens` still in supply, after `cashDrain` of free cash leaves first
+    /// (the trade's own fee settlement).
+    function canPaySell(
+        Books storage b,
+        IODInsurance ins,
+        IODGearRegistry reg,
+        bytes32 id,
+        uint256 tokens,
+        uint256 usdg,
+        uint256 cashDrain
+    ) external view returns (bool) {
+        uint256 supply = _supply(reg, id, tokens);
+        (, uint256 cashBelow, uint256 above) = _split(b, id, supply > tokens ? supply - tokens : 0, tokens, usdg);
+        uint256 cash = b.cash > cashDrain ? b.cash - cashDrain : 0;
+        if (cashBelow > cash) return false;
+        uint256 have = cash - cashBelow + b.reserve;
+        if (have >= above) return true;
+        try ins.balance() returns (uint256 ib) {
+            return have + ib >= above;
+        } catch {
+            return false;
+        }
+    }
+
+    /// Supply of the gear for a sell of `tokens` (0 when none: a bare payout reads no gear).
+    function _supply(IODGearRegistry reg, bytes32 id, uint256 tokens) private view returns (uint256) {
+        return tokens == 0 ? 0 : IERC20(reg.gear(id).token).totalSupply();
+    }
+
+    /// The share of `usdg` for the tokens that took supply below the gear's own-minted backer debt (rounded up),
+    /// split into the part the lock covers and the part free cash must cover, and `above`, the rest. Supply below
+    /// that debt means net below zero, so `above` holds every share above zero net and every share below zero that
+    /// only debt sold to the Governor explains.
+    function _split(Books storage b, bytes32 id, uint256 supply, uint256 tokens, uint256 usdg)
+        private
+        view
+        returns (uint256 fromLock, uint256 cashBelow, uint256 above)
+    {
+        uint256 below;
+        uint256 own = b.own[id];
+        if (own > supply && tokens != 0) {
+            below = own - supply >= tokens ? usdg : Math.mulDiv(usdg, own - supply, tokens, Math.Rounding.Ceil);
+        }
+        uint256 lk = b.lock[id];
+        fromLock = below < lk ? below : lk;
+        cashBelow = below - fromLock;
+        above = usdg - below;
+    }
+
+    /// Lowers the gear's backer debt by `tokens` (IODGovernor.onBackerRepay, absorbLiquidation) and releases the same
+    /// share of its lock to free cash and of its own-minted debt. Vault debt is not split by kind, so the share is
+    /// pro rata per gear; the own-minted part rounds toward staying open and never passes the debt.
+    function repay(Books storage b, mapping(bytes32 => uint256) storage debt, bytes32 id, uint256 tokens) external {
+        uint256 d = debt[id];
+        uint256 lk = b.lock[id];
+        uint256 own = b.own[id];
+        bool all = tokens >= d;
+        uint256 rel = all ? lk : Math.mulDiv(lk, tokens, d);
+        debt[id] = all ? 0 : d - tokens;
+        b.own[id] = all ? 0 : own - Math.mulDiv(own, tokens, d);
+        b.lock[id] = lk - rel;
+        b.locked -= rel;
+        b.cash += rel;
+    }
+
+    function _drawInsurance(IERC20 u, IODInsurance ins, uint256 usdg) private returns (uint256 got) {
+        uint256 before = u.balanceOf(address(this));
+        try ins.cover(usdg) returns (uint256) {} catch {}
+        uint256 bal = u.balanceOf(address(this));
+        got = bal > before ? bal - before : 0;
+        if (got > usdg) got = usdg; // anything beyond the request stays untracked (skim)
+        emit IODGovernor.InsuranceDrawn(usdg, got);
     }
 
     // ----------------------------------------------------------------------------------------- exposure

@@ -57,7 +57,7 @@ contract BackerRepayTest is BackerFixture {
     function test_RepayWithUsdgPricing() public {
         uint256 id = _open(alice, sport, 1_000e6);
         uint256 proceeds = _mint(alice, id, 400e18, true);
-        uint256 cash0 = gov.trackedCash();
+        uint256 cash0 = gov.freeCash();
         uint256 v = _valueAt(sport, 250e18, Math.Rounding.Ceil);
         // the SPORT lag floor (51 bps at the 50 bps band, M-4) is above the 30 bps base spread
         uint256 price = Math.mulDiv(v, 10_000 + 51, 10_000, Math.Rounding.Ceil);
@@ -72,7 +72,7 @@ contract BackerRepayTest is BackerFixture {
         assertEq(_coll(id), 1_000e6 + proceeds - cost);
         assertEq(_debt(id), 300e18);
         assertEq(gov.backerDebt(sport), 300e18);
-        assertEq(gov.trackedCash(), cash0 + cost);
+        assertEq(gov.freeCash(), cash0 + cost);
         assertEq(gov.netTokens(sport), -300e18);
     }
 

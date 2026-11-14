@@ -19,7 +19,7 @@ contract HookQuoteTest is HookFixture {
         held = _hookBuy(alice, sport, 100_000e6);
         _warpFresh(3 days); // toll due: the next trade accrues it
         // move all but a little cash to the exit reserve so sells draw it
-        uint256 cash = gov.trackedCash();
+        uint256 cash = gov.freeCash();
         vm.prank(admin);
         gov.moveToExitReserve(cash - 1_000e6);
     }

@@ -129,7 +129,7 @@ library ODMinterPricing {
         uint256 fee = tollValue * bps / BPS / USDG_TO_WAD;
         if (fee == 0) return 0;
         uint256 owed = d.governor.feeOwed() + fee;
-        uint256 cash = d.governor.trackedCash();
+        uint256 cash = d.governor.freeCash();
         return owed < cash ? owed : cash;
     }
 

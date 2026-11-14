@@ -118,6 +118,44 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "backerLock",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "backerOwnDebt",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "balanceOf",
     "inputs": [
       {
@@ -230,6 +268,40 @@ export const IODGovernorAbi = [
     "inputs": [
       {
         "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "canPaySell",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "cashDrain",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1029,33 +1101,7 @@ export const IODGovernorAbi = [
         "name": "spreadUsdg",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "onToll",
-    "inputs": [
-      {
-        "name": "gearId",
-        "type": "bytes32",
-        "internalType": "bytes32"
       },
-      {
-        "name": "tollValueUsdWad",
-        "type": "int256",
-        "internalType": "int256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "pay",
-    "inputs": [
       {
         "name": "to",
         "type": "address",
@@ -1074,6 +1120,24 @@ export const IODGovernorAbi = [
         "internalType": "bool"
       }
     ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "onToll",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tollValueUsdWad",
+        "type": "int256",
+        "internalType": "int256"
+      }
+    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -1540,19 +1604,6 @@ export const IODGovernorAbi = [
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "trackedCash",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "usdg",
         "type": "uint256",
         "internalType": "uint256"
       }

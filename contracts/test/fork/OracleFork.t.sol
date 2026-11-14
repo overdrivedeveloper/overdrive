@@ -192,12 +192,17 @@ contract OracleForkTest is ODTest {
             true
         );
         mh = new ODMarketHours(admin, keeper);
-        SessionWindow[] memory s = new SessionWindow[](1);
-        s[0] = SessionWindow({open: uint64(block.timestamp - 1 hours), close: uint64(block.timestamp + 1 hours)});
-        Session[] memory k = new Session[](1);
-        k[0] = Session.OPEN;
-        vm.prank(keeper);
-        mh.setSessionsWithKinds(s, k);
+        // One OPEN window around the fork block. Since L-9 the keeper cannot push a window over calendar-closed time
+        // (a weekend fork block), so the fixture writes it into storage (as ForkSystem does). ODMarketHours layout:
+        // slot 0 AccessControl._roles, slot 1 _sessions, slot 2 _kinds (Session.OPEN is 0).
+        uint256 open = block.timestamp - 1 hours;
+        uint256 close = block.timestamp + 1 hours;
+        vm.store(address(mh), bytes32(uint256(1)), bytes32(uint256(1)));
+        vm.store(address(mh), keccak256(abi.encode(uint256(1))), bytes32(open | (close << 64)));
+        vm.store(address(mh), bytes32(uint256(2)), bytes32(uint256(1)));
+        SessionWindow[] memory w = mh.sessions();
+        require(w.length == 1 && w[0].open == open && w[0].close == close, "OracleFork: ODMarketHours layout moved");
+        require(mh.kindAt(block.timestamp) == Session.OPEN, "OracleFork: forced window not read");
         guard = new ODOracleGuard(admin, guardian, address(mh), PYTH_CORE, address(0));
         vm.startPrank(admin);
         for (uint256 i; i < mkts.length; ++i) {

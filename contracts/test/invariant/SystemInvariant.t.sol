@@ -119,7 +119,7 @@ contract SystemInvariantTest is HookFixture {
         );
 
         targetContract(address(h));
-        bytes4[] memory sel = new bytes4[](25);
+        bytes4[] memory sel = new bytes4[](27);
         sel[0] = SystemHandler.buy.selector;
         sel[1] = SystemHandler.buy.selector; // weighted: trading is the common case
         sel[2] = SystemHandler.sell.selector;
@@ -145,12 +145,15 @@ contract SystemInvariantTest is HookFixture {
         sel[22] = SystemHandler.guardianPause.selector;
         sel[23] = SystemHandler.timelockUnpause.selector;
         sel[24] = SystemHandler.distributeFees.selector;
+        sel[25] = SystemHandler.backerSell.selector; // M-7
+        sel[26] = SystemHandler.backerSell.selector;
         targetSelector(FuzzSelector({addr: address(h), selectors: sel}));
-        bytes4[] memory extra = new bytes4[](4);
+        bytes4[] memory extra = new bytes4[](5);
         extra[0] = SystemHandler.keeperFundReserve.selector;
         extra[1] = SystemHandler.keeperFundReserve.selector;
         extra[2] = SystemHandler.sealAndExecute.selector;
         extra[3] = SystemHandler.backerMint.selector;
+        extra[4] = SystemHandler.backerSell.selector;
         targetSelector(FuzzSelector({addr: address(h), selectors: extra}));
     }
 
@@ -169,6 +172,7 @@ contract SystemInvariantTest is HookFixture {
         h.fillQueued(1);
         h.backerOpen(0, 1, 1_000e6);
         h.backerMint(0, 0, 450e18, false);
+        h.backerSell(0, 100e18);
         h.backerDeposit(1, 0, 10e6);
         h.backerRepay(0, 0, 10e18);
         h.backerWithdraw(0, 0, 1e6);
@@ -208,7 +212,7 @@ contract SystemInvariantTest is HookFixture {
     /// covered.
     function test_Repro_FeeDoubleBookOnDistribute() public {
         _buy(bob, sport, 15_000e6); // spread share notified to ODFees while the Governor has cash
-        uint256 cash = gov.trackedCash();
+        uint256 cash = gov.freeCash();
         vm.prank(admin);
         gov.moveToExitReserve(cash); // no free cash: the next toll fee stays owed
         _warpFresh(1 days);
@@ -277,7 +281,7 @@ contract SystemInvariantTest is HookFixture {
     /// forge-config: deep.invariant.runs = 2
     /// forge-config: deep.invariant.depth = 10
     function invariant_BooksCovered() public view {
-        assertGe(usdg.balanceOf(address(gov)), gov.trackedCash() + gov.exitReserve(), "R5: governor books");
+        assertGe(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve(), "R5: governor books");
         assertGe(usdg.balanceOf(address(backer)), backer.totalCollateral() + backer.pendingFees(), "R5: backer books");
         uint256 sum;
         for (uint256 id = 1; id <= backer.vaultCount(); ++id) {
@@ -346,6 +350,32 @@ contract SystemInvariantTest is HookFixture {
     /// forge-config: deep.invariant.depth = 10
     function invariant_NfMonotone() public view {
         assertEq(h.nfViolations(), 0, string.concat("R7: NF moved the wrong way in ", _str(h.lastNfViolation())));
+    }
+
+    /// M-7, the attributable share: backer supply minted to an owner's wallet never reaches the exit reserve or
+    /// insurance. In every successful minter sell (holder, vault owner or queue fill) reserve + insurance drawn <= the
+    /// payout share of the tokens that kept supply at or above backerOwnDebt (the gear's backer debt still open from
+    /// mints to owners' wallets); the backer sale lock pays at most the other share and never grows in a sell. Net
+    /// below zero from sales to the Governor alone is no part of it: such a sell may draw the reserve like any sell.
+    /// Per gear backerOwnDebt <= backerDebt, and a lock exists only while own-minted debt is open; the Governor's
+    /// balance covers free cash, the exit reserve and every gear's lock.
+    /// forge-config: default.invariant.runs = 16
+    /// forge-config: default.invariant.depth = 40
+    /// forge-config: deep.invariant.runs = 2
+    /// forge-config: deep.invariant.depth = 10
+    function invariant_BackerSupplyNeverDrawsReserve() public view {
+        assertEq(h.m7DrawViolations(), 0, "M-7: reserve or insurance paid a share below the own-minted debt");
+        assertEq(h.m7LockViolations(), 0, "M-7: a sell misused a backer sale lock");
+        bytes32[7] memory gs = [cruise, sport, race, eco, reverse, ethSport, pair];
+        uint256 locks;
+        for (uint256 i; i < gs.length; ++i) {
+            uint256 lk = gov.backerLock(gs[i]);
+            uint256 own = gov.backerOwnDebt(gs[i]);
+            assertLe(own, gov.backerDebt(gs[i]), "M-7: own-minted debt above the gear's backer debt");
+            if (own == 0) assertEq(lk, 0, "M-7: a lock with no own-minted debt open");
+            locks += lk;
+        }
+        assertGe(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve() + locks, "M-7: locks covered");
     }
 
     /// R8: the exit reserve only falls inside a holder payout at least that size.
@@ -468,6 +498,7 @@ contract SystemInvariantTest is HookFixture {
         invariant_DrawdownOnOwnSharePrice();
         invariant_OnlyTimelockUnpauses();
         invariant_FeesConserved();
+        invariant_BackerSupplyNeverDrawsReserve();
     }
 
     /// Coverage evidence per run, one parseable line (script/ci/deep-invariants.sh sums them; shown with -vv).
@@ -502,6 +533,16 @@ contract SystemInvariantTest is HookFixture {
             vm.toString(h.vaultsLiquidated()),
             " reserveDrawn=",
             vm.toString(h.reserveDrawn()),
+            " m7Checked=",
+            vm.toString(h.m7Checked()),
+            " m7BelowZero=",
+            vm.toString(h.m7BelowZero()),
+            " m7BelowZeroDirect=",
+            vm.toString(h.m7BelowZeroDirect()),
+            " backerSells=",
+            vm.toString(h.backerSells()),
+            " backerSellsRefused=",
+            vm.toString(h.backerSellsRefused()),
             " pauses=",
             vm.toString(h.guardianPauses()),
             " unpauses=",

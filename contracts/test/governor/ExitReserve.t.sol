@@ -39,7 +39,7 @@ contract ExitReserveTest is GovernorFixture {
         gov.sendToHedger(1e6);
         vm.prank(hedger);
         vm.expectRevert(IODGovernor.NotMinter.selector);
-        gov.pay(hedger, 1);
+        gov.onSell(bytes32(0), 0, 0, hedger, 1);
         assertEq(gov.exitReserve(), 10_000e6);
     }
 
@@ -47,7 +47,7 @@ contract ExitReserveTest is GovernorFixture {
         _fundReserve(5_000e6);
         vm.startPrank(admin);
         vm.expectRevert(IODGovernor.NotMinter.selector);
-        gov.pay(admin, 1);
+        gov.onSell(bytes32(0), 0, 0, admin, 1);
         gov.skim(); // nothing untracked
         vm.expectRevert(IODGovernor.UseWithdrawalQueue.selector);
         gov.withdraw(1, admin, admin);
@@ -62,7 +62,7 @@ contract ExitReserveTest is GovernorFixture {
         vm.expectEmit(address(gov));
         emit IODGovernor.PaidOut(seller, 300e6, true);
         assertTrue(minter.payOut(seller, 300e6));
-        assertEq(gov.trackedCash(), 0);
+        assertEq(gov.freeCash(), 0);
         assertEq(gov.exitReserve(), 800e6);
         assertTrue(minter.payOut(seller, 0));
     }
@@ -72,7 +72,7 @@ contract ExitReserveTest is GovernorFixture {
         _fundReserve(100e6);
         assertFalse(gov.canPay(201e6));
         assertFalse(minter.payOut(seller, 201e6));
-        assertEq(gov.trackedCash(), 100e6);
+        assertEq(gov.freeCash(), 100e6);
         assertEq(gov.exitReserve(), 100e6);
         // ODInsurance tops up the shortfall.
         usdg.mint(address(this), 1e6);
@@ -82,7 +82,7 @@ contract ExitReserveTest is GovernorFixture {
         assertTrue(minter.payOut(seller, 201e6));
         assertEq(usdg.balanceOf(seller), 201e6);
         assertEq(ins.balance(), 0);
-        assertEq(usdg.balanceOf(address(gov)), gov.trackedCash() + gov.exitReserve());
+        assertEq(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve());
     }
 
     function test_PayReturnsFalseOnUsdgPause() public {
@@ -92,7 +92,7 @@ contract ExitReserveTest is GovernorFixture {
         usdg.setPaused(false);
         usdg.setBlocked(seller, true);
         assertFalse(minter.payOut(seller, 10e6));
-        assertEq(gov.trackedCash(), 1_000e6);
+        assertEq(gov.freeCash(), 1_000e6);
         usdg.setBlocked(seller, false);
         assertTrue(minter.payOut(seller, 10e6));
     }

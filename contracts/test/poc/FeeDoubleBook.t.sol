@@ -10,7 +10,7 @@ import {SystemFixture} from "../system/SystemFixture.sol";
 contract FeeDoubleBookTest is SystemFixture {
     function test_F12_1_DistributeNeverBooksMoreThanHeld() public {
         _buy(alice, sport, 15_000e6);
-        uint256 free = gov.trackedCash();
+        uint256 free = gov.freeCash();
         vm.prank(admin);
         gov.moveToExitReserve(free); // the keeper moves all free cash: owed fees cannot settle now
         _warpFresh(1 days);

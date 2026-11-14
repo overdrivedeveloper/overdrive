@@ -42,10 +42,12 @@ contract BackerTest is GovernorFixture {
         vm.prank(backerC);
         assertTrue(gov.onBackerMint(id, 100e18, true, 100e6));
         assertEq(usdg.balanceOf(backerC), 100e6);
-        assertEq(gov.trackedCash(), 900e6);
+        assertEq(gov.freeCash(), 900e6);
         assertEq(gov.exitReserve(), 10_000e6);
     }
 
+    /// The cap rule on the hook alone: here supply does not rise with the mint (a mock backer). For a mint to the
+    /// owner's wallet the hook checks total backer debt x value (M-7, governor/BackerLock.t.sol).
     function test_NetLongCapped() public {
         vm.prank(backerC);
         gov.onBackerMint(id, 1_000e18, false, 0); // net long 1,000 = cap
@@ -64,6 +66,6 @@ contract BackerTest is GovernorFixture {
         vm.prank(backerC);
         gov.absorbLiquidation(id, 500e18, 300e6);
         assertEq(gov.backerDebt(id), 0);
-        assertEq(gov.trackedCash(), 300e6);
+        assertEq(gov.freeCash(), 300e6);
     }
 }

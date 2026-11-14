@@ -266,16 +266,20 @@ abstract contract ForkSystem is ODTest {
         vm.stopPrank();
     }
 
-    /// One pushed OPEN window from 1 h ago for almost 7 days: every stock reads in session whatever the fork's day.
+    /// One OPEN window from 1 h ago for almost 7 days: every stock reads in session whatever the fork's day. Since L-9
+    /// the keeper cannot push a window over calendar-closed time, so this mechanics harness writes the window straight
+    /// into ODMarketHours storage (test only, a forced calendar like SystemFixture's mock). Suites that test the real
+    /// calendar (WeekendFork) clear it through the keeper and enable the fallback.
     function _openSessionAroundNow() internal {
-        SessionWindow[] memory s = new SessionWindow[](1);
-        s[0] = SessionWindow({
-            open: uint64(vm.getBlockTimestamp() - 1 hours), close: uint64(vm.getBlockTimestamp() + 7 days - 2 hours)
-        });
-        Session[] memory k = new Session[](1);
-        k[0] = Session.OPEN;
-        vm.prank(keeper);
-        mh.setSessionsWithKinds(s, k);
+        uint256 open = vm.getBlockTimestamp() - 1 hours;
+        uint256 close = vm.getBlockTimestamp() + 7 days - 2 hours;
+        // ODMarketHours layout: slot 0 AccessControl._roles, slot 1 _sessions, slot 2 _kinds (Session.OPEN is 0).
+        vm.store(address(mh), bytes32(uint256(1)), bytes32(uint256(1)));
+        vm.store(address(mh), keccak256(abi.encode(uint256(1))), bytes32(open | (close << 64)));
+        vm.store(address(mh), bytes32(uint256(2)), bytes32(uint256(1)));
+        SessionWindow[] memory w = mh.sessions();
+        require(w.length == 1 && w[0].open == open && w[0].close == close, "ForkSystem: ODMarketHours layout moved");
+        require(mh.kindAt(vm.getBlockTimestamp()) == Session.OPEN, "ForkSystem: forced window not read");
     }
 
     function _configureMarkets() internal {

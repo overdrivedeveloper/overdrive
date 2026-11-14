@@ -10,7 +10,7 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | --- | --- | --- |
 | 1 | The Governor's USDG balance covers its cash book plus the exit reserve | `governor/GovernorInvariant.t.sol : invariant_BalanceCoversBooks` |
 | 2 | While the exit reserve is above its floor, a holder sell that needs the reserve is paid | `governor/GovernorInvariant.t.sol : invariant_ReserveAboveFloorPaysSells`; example: `governor/ExitReserve.t.sol : test_PayFreeCashThenReserve`, `test_FloorFormula` |
-| 3 | Only a sell payment draws the exit reserve; the hedger, the admin and a sale to the Governor cannot | `governor/ExitReserve.t.sol : test_OnlyPayDrawsReserve`, `test_HedgerCannotTouchReserve`, `test_AdminCannotWithdrawReserve`; `governor/Backer.t.sol : test_SoldMintNeverUsesReserve` (all example-based) |
+| 3 | Only a sell payment draws the exit reserve, and never for the share of tokens that take supply below the gear's own-minted backer debt (`backerOwnDebt`, debt from mints to owners' wallets); the hedger, the admin, a sale to the Governor and backer-minted tokens sold back cannot (M-7: that share is paid from the backer sale lock, then free cash). Net below zero from sales to the Governor alone changes no payout | `governor/ExitReserve.t.sol : test_OnlyPayDrawsReserve`, `test_HedgerCannotTouchReserve`, `test_AdminCannotWithdrawReserve`; `governor/Backer.t.sol : test_SoldMintNeverUsesReserve`; `governor/BackerLock.t.sol`, `governor/BackerOwnDebt.t.sol`, `poc/DirectSaleBelowZero.t.sol`; system: S17 |
 | 4 | Backer debt recorded in the vaults matches the debt the Governor holds against the Backer | `backer/BackerInvariant.t.sol : invariant_DebtMatchesGovernor`; after liquidation: `backer/LiquidationInvariant.t.sol : invariant_DebtMatches` |
 | 5 | Vault collateral is accounted for exactly (what went in equals what is held plus what left by a defined path) | `backer/BackerInvariant.t.sol : invariant_CollateralAccounting`; `backer/LiquidationInvariant.t.sol : invariant_CollateralConserved` |
 | 6 | A liquidation splits the collateral without creating or losing a unit (executor bonus, insurance, Governor, vault owner) | `backer/Liquidation.t.sol : testFuzz_SplitConserves`; example: `test_LiquidationSplit` |
@@ -87,7 +87,7 @@ to S13 in one long campaign; the deep run is `bash contracts/script/ci/deep-inva
 
 | # | Invariant | Checked by (file : function) |
 | --- | --- | --- |
-| S1 | A holder sell of value at most the exit reserve, with the reserve at or above its floor and both prices present, never ends in UseQueue | `invariant/SystemInvariant.t.sol : invariant_HoldersExitAboveFloor` |
+| S1 | A holder sell of value at most the exit reserve, with the reserve at or above its floor, both prices present and supply still at or above the gear's own-minted backer debt after it (at any net), never ends in UseQueue | `invariant/SystemInvariant.t.sol : invariant_HoldersExitAboveFloor` |
 | S2 | Liquidations never touch holders: holder balances move only by the holder's own trades and queue actions | `invariant/SystemInvariant.t.sol : invariant_HolderBalancesOnlyOwnActions` |
 | S3 | Quote equals execution for direct and hook buys and sells in the same state (refusal and queued flag included); the hook quote equals the executed swap | `invariant/SystemInvariant.t.sol : invariant_QuoteEqualsExecution` |
 | S4 | Exits are never gated: sell (only UseQueue or BelowMinimum), owner queue cancel, backer token repay, backer deposit, Governor claim (only HedgeStale) | `invariant/SystemInvariant.t.sol : invariant_ExitsNeverGatedByPauses` |
@@ -103,6 +103,7 @@ to S13 in one long campaign; the deep run is `bash contracts/script/ci/deep-inva
 | S14 | Gears ever listed <= ODGearRegistry.MAX_GEARS | `invariant/SystemInvariant.t.sol : invariant_GearCountWithinGlobalCap` |
 | S15 | A low-gas executeBatch reverts and leaves the batch executable (reads the public MIN_VAULT_GAS) | `invariant/SystemInvariant.t.sol : test_ExecuteBatchGasRule_afterFixAudit2` |
 | S16 | ODFees.distribute never books more USDG than it holds when the Governor settles owed fees inside its own payout (F12-1) | `invariant/SystemInvariant.t.sol : test_Repro_FeeDoubleBookOnDistribute` |
+| S17 | M-7, the attributable share: in every successful minter sell (holder, vault owner, queue fill) the exit reserve plus insurance drawn is at most the payout share of the tokens that kept supply at or above `backerOwnDebt` (backer debt still open from mints to owners' wallets); a backer sale lock pays at most the other share and never grows in a sell. A sell wholly above that debt may draw the reserve at any net, so net below zero from sales to the Governor alone is no part of it. Per gear `backerOwnDebt <= backerDebt`, a lock exists only while own-minted debt is open, and the Governor balance covers free cash, the exit reserve and every lock | `invariant/SystemInvariant.t.sol : invariant_BackerSupplyNeverDrawsReserve`; examples: `governor/BackerLock.t.sol`, `governor/BackerOwnDebt.t.sol` |
 
 ## Fund-holding module properties (per-module invariant suites)
 

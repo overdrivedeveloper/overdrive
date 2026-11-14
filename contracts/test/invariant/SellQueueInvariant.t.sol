@@ -246,7 +246,7 @@ contract SellQueueHandler is Test {
     /// The keeper moves all free cash to the exit reserve, so live sells and fills need the reserve.
     function drainCash() external {
         ++calls["drainCash"];
-        uint256 c = gov.trackedCash();
+        uint256 c = gov.freeCash();
         if (c == 0) return;
         vm.prank(admin);
         try gov.moveToExitReserve(c) {} catch {}

@@ -26,7 +26,7 @@ contract BackerMintTest is BackerFixture {
     function test_MintSellToGovernorAddsCollateral() public {
         uint256 id = _open(alice, sport, 1_000e6);
         uint256 supply0 = _token(sport).totalSupply();
-        uint256 cash0 = gov.trackedCash();
+        uint256 cash0 = gov.freeCash();
         uint256 v = _valueAt(sport, 250e18, Math.Rounding.Floor);
         // the SPORT lag floor (51 bps at the 50 bps band, M-4) is above the 30 bps base spread
         uint256 expected = Math.mulDiv(400e18, Math.mulDiv(v, 10_000 - 51, 10_000), 1e30);
@@ -39,7 +39,7 @@ contract BackerMintTest is BackerFixture {
         assertEq(_token(sport).totalSupply(), supply0, "no supply change");
         assertEq(gov.backerDebt(sport), 400e18);
         assertEq(gov.netTokens(sport), -400e18);
-        assertEq(gov.trackedCash(), cash0 - proceeds);
+        assertEq(gov.freeCash(), cash0 - proceeds);
         assertEq(usdg.balanceOf(alice), 0, "proceeds never leave the vault");
     }
 

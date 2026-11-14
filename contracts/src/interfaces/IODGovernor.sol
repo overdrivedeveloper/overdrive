@@ -187,30 +187,35 @@ interface IODGovernor is IERC4626 {
     /// @param usdgIn Amount of USDG paid in, in 6-decimal units.
     /// @param spreadUsdg Spread charged, in USDG.
     function onBuy(bytes32 gearId, uint256 tokens, uint256 usdgIn, uint256 spreadUsdg) external; // reverts on caps/stress/pause
-    /// @notice Books a sell.
-    /// @dev Minter only (NotMinter otherwise). Never reverts on caps.
+    /// @notice Books a sell and pays it, after the minter burned the tokens.
+    /// @dev Minter only (NotMinter otherwise). Never reverts on caps, stress, pauses or drawdown. The payout share of
+    /// the tokens that took supply below the gear's own-minted backer debt (backerOwnDebt) is paid from the gear's
+    /// backer sale lock first, then free cash, never the exit reserve or insurance; the rest, which is the whole
+    /// payout while no such debt is open, from free cash, then the exit reserve, then ODInsurance cover. Net below
+    /// zero that only backer debt sold to the Governor explains changes nothing in the payout.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
-    /// @param tokens Amount of gear tokens (18 decimals).
+    /// @param tokens Amount of gear tokens burned (18 decimals).
     /// @param spreadUsdg Spread charged, in USDG.
-    function onSell(bytes32 gearId, uint256 tokens, uint256 spreadUsdg) external; // never reverts on caps
-    /// @notice Pays USDG from free cash, then from the exit reserve.
-    /// @dev Minter or backer only.
     /// @param to The recipient address.
-    /// @param usdg Amount of USDG, in 6-decimal units.
+    /// @param usdg Amount of USDG to pay, in 6-decimal units.
     /// @return paid  True if paid; false means it cannot pay now and the caller queues.
-    function pay(address to, uint256 usdg) external returns (bool paid); // free cash then exit reserve; false = cannot pay (caller queues)
+    function onSell(bytes32 gearId, uint256 tokens, uint256 spreadUsdg, address to, uint256 usdg)
+        external
+        returns (bool paid);
     /// @notice Books a toll accrual.
     /// @dev Minter only. A positive toll pays the toll fee, or records it as owed.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tollValueUsdWad The toll value usd, WAD (18 decimals).
     function onToll(bytes32 gearId, int256 tollValueUsdWad) external; // books toll; positive toll pays the toll fee (or owes it)
     /// @notice Books a backer mint, paying the proceeds when the tokens are sold to the Governor.
-    /// @dev Backer only (NotBacker otherwise).
+    /// @dev Backer only (NotBacker otherwise). A mint to the owner's wallet moves `proceedsUsdg` (the tokens' sale
+    /// value) from free cash into the gear's backer sale lock and reverts CapExceeded when the gear's total backer debt
+    /// x value would pass its static cap. Both routes return false when free cash is short.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param soldToGovernor True if the minted tokens were sold to the Governor.
-    /// @param proceedsUsdg USDG proceeds, in 6-decimal units.
-    /// @return paid  paid=True if the proceeds were paid.
+    /// @param proceedsUsdg USDG proceeds (sold) or USDG to lock (minted to the owner), in 6-decimal units.
+    /// @return paid  paid=True if the proceeds were paid or locked.
     function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg)
         external
         returns (bool paid);
@@ -311,6 +316,16 @@ interface IODGovernor is IERC4626 {
     /// @notice Returns tracked cash outside the exit reserve.
     /// @return usdg  Amount of USDG, in 6-decimal units.
     function freeCash() external view returns (uint256 usdg);
+    /// @notice Returns the gear's backer sale lock: USDG held back from free cash by backer mints to the owner's wallet.
+    /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
+    /// @return usdg  Amount of USDG, in 6-decimal units.
+    function backerLock(bytes32 gearId) external view returns (uint256 usdg);
+    /// @notice Returns the gear's backer debt still open from mints to the owner's wallet (not sold to the Governor).
+    /// @dev Lowered pro rata to the gear's backer debt on every repay and liquidation (vault debt is not split by
+    /// kind). A sell is paid from the lock then free cash only for the tokens that take supply below this amount.
+    /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
+    /// @return tokens  Amount of gear tokens (18 decimals).
+    function backerOwnDebt(bytes32 gearId) external view returns (uint256 tokens);
     /// @notice Returns whether any hedge post is stale.
     /// @return  True when stale.
     function hedgeStale() external view returns (bool);
@@ -384,9 +399,6 @@ interface IODGovernor is IERC4626 {
     /// @return nowWad  The now, WAD (18 decimals).
     /// @return tripped  The tripped.
     function drawdown() external view returns (uint256 peakWad, uint256 nowWad, bool tripped);
-    /// @notice Returns tracked cash by internal accounting, never balanceOf.
-    /// @return usdg  Amount of USDG, in 6-decimal units.
-    function trackedCash() external view returns (uint256 usdg); // internal accounting, never balanceOf
     /// @notice Returns the last hedge post of a market.
     /// @param market Market id (bytes32 symbol key).
     /// @return hedgeDeltaWad  The hedge delta, WAD (18 decimals).
@@ -407,10 +419,17 @@ interface IODGovernor is IERC4626 {
     /// @param addTokens Tokens the buy would add.
     /// @return reason  Reason code (bytes32 tag).
     function buyBlock(bytes32 gearId, uint256 addTokens) external view returns (bytes32 reason); // 0 = onBuy passes (QUOTE-1)
-    /// @notice Returns whether pay(usdg) would find the money.
+    /// @notice Returns whether a holder payout of `usdg` would find the money in free cash, the exit reserve and cover.
     /// @param usdg Amount of USDG, in 6-decimal units.
     /// @return  True if payable.
-    function canPay(uint256 usdg) external view returns (bool); // pay(usdg) would find the money (QUOTE-1)
+    function canPay(uint256 usdg) external view returns (bool);
+    /// @notice Returns whether a sell of `tokens` (still in supply) for `usdg` would be paid by onSell (QUOTE-1).
+    /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
+    /// @param tokens Amount of gear tokens to sell (18 decimals).
+    /// @param usdg Amount of USDG, in 6-decimal units.
+    /// @param cashDrain Free cash the trade's own fee settlement takes first (the minter's quote), in USDG.
+    /// @return  True if payable now; false means the sell queues.
+    function canPaySell(bytes32 gearId, uint256 tokens, uint256 usdg, uint256 cashDrain) external view returns (bool);
     /// @notice Returns a withdrawal ticket.
     /// @param ticket Id of the ticket.
     /// @return owner  The owner account.

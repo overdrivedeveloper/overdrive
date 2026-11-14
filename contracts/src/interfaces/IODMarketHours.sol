@@ -56,13 +56,19 @@ interface IODMarketHours {
     /// @notice Reverts when a session kind is not allowed.
     /// @param index Index into the list.
     error InvalidSessionKind(uint256 index);
+    /// @notice Reverts when a session window covers time the built-in calendar calls CLOSED (a weekend or a listed
+    /// full holiday), L-9.
+    /// @param index Index into the list.
+    /// @param closedAt First calendar-closed instant inside the window.
+    error SessionCoversClosed(uint256 index, uint256 closedAt);
     /// @notice Reverts when a holiday entry is invalid.
     /// @param index Index into the list.
     error InvalidHoliday(uint256 index);
     /// @notice Reverts when an address argument is zero.
     error ZeroAddress();
     /// @notice Replaces the session schedule and the kind of each session.
-    /// @dev Keeper only. Reverts on malformed, unsorted, overlapping, too long, too distant or mismatched input.
+    /// @dev Keeper only. Reverts on malformed, unsorted, overlapping, too long, too distant or mismatched input, and on a
+    /// window that covers time the built-in calendar calls CLOSED (L-9).
     /// @param s Session windows, sorted and non-overlapping.
     /// @param kinds Session kinds, one per window.
     function setSessionsWithKinds(SessionWindow[] calldata s, Session[] calldata kinds) external; // KEEPER

@@ -294,6 +294,6 @@ abstract contract SystemChecks is DeploymentFile {
         uint256 supply = gov.totalSupply();
         uint256 bal = IERC20(d.usdg).balanceOf(d.governor);
         if (supply == 0 && bal != 0) _fail(a, "SEEDED", "Governor holds USDG with no shares (seeded by transfer)");
-        if (supply != 0 && gov.trackedCash() == 0) _fail(a, "SEEDED", "Governor shares with no deposited cash");
+        if (supply != 0 && gov.freeCash() == 0) _fail(a, "SEEDED", "Governor shares with no deposited cash");
     }
 }
