@@ -7,12 +7,15 @@ import type { Logger } from "pino";
 import { revertNameOf } from "../../chain/revert";
 import type { HedgerStore } from "../../db/queries/hedges";
 import { safeErrorSummary } from "../../log";
-import { fromBps, usdgToWad } from "../../lib/fixed";
+import { usdgToWad } from "../../lib/fixed";
 import type { HedgeMarket } from "../markets";
 import { HALT_MS, refusalOf } from "../policy";
 import type { Hex, IHedgeVenue } from "../types";
 
-export interface GovernorHedgeConfig { hedgeMaxAgeS: number; maxHedgeJumpBps: number }
+export interface GovernorHedgeConfig { hedgeMaxAgeS: number }
+
+/** IODGovernor.hedgeJumpRange(market): the hedge equity (USDG) postHedge accepts from the hedger right now. */
+export interface JumpRange { lo: bigint; hi: bigint }
 
 export interface PostState {
   last: Map<string, { asOf: number; atMs: number; equityUsd: bigint }>;
@@ -32,6 +35,8 @@ export interface PostDeps {
   /** latest block timestamp, seconds */
   chainTimeS(): Promise<number>;
   governorConfig(): Promise<GovernorHedgeConfig>;
+  /** The contract's own jump rule (M-2: per post and per hedgeMaxAge window, transit included), read per market. */
+  jumpRange(market: Hex): Promise<JumpRange>;
   postHedge(market: Hex, hedgeDeltaWad: bigint, hedgeEquityUsdg: bigint, asOf: bigint): Promise<void>;
 }
 
@@ -120,17 +125,26 @@ export async function runHedgePosts(deps: PostDeps, traded: ReadonlySet<string> 
     if (!due) { out[m.symbol] = { action: "not_due", hedgeDeltaUsd: hedgeUsd, equityUsd: equity }; continue; }
     const asOf = Math.min(chainTimeS, Math.floor(nowMs / 1000));
     if (previously && asOf < previously.asOf) { await missed(m.symbol, "chain time is behind the previous post", config.hedgeMaxAgeS); continue; }
-    if (previously && previously.equityUsd > 0n) {
-      const bound = fromBps(previously.equityUsd, config.maxHedgeJumpBps);
-      if (equity > previously.equityUsd + bound) equity = previously.equityUsd + bound; // understating a rise is safe
-      else if (equity < previously.equityUsd - bound) { await missed(m.symbol, "equity fell past maxHedgeJumpBps; the contract would refuse", config.hedgeMaxAgeS); continue; }
+    // Clamp to the contract's exact range instead of re-deriving it (audit M-5): a large real move is stepped over
+    // several posts, never skipped, so the chain never goes HEDGE_STALE because of the bound. Alerted while clamped.
+    let range: JumpRange;
+    try { range = await deps.jumpRange(m.market); } catch (error) { await missed(m.symbol, `jump range unreadable: ${safeErrorSummary(error).message}`, config.hedgeMaxAgeS); continue; }
+    const measured = equity;
+    if (equity > range.hi) equity = range.hi;
+    if (equity < range.lo) equity = range.lo;
+    if (equity !== measured) {
+      logger.error({ alert: true, underlying: m.symbol, measuredUsd: measured.toString(), postedUsd: equity.toString() }, "ALERT: hedge equity clamped to the contract's jump range; stepping toward the measured value");
+      await store.raiseSignal("disagree_with_chain", m.symbol, { reason: "hedge equity outside hedgeJumpRange", measuredUsd: measured.toString(), postedUsd: equity.toString() }).catch(() => undefined);
+    } else {
+      await store.clearSignal("disagree_with_chain", m.symbol).catch(() => undefined);
     }
-    if (deps.dryRun) { out[m.symbol] = { action: "would_post", hedgeDeltaUsd: hedgeUsd, equityUsd: equity }; continue; }
+    const clamped = equity !== measured ? { reason: "clamped to hedgeJumpRange" } : {};
+    if (deps.dryRun) { out[m.symbol] = { action: "would_post", hedgeDeltaUsd: hedgeUsd, equityUsd: equity, ...clamped }; continue; }
     try {
       await deps.postHedge(m.market, usdgToWad(hedgeUsd), equity, BigInt(asOf));
       state.last.set(m.symbol, { asOf, atMs: nowMs, equityUsd: equity });
       await store.clearSignal("hedge_post_missed", m.symbol).catch(() => undefined);
-      out[m.symbol] = { action: "posted", hedgeDeltaUsd: hedgeUsd, equityUsd: equity };
+      out[m.symbol] = { action: "posted", hedgeDeltaUsd: hedgeUsd, equityUsd: equity, ...clamped };
     } catch (error) {
       const refusal = refusalOf(error) ?? revertNameOf(error);
       if (refusal) {

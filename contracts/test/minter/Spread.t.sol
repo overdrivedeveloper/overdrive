@@ -35,6 +35,14 @@ contract GasBurnStake {
 
 /// R5: spread = base (x1.5 EXTENDED) + skew (only when |net| grows) - stake discount, capped.
 contract SpreadTest is SystemFixture {
+    /// These tests check the spread mechanics under the lag floor; the floor itself is test/audit/LagRoundTrip.t.sol.
+    function setUp() public override {
+        super.setUp();
+        IODMinter.TradeParams memory p = minter.tradeParams();
+        p.lagBandBps = 1; // floor 2 bps on SPORT, under every spread below
+        _setTradeParams(p);
+    }
+
     function test_SkewOnlyWhenGrowing() public {
         assertEq(_quote(sport, true, true, 100e6).spreadBps, 30, "small: base only");
         uint16 big = _quote(sport, true, true, 100_000e6).spreadBps;
@@ -65,16 +73,17 @@ contract SpreadTest is SystemFixture {
     }
 
     function test_StakeDiscountApplies() public {
-        address stDiscountStake2 = address(new DiscountStake(10));
+        // the stake tier is a share OF the spread (M-1): 1000 = 10% off 30 bps
+        address stDiscountStake2 = address(new DiscountStake(1000));
         vm.prank(admin);
         minter.setStake(stDiscountStake2);
         vm.prank(alice);
-        assertEq(minter.quote(sport, true, true, 100e6).spreadBps, 20);
+        assertEq(minter.quote(sport, true, true, 100e6).spreadBps, 27);
         address stDiscountStake4 = address(new DiscountStake(9000));
         vm.prank(admin);
         minter.setStake(stDiscountStake4);
         vm.prank(alice);
-        assertEq(minter.quote(sport, true, true, 100e6).spreadBps, 0, "never below zero");
+        assertEq(minter.quote(sport, true, true, 100e6).spreadBps, 24, "capped at 20% off");
     }
 
     function test_StakeReadFailureIsZero() public {

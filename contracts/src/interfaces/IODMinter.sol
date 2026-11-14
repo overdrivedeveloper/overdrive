@@ -14,6 +14,7 @@ interface IODMinter {
         uint64 minTradeUsdg; // 1e6
         uint128 usageMaxWad; // usage term at full cap per year, default 0.05e18, <= 0.2e18
         uint32 settleAfterHalt; // 30 days
+        uint16 lagBandBps; // 50: price move both sources may not show yet (feed deviation); sets the spread floor
     }
 
     event Bought(

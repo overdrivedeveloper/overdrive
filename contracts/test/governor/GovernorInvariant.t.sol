@@ -141,7 +141,7 @@ contract GovHandler is Test {
         gov.pokeRisk(new bytes32[](0));
         for (uint256 i; i < tickets.length; ++i) {
             vm.prank(lp);
-            gov.claim(tickets[i]);
+            gov.claim(tickets[i], 0);
         }
     }
 

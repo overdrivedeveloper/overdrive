@@ -275,6 +275,11 @@ export const IODGovernorAbi = [
         "name": "ticket",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "minAssetsOut",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -603,6 +608,30 @@ export const IODGovernorAbi = [
         "name": "inTransitUsdg",
         "type": "int256",
         "internalType": "int256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "hedgeJumpRange",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "hiUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -2299,6 +2328,22 @@ export const IODGovernorAbi = [
   },
   {
     "type": "error",
+    "name": "ClaimBelowMin",
+    "inputs": [
+      {
+        "name": "paidUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minAssetsOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "DepositorNotAllowed",
     "inputs": [
       {
@@ -2349,6 +2394,11 @@ export const IODGovernorAbi = [
         "internalType": "uint256"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "HedgeStale",
+    "inputs": []
   },
   {
     "type": "error",

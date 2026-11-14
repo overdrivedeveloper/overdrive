@@ -15,13 +15,15 @@ function setup() {
   const posts: { market: string; delta: bigint; equity: bigint; asOf: bigint }[] = [];
   const clock = { now: 1_800_000_000_000 };
   let refuse: Error | undefined;
+  const range = { fn: async (_m: string) => ({ lo: 0n, hi: 10n ** 30n }) };
   const deps: PostDeps = {
     markets: [market("NVDA"), market("TSLA")], venues: [hl, arcus], store: mem.store, logger: silent, now: () => clock.now, dryRun: false,
     state: newPostState(), chainTimeS: async () => Math.floor(clock.now / 1000) - 2,
-    governorConfig: async () => ({ hedgeMaxAgeS: 7_200, maxHedgeJumpBps: 2_000 }),
+    governorConfig: async () => ({ hedgeMaxAgeS: 7_200 }),
+    jumpRange: (m) => range.fn(m),
     postHedge: async (m, delta, equity, asOf) => { if (refuse) throw refuse; posts.push({ market: m, delta, equity, asOf }); },
   };
-  return { hl, arcus, mem, posts, clock, deps, refuseWith: (e?: Error) => { refuse = e; } };
+  return { hl, arcus, mem, posts, clock, deps, range, refuseWith: (e?: Error) => { refuse = e; } };
 }
 
 describe("hedge posting", () => {
@@ -55,7 +57,7 @@ describe("hedge posting", () => {
   });
 
   test("fails_closed_and_alerts_with_time_left", async () => {
-    const { hl, mem, posts, clock, deps } = setup();
+    const { hl, mem, posts, clock, deps, range } = setup();
     await hl.trade("TSLA", USD(50_000), { maxSlippageBps: 100, clientId: "a" });
     await runHedgePosts(deps);
     expect(posts).toHaveLength(1);
@@ -73,18 +75,22 @@ describe("hedge posting", () => {
     const r2 = await runHedgePosts({ ...deps, venues: [broken] });
     expect(r2.TSLA!.action).toBe("missed");
     expect(r2.TSLA!.reason).toContain("unreadable");
-    // an equity fall past the jump bound is never posted (the contract would refuse); a rise is clamped down
-    const r3 = await runHedgePosts(deps);
-    expect(r3.TSLA!.action).toBe("posted");
-    deps.state.last.get("TSLA")!.equityUsd = USD(200_000);
+    // the contract's own range (hedgeJumpRange) clamps both ways: a fall is stepped down, never skipped (audit M-5)
+    range.fn = async () => ({ lo: USD(70_000), hi: USD(71_000) });
     clock.now += 2 * 60 * 60_000;
     const r4 = await runHedgePosts(deps);
-    expect(r4.TSLA!.action).toBe("missed");
-    expect(r4.TSLA!.reason).toContain("maxHedgeJumpBps");
-    deps.state.last.get("TSLA")!.equityUsd = USD(10_000);
-    const r5 = await runHedgePosts(deps);
+    expect(r4.TSLA!.action).toBe("posted");
+    expect(r4.TSLA!.equityUsd).toBe(USD(71_000));
+    expect(r4.TSLA!.reason).toContain("hedgeJumpRange");
+    range.fn = async () => ({ lo: USD(150_000), hi: USD(160_000) }); // measured is below: stepped down from above
+    const r5 = await runHedgePosts(deps, new Set(["TSLA"]));
     expect(r5.TSLA!.action).toBe("posted");
-    expect(r5.TSLA!.equityUsd).toBe(USD(12_000));
+    expect(r5.TSLA!.equityUsd).toBe(USD(150_000));
+    // an unreadable range fails closed
+    range.fn = async () => { throw new Error("rpc down"); };
+    const r6 = await runHedgePosts(deps, new Set(["TSLA"]));
+    expect(r6.TSLA!.action).toBe("missed");
+    expect(r6.TSLA!.reason).toContain("jump range unreadable");
   });
 
   test("refusal_halts_an_hour", async () => {

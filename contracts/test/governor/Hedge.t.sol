@@ -22,26 +22,27 @@ contract HedgeTest is GovernorFixture {
         vm.prank(hedger);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.BadAsOf.selector, t + 1));
         gov.postHedge(TSLA, 0, 5_000e6, t + 1);
-        vm.warp(t + 60);
+        vm.warp(t + 2 hours); // the jump bound is per hedgeMaxAge window (M-2)
         vm.prank(hedger);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.BadAsOf.selector, t - 1));
         gov.postHedge(TSLA, 0, 5_000e6, t - 1);
         vm.prank(hedger);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.HedgeJump.selector, 5_000e6, 10_001e6, 5_000e6));
-        gov.postHedge(TSLA, 0, 10_001e6, t + 60);
-        _post(hedger, TSLA, 10_000e6, t + 60);
+        gov.postHedge(TSLA, 0, 10_001e6, t + 2 hours);
+        _post(hedger, TSLA, 10_000e6, t + 2 hours);
+        vm.warp(t + 4 hours); // next window: room for the second market
         // A different market has its own previous post; the total counts in NAV.
-        _post(hedger, NVDA, 2_000e6, t + 60);
+        _post(hedger, NVDA, 2_000e6, t + 4 hours);
         (uint256 posted,) = gov.hedgeEquity();
         assertEq(posted, 12_000e6);
         assertEq(gov.equity(), 112_000e18);
         // The admin may post any jump (a correction).
-        _post(admin, TSLA, 0, t + 60);
+        _post(admin, TSLA, 0, t + 4 hours);
         (posted,) = gov.hedgeEquity();
         assertEq(posted, 2_000e6);
         vm.prank(stranger);
         vm.expectRevert();
-        gov.postHedge(TSLA, 0, 0, t + 60);
+        gov.postHedge(TSLA, 0, 0, t + 4 hours);
         assertEq(gov.hedgeMaxAge(), 2 hours);
         assertEq(gov.maxHedgeJumpBps(), 500);
     }

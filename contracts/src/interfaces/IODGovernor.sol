@@ -11,7 +11,7 @@ interface IODGovernor is IERC4626 {
         uint16 exitReserveFloorBps; // floor = max(minExitReserveUsdg, this x holder open value) (1000)
         uint64 minExitReserveUsdg; // 1,000e6
         uint16 maxHedgeEquityBps; // hedge equity after sendToHedger <= this x equity (3000)
-        uint16 maxHedgeJumpBps; // |hedge equity change| per post <= this x equity (500)
+        uint16 maxHedgeJumpBps; // unexplained hedge change per post AND per hedgeMaxAge window <= this x equity (500)
         uint32 hedgeMaxAge; // a hedge post older than this pauses buys (2 h)
         uint32 equityMaxAge; // cached equity older than this pauses buys (1 h)
         uint16 drawdownBps; // share price this far under its 30-day peak pauses buys (1000)
@@ -63,6 +63,8 @@ interface IODGovernor is IERC4626 {
     error FirstDepositTooSmall();
     error UseWithdrawalQueue();
     error PayOutOfGas();
+    error ClaimBelowMin(uint256 paidUsdg, uint256 minAssetsOut);
+    error HedgeStale();
     // minter and backer only
     function onBuy(bytes32 gearId, uint256 tokens, uint256 usdgIn, uint256 spreadUsdg) external; // reverts on caps/stress/pause
     function onSell(bytes32 gearId, uint256 tokens, uint256 spreadUsdg) external; // never reverts on caps
@@ -83,13 +85,17 @@ interface IODGovernor is IERC4626 {
     /// equity of the hedge accounts (USDG, 6 dp: margin + unrealised P&L, venue equity split by |notional|); it replaces
     /// the market's previous post and NAV counts the sum over markets plus USDG sent and not yet seen in a post.
     /// Rules: asOf <= now and >= the market's previous asOf; the change, net of USDG in transit, is within
-    /// maxHedgeJumpBps x equity (admin may post any jump). Posting delta 0 and equity 0 retires a market.
+    /// maxHedgeJumpBps x equity, and so is the sum of such changes over all markets in the current hedgeMaxAge window,
+    /// measured against the equity cached at the window's start (hedgeJumpRange gives the exact range; admin may post
+    /// any jump). Posting delta 0 and equity 0 retires a market.
     function postHedge(bytes32 market, int256 hedgeDeltaWad, uint256 hedgeEquityUsdg, uint64 asOf) external;
     function sendToHedger(uint256 usdg) external; // HEDGER, bounded by maxHedgeEquityBps of equity
     function setBuysPaused(bool paused) external; // guardian pauses, admin unpauses
     function setDepositor(address account, bool allowed) external; // admin
     function requestWithdraw(uint256 shares) external returns (uint256 ticket);
-    function claim(uint256 ticket) external returns (uint256 usdg);
+    /// Pays the matured ticket at the low NAV edge, limited by free cash and the stress budget (the rest stays on the
+    /// ticket). Reverts HedgeStale while any hedge post is stale and ClaimBelowMin under `minAssetsOut`.
+    function claim(uint256 ticket, uint256 minAssetsOut) external returns (uint256 usdg);
     // views
     function exposure(bytes32 market)
         external
@@ -117,7 +123,9 @@ interface IODGovernor is IERC4626 {
     // views (05a additions)
     function getParams() external view returns (Params memory);
     function hedgeMaxAge() external view returns (uint32); // seconds; hedger posts at least every half of it
-    function maxHedgeJumpBps() external view returns (uint16); // bps of Governor equity per post
+    function maxHedgeJumpBps() external view returns (uint16); // bps of Governor equity per post and per window
+    /// The hedge equity (USDG) a HEDGER post on `market` may set now: postHedge's exact rule (M-2), transit included.
+    function hedgeJumpRange(bytes32 market) external view returns (uint256 loUsdg, uint256 hiUsdg);
     function marketShockBps(bytes32 market) external view returns (uint16);
     function cachedStress(bytes32 market) external view returns (uint256 lossWad, uint64 at);
     function navBand() external view returns (int256 lowWad, int256 highWad); // liability at the worse / better of p and refP

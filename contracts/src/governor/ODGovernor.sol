@@ -75,6 +75,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     bytes32[] private _hedged;
     uint256 private _hedgePosted; // sum of the markets' posted equity (USDG)
     int256 private _transit; // USDG sent to the hedger (+) or returned (-) and not yet seen in a post
+    ODGovernorRisk.JumpWindow private _jump; // unexplained hedge change this window (M-2)
 
     int256 private _eqWad;
     uint64 private _eqAt;
@@ -321,15 +322,9 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         if (asOf > block.timestamp || asOf < h.asOf) revert BadAsOf(asOf);
         if (hedgeEquityUsdg > type(uint128).max) revert InvalidParams();
         uint256 prev = h.equityUsdg;
-        int256 change = int256(hedgeEquityUsdg) - int256(prev);
         int256 t = _transit;
-        // USDG in transit to (or back from) the hedger explains a change of the same sign.
-        int256 absorbed;
-        if (t > 0 && change > 0) absorbed = change < t ? change : t;
-        else if (t < 0 && change < 0) absorbed = change > t ? change : t;
-        int256 rest = change - absorbed;
-        uint256 allowed = _eqWad > 0 ? Math.mulDiv(uint256(_eqWad), _p.maxHedgeJumpBps, BPS * TO_WAD) : 0;
-        if (!admin && uint256(rest >= 0 ? rest : -rest) > allowed) revert HedgeJump(prev, hedgeEquityUsdg, allowed);
+        // Cumulative bound per window, not per call (M-2): the rule lives in ODGovernorRisk.jumpRange.
+        int256 absorbed = ODGovernorRisk.hedgeJump(_jump, _p, prev, hedgeEquityUsdg, t, _eqWad, admin);
         _transit = t - absorbed;
         if (!h.listed) {
             if (_hedged.length >= MAX_HEDGED_MARKETS) revert InvalidParams();
@@ -446,11 +441,14 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     /// @dev Pays at the low edge of the NAV band, limited by free cash and by the stress budget after payment; the
     /// unpaid shares stay on the ticket (a short claim pays less, never reverts for lack of cash). Never touches the
-    /// exit reserve; open under every pause.
-    function claim(uint256 ticket) external nonReentrant returns (uint256 paid) {
+    /// exit reserve; open under every pause except a stale hedge post (M-3: the low edge would leave out all hedge
+    /// equity, so the claim fails closed instead of burning shares at that price). Reverts ClaimBelowMin when the
+    /// USDG paid is under the caller's `minAssetsOut`.
+    function claim(uint256 ticket, uint256 minAssetsOut) external nonReentrant returns (uint256 paid) {
         Ticket storage t = _tickets[ticket];
         if (t.owner != msg.sender) revert NotTicketOwner(ticket);
         if (block.timestamp < t.claimableAt) revert TooEarly(t.claimableAt);
+        if (hedgeStale()) revert HedgeStale();
         uint256 shares = t.shares;
         ODGovernorRisk.Book memory b = ODGovernorRisk.book(_ctx(), _debt);
         int256 mid = _equityWad(b.mid);
@@ -461,6 +459,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         if (paid > _cash) paid = _cash;
         uint256 room = _claimRoom(mid);
         if (paid > room) paid = room;
+        if (paid < minAssetsOut) revert ClaimBelowMin(paid, minAssetsOut);
         if (paid != 0) {
             uint256 burn = paid == value ? shares : Math.mulDiv(shares, paid, value, Math.Rounding.Ceil);
             if (burn > shares) burn = shares;
@@ -700,6 +699,11 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     function maxHedgeJumpBps() external view returns (uint16) {
         return _p.maxHedgeJumpBps;
+    }
+
+    /// @inheritdoc IODGovernor
+    function hedgeJumpRange(bytes32 market) external view returns (uint256 lo, uint256 hi) {
+        return ODGovernorRisk.jumpRange(_jump, _p, _hedge[market].equityUsdg, _transit, _eqWad);
     }
 
     /// @inheritdoc IODGovernor

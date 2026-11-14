@@ -25,6 +25,8 @@ library ODMinterPricing {
     uint256 internal constant BPS = 10_000;
     uint256 internal constant SCALE = 1e30;
     uint256 internal constant USDG_TO_WAD = 1e12;
+    /// @notice Most a staking tier may take off a spread, as a share of it: ODStake.MAX_SPREAD_DISCOUNT_BPS (20%).
+    uint256 internal constant MAX_DISCOUNT_BPS = 2_000;
 
     struct Deps {
         IODGearRegistry registry;
@@ -206,7 +208,7 @@ library ODMinterPricing {
     }
 
     /// base (x extendedSpreadMultBps in EXTENDED) + closedSellExtraBps on a non-live sell + inventory skew (only when
-    /// the trade grows |net|, sized at value) - staking discount, capped at maxTotalSpreadBps.
+    /// the trade grows |net|, sized at value) less the staking share, capped at maxTotalSpreadBps, never below the lag floor.
     function _spread(
         Ctx memory c,
         IODMinter.TradeParams memory tp,
@@ -228,9 +230,26 @@ library ODMinterPricing {
             uint256 skew = uint256(tp.inventorySlopeBps) * Math.mulDiv(absAfter, value, WAD) / c.cfg.capUsdWad;
             s += skew > tp.maxSkewBps ? tp.maxSkewBps : skew;
         }
-        s = s > discountBps ? s - discountBps : 0;
+        // Staking discount is a SHARE of the spread (ODStake tiers), at most MAX_DISCOUNT_BPS of it; the discount
+        // rounds down so a spread above zero stays above zero (M-1).
+        uint256 dsc = discountBps > MAX_DISCOUNT_BPS ? MAX_DISCOUNT_BPS : discountBps;
+        s -= s * dsc / BPS;
         if (s > tp.maxTotalSpreadBps) s = tp.maxTotalSpreadBps;
-        return uint16(s);
+        // Lag floor (M-4): neither the feed nor the reference may show a move of up to lagBandBps yet. A round trip
+        // across such a move gains at most the gear's value ratio R; paying f per side costs (1+f)/(1-f) >= R when
+        // f >= |power| x band / 2 x (1 + |power| x band). Applied last, so no discount, cap or session lowers it.
+        uint256 f = lagFloorBps(c.cfg.gear, tp.lagBandBps);
+        return uint16(s > f ? s : f);
+    }
+
+    /// @notice Per-side spread floor, in bps, that makes a buy-then-sell round trip across a price move of up to
+    /// `bandBps` (which neither price source shows yet) unprofitable for `gear` (M-4). Rounds up.
+    function lagFloorBps(Gear gear, uint16 bandBps) internal pure returns (uint256) {
+        uint256 pw = gear == Gear.CRUISE
+            ? 15_000
+            : gear == Gear.SPORT ? 20_000 : gear == Gear.RACE ? 30_000 : gear == Gear.ECO ? 5_000 : 10_000;
+        uint256 m = pw * bandBps; // |power| x band, in bps x BPS
+        return Math.mulDiv(m, BPS * BPS + m, 2 * BPS * BPS * BPS, Math.Rounding.Ceil);
     }
 
     // ------------------------------------------------------------------------------------------------ buy gate

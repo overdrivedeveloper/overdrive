@@ -35,11 +35,11 @@ contract LivenessTest is GovernorFixture {
         uint256 t = gov.requestWithdraw(shares);
         vm.warp(vm.getBlockTimestamp() + 72 hours);
         vm.prank(lp);
-        uint256 paid = gov.claim(t);
+        uint256 paid = gov.claim(t, 0);
         assertGt(paid, 0);
         assertApproxEqAbs(gov.trackedCash(), 0, 1);
         vm.prank(lp);
-        assertEq(gov.claim(t), 0);
+        assertEq(gov.claim(t, 0), 0);
         // claim with stress exactly at the budget: room 0, pays 0.
         uint256 s2 = _deposit(lp, 100_000e6);
         _buy(id, 26_666e18, 26_666e6); // 26,666 x 0.5625 = 14,999.6 just under 15% of 100,000
@@ -48,7 +48,7 @@ contract LivenessTest is GovernorFixture {
         vm.warp(vm.getBlockTimestamp() + 72 hours);
         _poke();
         vm.prank(lp);
-        uint256 p2 = gov.claim(t2);
+        uint256 p2 = gov.claim(t2, 0);
         (uint256 loss, uint256 budget) = gov.stressLoss();
         assertLe(loss, budget + 1e12, "claim leaves stress inside the budget");
         assertLt(p2, 100_000e6);

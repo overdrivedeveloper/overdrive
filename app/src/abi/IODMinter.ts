@@ -605,6 +605,11 @@ export const IODMinterAbi = [
             "name": "settleAfterHalt",
             "type": "uint32",
             "internalType": "uint32"
+          },
+          {
+            "name": "lagBandBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }
@@ -738,6 +743,11 @@ export const IODMinterAbi = [
             "name": "settleAfterHalt",
             "type": "uint32",
             "internalType": "uint32"
+          },
+          {
+            "name": "lagBandBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }
@@ -1096,6 +1106,11 @@ export const IODMinterAbi = [
             "name": "settleAfterHalt",
             "type": "uint32",
             "internalType": "uint32"
+          },
+          {
+            "name": "lagBandBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }

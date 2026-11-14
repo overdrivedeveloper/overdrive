@@ -3,7 +3,7 @@
 // cycle loop. It reads the Governor and trades only on venues; it never moves funds off the system.
 import { createPublicClient, keccak256, parseAbi, stringToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { IODOracleGuardAbi } from "../abi";
+import { IODGovernorAbi, IODOracleGuardAbi } from "../abi";
 import { chainFor } from "../chain/chain";
 import { createClients } from "../chain/clients";
 import { assertNodeIdentity, loadDeploymentFile } from "../chain/deployment";
@@ -117,19 +117,19 @@ const deps = {
 await store.writeStatus("hedger", true, { booted: new Date().toISOString(), config: safeConfigSummary(config), dryRun: settings.dryRun, venues: venueNames, jobs, markets: markets.map((m) => m.symbol) });
 logger.info({ config: safeConfigSummary(config), dryRun: settings.dryRun, venues: venueNames, jobs, markets: markets.length }, "Hedger started");
 
-// The Governor's hedge bounds (hedgeMaxAge, maxHedgeJumpBps) are not in the IODGovernor interface yet (todo 05a); the
-// getters below are tried and an unreadable config fails closed (nothing is posted, the miss is reported).
-const BOUNDS = parseAbi(["function hedgeMaxAge() view returns (uint64)", "function maxHedgeJumpBps() view returns (uint16)"]);
+// The Governor's hedge bounds come from the contract itself: hedgeMaxAge and hedgeJumpRange(market), the exact rule
+// postHedge applies (audit M-5). An unreadable value fails closed (nothing is posted, the miss is reported).
 const postState = newPostState();
 const postDeps = {
   markets, venues: venues!, store, logger, now: () => Date.now(), dryRun: settings.dryRun, state: postState,
   chainTimeS: async () => Number((await reader.getBlock({ blockTag: "latest" })).timestamp),
   governorConfig: async () => {
-    const [age, jump] = await Promise.all([
-      reader.readContract({ address: governor, abi: BOUNDS, functionName: "hedgeMaxAge" }),
-      reader.readContract({ address: governor, abi: BOUNDS, functionName: "maxHedgeJumpBps" }),
-    ]);
-    return { hedgeMaxAgeS: Number(age), maxHedgeJumpBps: Number(jump) };
+    const age = await reader.readContract({ address: governor, abi: IODGovernorAbi, functionName: "hedgeMaxAge" });
+    return { hedgeMaxAgeS: Number(age) };
+  },
+  jumpRange: async (market: `0x${string}`) => {
+    const [lo, hi] = await reader.readContract({ address: governor, abi: IODGovernorAbi, functionName: "hedgeJumpRange", args: [market] });
+    return { lo, hi };
   },
   postHedge: async () => { throw new Error("live hedge posting needs the transaction queue (todo 14)"); },
 };

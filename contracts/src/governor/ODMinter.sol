@@ -90,7 +90,8 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
             maxTotalSpreadBps: 500,
             minTradeUsdg: 1e6,
             usageMaxWad: 0.05e18,
-            settleAfterHalt: 30 days
+            settleAfterHalt: 30 days,
+            lagBandBps: 50
         });
     }
 
@@ -121,7 +122,7 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
             p.extendedSpreadMultBps < BPS || p.extendedSpreadMultBps > 3 * BPS || p.closedSellExtraBps > 500
                 || p.maxSkewBps > 500 || p.maxTotalSpreadBps > 1000 || p.maxTotalSpreadBps == 0 || p.minTradeUsdg == 0
                 || p.minTradeUsdg > 1_000e6 || p.usageMaxWad > 0.2e18 || p.settleAfterHalt < 7 days
-                || p.settleAfterHalt > 365 days
+                || p.settleAfterHalt > 365 days || p.lagBandBps == 0 || p.lagBandBps > 300
         ) revert InvalidParams();
         _tp = p;
         emit TradeParamsSet(p);

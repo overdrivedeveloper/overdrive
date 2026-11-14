@@ -8,6 +8,7 @@ import {ODPowers} from "../interfaces/ODPowers.sol";
 import {IODGearRegistry} from "../interfaces/IODGearRegistry.sol";
 import {IODOracleGuard} from "../interfaces/IODOracleGuard.sol";
 import {IODMinter} from "../interfaces/IODMinter.sol";
+import {IODGovernor} from "../interfaces/IODGovernor.sol";
 import {ODIndex} from "../math/ODIndex.sol";
 
 /// @title ODGovernorRisk
@@ -33,10 +34,83 @@ library ODGovernorRisk {
         uint256 holderOpen;
     }
 
+    /// Hedge jump window (M-2): the unexplained hedge-equity change summed over every market since `start`, measured
+    /// against the Governor's cached equity at `start` (USDG, 6 dp). Restarts every hedgeMaxAge.
+    struct JumpWindow {
+        uint64 start;
+        int96 netUsdg;
+        uint96 anchorUsdg;
+    }
+
     struct Shock {
         int256 sWad; // single-name shock (WAD, e.g. 0.25e18)
         int256 pairWad; // pair ratio shock
         int256 hedgeDeltaWad; // 0 when the market's hedge post is stale
+    }
+
+    // --------------------------------------------------------------------------------------------- hedge jump
+
+    /// @notice The hedge equity a non-admin post may set on a market whose last post is `prev` (M-2). Rule: the
+    /// unexplained change r (the change less USDG in transit of the same sign) keeps |r| <= A and
+    /// |window net + r| <= A, A = maxHedgeJumpBps x the window's anchor equity. The window restarts every hedgeMaxAge
+    /// at the cached equity then, so in any block NAV moves at most A from the anchor whatever the number of posts,
+    /// and any hedgeMaxAge seconds move it at most 2A. This is the ONE rule: postHedge and hedgeJumpRange use it.
+    function jumpRange(JumpWindow storage w, IODGovernor.Params storage p, uint256 prev, int256 transit, int256 eqWad)
+        external
+        view
+        returns (uint256 lo, uint256 hi)
+    {
+        (, lo, hi) = _range(w, p, prev, transit, eqWad);
+    }
+
+    /// @notice Checks one post against the rule (skipped for `admin`), writes the window and returns the USDG of
+    /// transit the post absorbs. Reverts HedgeJump(prev, next, room on that side) outside the range.
+    function hedgeJump(
+        JumpWindow storage w,
+        IODGovernor.Params storage p,
+        uint256 prev,
+        uint256 next,
+        int256 transit,
+        int256 eqWad,
+        bool admin
+    ) external returns (int256 absorbed) {
+        int256 change = int256(next) - int256(prev);
+        if (transit > 0 && change > 0) absorbed = change < transit ? change : transit;
+        else if (transit < 0 && change < 0) absorbed = change > transit ? change : transit;
+        if (admin) return absorbed;
+        (JumpWindow memory nw, uint256 lo, uint256 hi) = _range(w, p, prev, transit, eqWad);
+        if (next < lo || next > hi) revert IODGovernor.HedgeJump(prev, next, next > prev ? hi - prev : prev - lo);
+        nw.netUsdg += int96(change - absorbed);
+        w.start = nw.start;
+        w.netUsdg = nw.netUsdg;
+        w.anchorUsdg = nw.anchorUsdg;
+    }
+
+    function _range(JumpWindow storage w, IODGovernor.Params storage p, uint256 prev, int256 transit, int256 eqWad)
+        private
+        view
+        returns (JumpWindow memory nw, uint256 lo, uint256 hi)
+    {
+        nw = w;
+        if (nw.start == 0 || block.timestamp >= uint256(nw.start) + p.hedgeMaxAge) {
+            uint256 a = eqWad > 0 ? uint256(eqWad) / 1e12 : 0;
+            nw = JumpWindow({
+                start: uint64(block.timestamp),
+                netUsdg: 0,
+                anchorUsdg: uint96(a > type(uint96).max ? type(uint96).max : a)
+            });
+        }
+        int256 cap = int256(uint256(nw.anchorUsdg) * p.maxHedgeJumpBps / 10_000);
+        int256 n = nw.netUsdg;
+        int256 rLo = n > 0 ? -cap : -cap - n; // max(-A, -A - net)
+        int256 rHi = n < 0 ? cap : cap - n; // min(A, A - net)
+        // In-transit USDG explains a change of its own sign, so it widens the range on that side only.
+        if (transit < 0) rLo += transit;
+        else rHi += transit;
+        int256 l = int256(prev) + rLo;
+        int256 h = int256(prev) + rHi;
+        lo = l > 0 ? uint256(l) : 0;
+        hi = h > 0 ? uint256(h) : 0;
     }
 
     // --------------------------------------------------------------------------------------------- book

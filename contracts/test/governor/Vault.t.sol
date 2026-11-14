@@ -84,7 +84,7 @@ contract VaultTest is GovernorFixture {
         assertEq(gov.balanceOf(address(gov)), shares / 2);
         vm.warp(vm.getBlockTimestamp() + 72 hours);
         vm.prank(lp);
-        uint256 paid = gov.claim(t);
+        uint256 paid = gov.claim(t, 0);
         assertApproxEqAbs(paid, 50_000e6, 1);
         assertEq(usdg.balanceOf(lp), paid);
         (, uint256 left,) = gov.ticketOf(t);
@@ -98,10 +98,10 @@ contract VaultTest is GovernorFixture {
         vm.warp(vm.getBlockTimestamp() + 72 hours - 1);
         vm.prank(lp);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.TooEarly.selector, uint64(vm.getBlockTimestamp() + 1)));
-        gov.claim(t);
+        gov.claim(t, 0);
         vm.prank(stranger);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.NotTicketOwner.selector, t));
-        gov.claim(t);
+        gov.claim(t, 0);
     }
 
     function test_PartialClaimKeepsRemainder() public {
@@ -112,21 +112,21 @@ contract VaultTest is GovernorFixture {
         uint256 t = gov.requestWithdraw(shares);
         vm.warp(vm.getBlockTimestamp() + 72 hours);
         vm.prank(lp);
-        uint256 paid = gov.claim(t);
+        uint256 paid = gov.claim(t, 0);
         assertEq(paid, 20_000e6, "limited by free cash");
         (, uint256 left,) = gov.ticketOf(t);
         assertApproxEqRel(left, shares * 8 / 10, 1e12);
         // More cash arrives: the rest is claimable.
         _fundCash(80_000e6);
         vm.prank(lp);
-        uint256 paid2 = gov.claim(t);
+        uint256 paid2 = gov.claim(t, 0);
         // The exit reserve is still in NAV (backers own it, they just cannot take it): half of 160,000 is paid.
         assertEq(paid2, 80_000e6);
         (, left,) = gov.ticketOf(t);
         assertApproxEqRel(left, shares * 4 / 10, 1e12);
         // A claim with no free cash returns 0, never reverts.
         vm.prank(lp);
-        assertEq(gov.claim(t), 0);
+        assertEq(gov.claim(t, 0), 0);
     }
 
     function test_ClaimNeverTouchesExitReserve() public {
@@ -137,7 +137,7 @@ contract VaultTest is GovernorFixture {
         uint256 t = gov.requestWithdraw(shares);
         vm.warp(vm.getBlockTimestamp() + 72 hours);
         vm.prank(lp);
-        assertEq(gov.claim(t), 0);
+        assertEq(gov.claim(t, 0), 0);
         assertEq(gov.exitReserve(), 10_000e6);
     }
 
@@ -149,7 +149,7 @@ contract VaultTest is GovernorFixture {
         uint256 t = gov.requestWithdraw(shares);
         vm.warp(vm.getBlockTimestamp() + 72 hours);
         vm.prank(lp);
-        uint256 paid = gov.claim(t);
+        uint256 paid = gov.claim(t, 0);
         // equity after must keep 11,250 <= 15% of it: equity >= 75,000, so at most 25,000 leaves.
         assertEq(paid, 25_000e6);
         (uint256 loss, uint256 budget) = gov.stressLoss();
