@@ -1,0 +1,37 @@
+[Unit]
+Description=Overdrive MCP server (read only HTTP, port 38102 on 127.0.0.1)
+After=network-online.target postgresql.service
+Wants=network-online.target
+PartOf=overdrive.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=overdrive-mcp
+Group=overdrive-mcp
+Slice=overdrive.slice
+WorkingDirectory=/opt/overdrive/current/app
+EnvironmentFile=/etc/overdrive/overdrive.env
+EnvironmentFile=/etc/overdrive/db.env
+EnvironmentFile=/etc/overdrive/mcp.env
+Environment=NODE_ENV=production
+ExecStart=/opt/overdrive/bin/bun src/bin/mcp.ts --http
+Restart=on-failure
+RestartSec=5
+MemoryMax=128M
+MemorySwapMax=0
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/overdrive/mcp
+
+[Install]
+WantedBy=overdrive.target

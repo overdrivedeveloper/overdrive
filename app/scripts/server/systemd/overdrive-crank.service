@@ -1,0 +1,38 @@
+[Unit]
+Description=Overdrive crank (keeper jobs)
+After=network-online.target postgresql.service
+Wants=network-online.target
+PartOf=overdrive.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+ConditionPathExists=/etc/overdrive/keys/crank.json
+
+[Service]
+Type=simple
+User=overdrive-crank
+Group=overdrive-crank
+Slice=overdrive.slice
+WorkingDirectory=/opt/overdrive/current/app
+EnvironmentFile=/etc/overdrive/overdrive.env
+EnvironmentFile=/etc/overdrive/db.env
+EnvironmentFile=/etc/overdrive/crank.env
+Environment=NODE_ENV=production
+ExecStart=/opt/overdrive/bin/bun src/bin/crank.ts
+Restart=on-failure
+RestartSec=5
+MemoryMax=192M
+MemorySwapMax=0
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/overdrive/crank
+
+[Install]
+WantedBy=overdrive.target

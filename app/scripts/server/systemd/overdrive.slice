@@ -1,0 +1,11 @@
+# One ceiling for everything Overdrive runs on this shared box. The other project's units are not in this slice and are
+# never touched; if Overdrive misbehaves the kernel reclaims inside this slice first (about 1.5 GB in total).
+[Unit]
+Description=Overdrive services (shared-box memory ceiling)
+
+[Slice]
+MemoryHigh=1400M
+MemoryMax=1536M
+TasksMax=2048
+CPUWeight=50
+IOWeight=50

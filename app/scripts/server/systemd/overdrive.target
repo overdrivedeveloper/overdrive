@@ -1,0 +1,7 @@
+[Unit]
+Description=Overdrive services
+Wants=overdrive-indexer.service overdrive-api.service overdrive-crank.service overdrive-vol-engine.service overdrive-hedger.service overdrive-liquidator.service overdrive-mcp.service
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target

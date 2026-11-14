@@ -1,0 +1,10 @@
+[Unit]
+Description=Overdrive nightly database backup (03:10 UTC, 14 dumps kept)
+
+[Timer]
+OnCalendar=*-*-* 03:10:00 UTC
+Persistent=true
+Unit=overdrive-backup.service
+
+[Install]
+WantedBy=timers.target

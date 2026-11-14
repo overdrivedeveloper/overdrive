@@ -1,0 +1,40 @@
+[Unit]
+Description=Overdrive vol engine (python, signs sigma)
+After=network-online.target postgresql.service
+Wants=network-online.target
+PartOf=overdrive.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+ConditionPathExists=/etc/overdrive/keys/vol-signer.json
+
+[Service]
+Type=simple
+User=overdrive-vol-engine
+Group=overdrive-vol-engine
+Slice=overdrive.slice
+WorkingDirectory=/opt/overdrive/current/vol-engine
+EnvironmentFile=/etc/overdrive/overdrive.env
+EnvironmentFile=/etc/overdrive/db.env
+EnvironmentFile=/etc/overdrive/vol-engine.env
+Environment=NODE_ENV=production
+ExecStart=/opt/overdrive/current/vol-engine/.venv/bin/vol-engine post --loop --interval 300
+Restart=on-failure
+RestartSec=5
+MemoryMax=192M
+MemorySwapMax=0
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/overdrive/vol-engine
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=overdrive.target

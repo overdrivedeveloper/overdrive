@@ -1,0 +1,10 @@
+[Unit]
+Description=Overdrive risk-sim, nightly at 02:30 UTC
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+Unit=overdrive-risk-sim.service
+
+[Install]
+WantedBy=timers.target

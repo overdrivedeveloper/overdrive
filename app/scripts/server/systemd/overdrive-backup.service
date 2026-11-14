@@ -1,0 +1,17 @@
+[Unit]
+Description=Overdrive database backup (pg_dump of the overdrive database only)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+Slice=overdrive.slice
+ExecStart=/opt/overdrive/bin/overdrive-backup
+MemoryMax=128M
+Nice=15
+IOSchedulingClass=idle
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/backups/overdrive

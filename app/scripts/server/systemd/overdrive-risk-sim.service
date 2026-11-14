@@ -1,0 +1,32 @@
+[Unit]
+Description=Overdrive risk-sim nightly stress run (started by overdrive-risk-sim.timer)
+After=network-online.target postgresql.service
+ConditionPathExists=/opt/overdrive/current/risk-sim/.venv/bin/risk-sim
+
+[Service]
+Type=oneshot
+User=overdrive-risk-sim
+Group=overdrive-risk-sim
+Slice=overdrive.slice
+WorkingDirectory=/opt/overdrive/current/risk-sim
+EnvironmentFile=/etc/overdrive/overdrive.env
+EnvironmentFile=/etc/overdrive/db.env
+EnvironmentFile=/etc/overdrive/risk-sim.env
+Environment=NODE_ENV=production
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=RISK_OUT_DIR=/var/lib/overdrive/risk-sim/out
+ExecStart=/opt/overdrive/current/risk-sim/.venv/bin/risk-sim run --nightly
+Restart=on-failure
+RestartSec=300
+MemoryMax=256M
+MemorySwapMax=0
+Nice=15
+TimeoutStartSec=1800
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/overdrive/risk-sim
