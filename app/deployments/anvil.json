@@ -19,7 +19,7 @@
     "pythCore": "0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a",
     "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-    "v3Factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa"
+    "v3Factory": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA"
   },
   "contracts": {
     "ODMarketHours": "",
