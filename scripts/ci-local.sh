@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Local CI: runs the same jobs, with the same commands, as .github/workflows/ci.yml.
 # The workflow skips itself on a private repository, so this script is the CI for the private repo.
-# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts slither app guard scripts python
+# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts python slither
 # Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:-} --no-experimental-webstorage"
-JOBS="hygiene semgrep contracts slither app guard scripts python"
+# slither runs last: it does a forge clean, and the app ABI test would then rebuild everything inside its 120 s limit.
+JOBS="hygiene semgrep contracts app guard scripts python slither"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
