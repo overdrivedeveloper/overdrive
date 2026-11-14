@@ -133,5 +133,5 @@ suite("hedger boot", () => {
     expect(cycles.map((c) => [c.underlying, c.action, c.reason, c.delta])).toEqual([["TSLA", "would_trade", "dry_run", (200_000n * 1_000_000n).toString()]]);
     const hedges = await db.sql`SELECT dry, usd::text AS usd FROM hedges`;
     expect(hedges.map((h) => [h.dry, h.usd])).toEqual([[true, (200_000n * 1_000_000n).toString()]]);
-  }, 30_000);
+  }, 120_000); // boots a real Postgres and the binary; 30 s timed out twice when the machine load was 14 to 23
 });
