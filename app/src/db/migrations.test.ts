@@ -34,7 +34,7 @@ async function snapshot(db: TestDatabase): Promise<string> {
 suite("migrations", () => {
   let db: TestDatabase;
   beforeAll(async () => { db = (await createTestDatabase("migrations"))!; });
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   test("applies_twice_idempotent", async () => {
     await applyMigrations(db);

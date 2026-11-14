@@ -10,7 +10,7 @@ const d = testDeployment();
 suite("catchup", () => {
   let db: TestDatabase;
   beforeAll(async () => { db = (await createTestDatabase("catchup"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   test("range_halves_and_applies_in_order", async () => {
     expect(INITIAL_RANGE).toBe(50_000n);

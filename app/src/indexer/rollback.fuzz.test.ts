@@ -10,7 +10,7 @@ const RUNS = Number(process.env.FUZZ_RUNS ?? 200);
 suite("rollback fuzz", () => {
   let db: TestDatabase;
   beforeAll(async () => { db = (await createTestDatabase("fuzz"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   test("random_fork_sequences_converge", async () => {
     for (let run = 0; run < RUNS; run++) {

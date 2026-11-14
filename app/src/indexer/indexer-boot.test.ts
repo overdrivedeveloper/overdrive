@@ -36,7 +36,7 @@ function fakeNode(chainId: number, client: string) {
 suite("indexer boot", () => {
   let db: TestDatabase;
   beforeAll(async () => { db = (await createTestDatabase("boot"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   function env(rpc: string, extra: Record<string, string> = {}): Record<string, string> {
     const url = new URL(testDatabaseUrl()!);

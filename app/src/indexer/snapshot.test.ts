@@ -37,7 +37,7 @@ suite("snapshot", () => {
     await drain(await newState(db.sql, chain));
     await db.sql`DELETE FROM governor_ledger; DELETE FROM prices; DELETE FROM exit_reserve_log`.simple();
   });
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   test("ledger_matches_chain_getter_and_formula", async () => {
     // fixture chain getter: exposure(market) for TSLA computed by the contract's own definition

@@ -22,7 +22,7 @@ suite("risk-monitor", () => {
   let chain: FakeChain;
   const alerts: Alert[] = [];
   beforeAll(async () => { db = (await createTestDatabase("riskmon"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
   let paused = false;
   let price = 10n ** 12n; // share price, 12 dp
   let reserve = 500n * USDG, floor = 100n * USDG, hedgeStale = false;

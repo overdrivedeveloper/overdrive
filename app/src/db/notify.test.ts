@@ -7,7 +7,7 @@ const suite = testDatabaseUrl() ? describe : describe.skip;
 suite("od_events notify", () => {
   let db: TestDatabase;
   beforeAll(async () => { db = (await createTestDatabase("notify"))!; });
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   test("payload bigints arrive as strings on the od_events channel", async () => {
     expect(OD_EVENTS_CHANNEL).toBe("od_events");

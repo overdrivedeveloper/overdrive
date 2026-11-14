@@ -19,7 +19,7 @@ let db: TestDatabase;
 
 suite("publicReads (statement timeout and slots)", () => {
   beforeAll(async () => { db = (await createTestDatabase("publicreads"))!; });
-  afterAll(async () => db?.close());
+  afterAll(async () => db?.close(), 60_000);
 
   test("a slow query is cut by the statement timeout and answers 503, not 500", async () => {
     const reads = publicReads({ sql: db.sql }, { timeoutMs: 200 });

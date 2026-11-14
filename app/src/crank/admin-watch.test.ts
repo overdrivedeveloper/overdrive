@@ -8,7 +8,7 @@ const suite = testDatabaseUrl() ? describe : describe.skip;
 suite("admin-watch", () => {
   let db: TestDatabase;
   beforeAll(async () => { db = (await createTestDatabase("adminwatch"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
 
   test("alerts_and_never_sends", async () => {
     const chain = new FakeChain();

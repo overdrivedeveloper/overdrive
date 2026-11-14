@@ -13,7 +13,7 @@ suite("queued-sells", () => {
   let db: TestDatabase;
   let chain: FakeChain;
   beforeAll(async () => { db = (await createTestDatabase("queuedsells"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
-  afterAll(async () => db.close());
+  afterAll(async () => db.close(), 60_000);
   beforeEach(async () => {
     await db.sql`truncate queued_sells, gears`;
     chain = new FakeChain();
