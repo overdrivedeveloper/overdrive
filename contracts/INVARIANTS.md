@@ -127,6 +127,7 @@ USDG (with pause and blocklist) and mock recipients; the sell queue runs on the 
 
 ## Known gaps
 
+- `stake/StakeInvariant.t.sol : invariant_SharesAddUp` fails on rare seeds: after a slash that leaves dust, the +1 virtual offset in `assetsOf` lets an exit of just over half the shares take the last unit, leaving shares with totalAssets = 0 (dust scale). Reproduced by `poc/StakeDustShares.t.sol : test_Repro_DustSlashLeavesSharesWithNoAssets`; either round the exit down against the remaining holders or relax the assertion to dust.
 - The sell queue suite does not drive `settleGear` (the 30 day halt settlement); its fill-at-settled-value path is example-based (`minter/Settle.t.sol`).
 - Several rows are example-based rather than fuzzed or stateful; they pin the behaviour but do not search for counter-examples.
 - The Halmos checks are not run in CI and have not been confirmed to finish on a loaded machine.
