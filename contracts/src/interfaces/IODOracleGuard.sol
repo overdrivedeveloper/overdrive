@@ -8,8 +8,10 @@ interface IODOracleGuard {
     event BuysPausedSet(bytes32 indexed market, bool paused, bytes32 reason);
     event LastGoodSet(bytes32 indexed market, uint256 p, uint64 at);
     event HaltLatched(bytes32 indexed market, uint64 since);
+    event ContinuityConfirmed(bytes32 indexed market, uint8 confirmations, uint256 p);
     error MarketUnknown(bytes32 market);
     error InvalidConfig();
+    error ZeroAddress();
     function setMarket(bytes32 market, MarketConfig calldata cfg) external; // admin (timelock)
     function setBuysPaused(bytes32 market, bool paused) external; // guardian may pause; only admin unpauses
     function read(bytes32 market) external view returns (PriceReading memory); // reverts only MarketUnknown
@@ -18,4 +20,7 @@ interface IODOracleGuard {
     function lastGood(bytes32 market) external view returns (uint256 p, uint64 at);
     function config(bytes32 market) external view returns (MarketConfig memory);
     function marketHours() external view returns (address);
+    function haltedSince(bytes32 market) external view returns (uint64); // 0 = not halted
+    function refPrice(bytes32 market) external view returns (uint256 refP, bool fromPyth); // 0 = unavailable
+    function buysPausedReason(bytes32 market) external view returns (bytes32); // 0 = buys allowed
 }

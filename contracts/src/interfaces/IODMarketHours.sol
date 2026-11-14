@@ -24,10 +24,18 @@ interface IODMarketHours {
     error SessionKindsLength(uint256 sessions, uint256 kinds);
     error TooManyHolidays(uint256 count);
     error HolidaysUnsorted(uint256 index);
+    error SessionTooLong(uint256 index);
+    error SessionTooFar(uint256 index);
+    error InvalidSessionKind(uint256 index);
+    error InvalidHoliday(uint256 index);
+    error ZeroAddress();
     function setSessionsWithKinds(SessionWindow[] calldata s, Session[] calldata kinds) external; // KEEPER
     function setHolidays(Holiday[] calldata h) external; // admin
     function setFallbackEnabled(bool enabled) external; // admin
     function kindAt(uint256 ts) external view returns (Session); // OPEN/EXTENDED/CLOSED/UNKNOWN, never HALTED
     function nextLongClose(uint256 ts, uint256 minClosedSeconds) external view returns (uint64 closeAt, uint64 reopenAt);
     function sessions() external view returns (SessionWindow[] memory);
+    function sessionKinds() external view returns (Session[] memory);
+    function holidays() external view returns (Holiday[] memory);
+    function fallbackEnabled() external view returns (bool);
 }

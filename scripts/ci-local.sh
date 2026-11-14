@@ -20,7 +20,14 @@ done
 logdir="$root/.ci-local/logs/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$logdir"
 
-job_contracts() { (cd contracts && forge fmt --check && forge build && forge test); }
+# Oracle rule R7: a missing reference must never skip a check ("if (ref != 0) x = worseOf(x, ref)" is banned).
+check_no_failopen_pattern() {
+  if grep -rnE '!= 0\) .*worse' contracts/src/oracle; then
+    echo "check_no_failopen_pattern: fail-open shape found in contracts/src/oracle" >&2
+    return 1
+  fi
+}
+job_contracts() { check_no_failopen_pattern && (cd contracts && forge fmt --check && forge build && forge test); }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
 job_scripts() { bash scripts/quiet-run.test.sh && scripts/export-abis.sh; }

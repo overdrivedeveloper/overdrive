@@ -29,6 +29,8 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: v1.8.1
+      - name: check_no_failopen_pattern
+        run: "! grep -rnE '!= 0\\) .*worse' src/oracle"
       - run: forge fmt --check
       - run: forge build
       # Fork tests skip themselves: there is no secret RPC in CI.
