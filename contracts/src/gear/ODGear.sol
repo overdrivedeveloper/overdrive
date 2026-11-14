@@ -15,6 +15,7 @@ import {IODGear} from "../interfaces/IODGear.sol";
 /// domain (its name, version "1", the chain id and the clone's address).
 /// @dev The clone is not upgradeable. `initialize` runs once, in the factory's deploy call.
 contract ODGear is ERC20PermitUpgradeable, IODGear {
+    /// @notice Reverts when the minter address is invalid.
     error InvalidMinter();
 
     address public minter;

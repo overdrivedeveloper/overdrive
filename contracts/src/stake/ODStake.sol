@@ -94,16 +94,39 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
 
     Tier[] private _tiers;
 
+    /// @notice Emitted when an account cancels its queued unstake.
+    /// @param account The account concerned.
+    /// @param shares Amount of shares (vault share decimals).
     event UnstakeCancelled(address indexed account, uint256 shares);
+    /// @notice Emitted when new rewards start streaming.
+    /// @param usdg Amount of USDG, in 6-decimal units.
+    /// @param rewardRate Reward rate per second.
+    /// @param periodFinish Timestamp at which the reward period ends.
     event RewardsNotified(uint256 usdg, uint256 rewardRate, uint64 periodFinish);
+    /// @notice Emitted when the slash route is set.
+    /// @param priceSource Address of the price source.
+    /// @param swapAdapter Address of the swap adapter.
+    /// @param fee Pool fee tier.
+    /// @param slippageBps Maximum slippage, in basis points.
     event SlashRouteSet(address priceSource, address swapAdapter, uint24 fee, uint16 slippageBps);
+    /// @notice Emitted when the cover cap is set.
+    /// @param capUsdg Cap in USDG, 6 decimals.
     event CoverCapSet(uint256 capUsdg);
+    /// @notice Emitted when the discount tiers are set.
+    /// @param count The number of entries.
     event TiersSet(uint256 count);
+    /// @notice Emitted when deposits are paused or unpaused.
+    /// @param paused True to pause, false to unpause.
     event DepositsPausedSet(bool paused);
 
+    /// @notice Reverts when parameters are invalid.
     error InvalidParams();
+    /// @notice Reverts when there is no queued unstake.
     error NothingToUnstake();
+    /// @notice Reverts when deposits are paused.
     error DepositsPaused();
+    /// @notice Reverts when a voting power lookup asks for a timepoint after the current time.
+    /// @param timepoint The timepoint.
     error FutureLookup(uint256 timepoint);
 
     constructor(IERC20 ovrd_, IERC20 usdg_, address admin, address governor_, address backer_) {
@@ -122,6 +145,7 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
 
     // ------------------------------------------------------------------------------------------------ staking
 
+    /// @inheritdoc IODStake
     function stake(uint256 amount) external override nonReentrant returns (uint256 shares) {
         if (depositsPaused) revert DepositsPaused();
         if (amount == 0) revert InvalidParams();
@@ -139,6 +163,7 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
         emit Staked(msg.sender, received, shares);
     }
 
+    /// @inheritdoc IODStake
     function requestUnstake(uint256 shares) external override nonReentrant {
         if (shares == 0 || shares > sharesOf[msg.sender]) revert NothingToUnstake();
         _touch(msg.sender);
@@ -151,6 +176,8 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
         emit UnstakeRequested(msg.sender, shares, q.readyAt);
     }
 
+    /// @notice Cancels the caller's queued unstake and returns the shares to the stake.
+    /// @dev Reverts with NothingToUnstake when nothing is queued.
     function cancelUnstake() external nonReentrant {
         Request memory q = requests[msg.sender];
         if (q.shares == 0) revert NothingToUnstake();
@@ -175,6 +202,7 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
         emit Unstaked(msg.sender, q.shares, amount);
     }
 
+    /// @inheritdoc IODStake
     function claimRewards() external override nonReentrant returns (uint256 paid) {
         _touch(msg.sender);
         paid = owed[msg.sender];
@@ -266,20 +294,31 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
         return inOld > outNow ? inOld - outNow : 0;
     }
 
+    /// @notice Returns the discount tiers.
+    /// @return  The tier list.
     function tiers() external view returns (Tier[] memory) {
         return _tiers;
     }
 
     // ------------------------------------------------------------------------------------------------ views
 
+    /// @notice Returns the token amount that `shares` are worth.
+    /// @param shares Amount of shares (vault share decimals).
+    /// @return  Amount of tokens.
     function assetsOf(uint256 shares) public view returns (uint256) {
         return Math.mulDiv(shares, totalAssets + 1, totalShares + 1);
     }
 
+    /// @notice Returns the token amount staked by an account.
+    /// @param account The account concerned.
+    /// @return  Amount of tokens.
     function stakeOf(address account) external view returns (uint256) {
         return assetsOf(sharesOf[account]);
     }
 
+    /// @notice Returns the rewards an account has earned and not yet claimed.
+    /// @param account The account concerned.
+    /// @return  Amount in USDG, 6 decimals.
     function earned(address account) external view returns (uint256) {
         uint256 rps = rewardPerShare;
         uint256 t = block.timestamp < periodFinish ? block.timestamp : periodFinish;
@@ -306,6 +345,9 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
         emit SlashRouteSet(source, adapter, fee, slippage);
     }
 
+    /// @notice Sets the cap on the USDG value the stake covers in a slash.
+    /// @dev Admin only.
+    /// @param capUsdg Cap in USDG, 6 decimals.
     function setCoverCap(uint256 capUsdg) external onlyRole(DEFAULT_ADMIN_ROLE) {
         coverCapUsdg = capUsdg;
         emit CoverCapSet(capUsdg);

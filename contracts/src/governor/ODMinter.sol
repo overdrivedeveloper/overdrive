@@ -386,6 +386,9 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
         return _sigma[gearId];
     }
 
+    /// @notice Returns whether the contract supports an interface (ERC-165).
+    /// @param id Identifier.
+    /// @return  True when supported.
     function supportsInterface(bytes4 id) public view override returns (bool) {
         return id == type(IODMinter).interfaceId || super.supportsInterface(id);
     }

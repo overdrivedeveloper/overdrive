@@ -9,6 +9,10 @@ import {IODPaymaster} from "../interfaces/IODPaymaster.sol";
 
 /// @dev The Kernel factory's address derivation (v3.3 `getAddress(initData, salt)`, CREATE2 over its implementation).
 interface IKernelFactoryAddress {
+    /// @notice Returns the account address that `data` and `salt` deploy to.
+    /// @param data Raw call data.
+    /// @param salt Salt for the deployment address.
+    /// @return  The account address.
     function getAddress(bytes calldata data, bytes32 salt) external view returns (address);
 }
 
@@ -77,28 +81,69 @@ contract ODPaymaster is Ownable2Step, IODPaymaster {
     mapping(address target => bool) public isProtocolTarget;
     address[] private _targets;
 
+    /// @notice Emitted when the guardian changes.
+    /// @param guardian Address of the guardian.
     event GuardianChanged(address indexed guardian);
+    /// @notice Emitted when gas is reserved for an account on a day.
+    /// @param account The account concerned.
+    /// @param day Day number the accounting applies to.
+    /// @param reservedCost Gas cost reserved for the operation, in wei.
     event Sponsored(address indexed account, uint256 indexed day, uint256 reservedCost);
+    /// @notice Emitted when unused reserved gas is released.
+    /// @param account The account concerned.
+    /// @param day Day number the accounting applies to.
+    /// @param amount The amount, in the units of the asset concerned.
     event Refunded(address indexed account, uint256 indexed day, uint256 amount);
+    /// @notice Emitted when a kernel account is registered or removed.
+    /// @param account The account concerned.
+    /// @param known True when the account is registered as a known kernel account.
     event KernelAccountSet(address indexed account, bool known);
 
+    /// @notice Reverts when the caller is not the EntryPoint.
     error NotEntryPoint();
+    /// @notice Reverts when sponsorship is paused.
     error PausedError();
+    /// @notice Reverts when the caller is neither the guardian nor the owner.
     error NotGuardianOrOwner();
+    /// @notice Reverts when an address argument is zero.
     error ZeroAddress();
+    /// @notice Reverts when the target list is invalid.
     error BadTargets();
+    /// @notice Reverts when the paymaster data is malformed.
     error BadPaymasterData();
+    /// @notice Reverts when the validity window is invalid.
     error BadValidityWindow();
+    /// @notice Reverts when the call data is not a supported call shape.
     error UnsupportedCallData();
+    /// @notice Reverts when the operation has too many calls.
     error TooManyCalls();
+    /// @notice Reverts when a call carries native value.
     error ValueNotAllowed();
+    /// @notice Reverts when a call targets an address outside the allow-list.
+    /// @param target The target.
     error TargetNotAllowed(address target);
+    /// @notice Reverts when an approval names a spender outside the allow-list.
+    /// @param spender The spender.
     error ApproveNotAllowed(address spender);
+    /// @notice Reverts when the operation cost exceeds the per-operation cap.
+    /// @param maxCost Maximum gas cost the operation may incur, in wei.
+    /// @param cap The cap value.
     error MaxCostPerOpExceeded(uint256 maxCost, uint256 cap);
+    /// @notice Reverts when the account would exceed its daily cap.
+    /// @param account The account concerned.
+    /// @param wouldSpend Spend the operation would reach.
+    /// @param cap The cap value.
     error AccountDailyCapExceeded(address account, uint256 wouldSpend, uint256 cap);
+    /// @notice Reverts when sponsorship would exceed the global daily cap.
+    /// @param wouldSpend Spend the operation would reach.
+    /// @param cap The cap value.
     error GlobalDailyCapExceeded(uint256 wouldSpend, uint256 cap);
+    /// @notice Reverts when the sender is neither a registered Kernel account nor deployed by the Kernel factory.
+    /// @param sender The sender address.
     error UnknownAccount(address sender);
+    /// @notice Reverts when the init data is not a standard Kernel initialize call.
     error NotStandardAccount();
+    /// @notice Reverts when the limits are invalid.
     error BadLimits();
 
     constructor(
@@ -227,6 +272,8 @@ contract ODPaymaster is Ownable2Step, IODPaymaster {
         );
     }
 
+    /// @notice Returns the contracts the paymaster sponsors calls to.
+    /// @return  The target list.
     function protocolTargets() external view returns (address[] memory) {
         return _targets;
     }
@@ -309,34 +356,52 @@ contract ODPaymaster is Ownable2Step, IODPaymaster {
         ENTRY_POINT.depositTo{value: msg.value}(address(this));
     }
 
+    /// @notice Returns the paymaster deposit at the EntryPoint.
+    /// @return  The balance in wei.
     function depositBalance() external view returns (uint256) {
         return ENTRY_POINT.balanceOf(address(this));
     }
 
+    /// @notice Withdraws part of the EntryPoint deposit.
+    /// @dev Owner only. Reverts with ZeroAddress.
+    /// @param to The recipient address.
+    /// @param amount The amount, in the units of the asset concerned.
     function withdrawTo(address payable to, uint256 amount) external onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         ENTRY_POINT.withdrawTo(to, amount);
     }
 
+    /// @notice Adds EntryPoint stake.
+    /// @dev Owner only; payable.
+    /// @param unstakeDelaySec Delay in seconds before the EntryPoint stake can be withdrawn.
     function addStake(uint32 unstakeDelaySec) external payable onlyOwner {
         ENTRY_POINT.addStake{value: msg.value}(unstakeDelaySec);
     }
 
+    /// @notice Starts the unlock of the EntryPoint stake.
+    /// @dev Owner only.
     function unlockStake() external onlyOwner {
         ENTRY_POINT.unlockStake();
     }
 
+    /// @notice Withdraws the unlocked EntryPoint stake.
+    /// @dev Owner only. Reverts with ZeroAddress.
+    /// @param to The recipient address.
     function withdrawStake(address payable to) external onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         ENTRY_POINT.withdrawStake(to);
     }
 
+    /// @inheritdoc IODPaymaster
     function setSigner(address newSigner) external onlyOwner {
         if (newSigner == address(0)) revert ZeroAddress();
         signer = newSigner;
         emit SignerChanged(newSigner);
     }
 
+    /// @notice Sets the guardian that may pause sponsorship.
+    /// @dev Owner only. Reverts with ZeroAddress.
+    /// @param newGuardian Address of the new guardian (non-zero).
     function setGuardian(address newGuardian) external onlyOwner {
         if (newGuardian == address(0)) revert ZeroAddress();
         guardian = newGuardian;

@@ -19,8 +19,12 @@ contract ODInsurance is AccessControl, ReentrancyGuardTransient, IODInsurance {
     address public governor;
     address public backer;
 
+    /// @notice Emitted when the Governor and Backer coverers are set.
+    /// @param governor Governor share of the operations part, in basis points.
+    /// @param backer Address of the backer.
     event CoverersSet(address governor, address backer);
 
+    /// @notice Reverts when parameters are invalid.
     error InvalidParams();
 
     constructor(IERC20 usdg_, address admin, address governor_, address backer_) {

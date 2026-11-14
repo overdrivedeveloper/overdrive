@@ -35,9 +35,15 @@ contract ODAgentRouter is ReentrancyGuardTransient, IODAgentRouter {
     mapping(address owner => mapping(address agent => mapping(bytes32 market => uint256))) private _allowedAt;
     mapping(address owner => mapping(address agent => bytes32[])) private _markets;
 
+    /// @notice Reverts when the policy parameters are invalid.
     error InvalidPolicy();
+    /// @notice Reverts when an address argument is zero.
     error ZeroAddress();
+    /// @notice Reverts when the vault does not belong to the gear.
+    /// @param vaultId Id of the vault.
+    /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     error VaultGearMismatch(uint256 vaultId, bytes32 gearId);
+    /// @notice Reverts when the router would be left holding USDG after the operation.
     error RouterKeptFunds();
 
     constructor(IERC20 usdg, IODMinter minter, IODBacker backer, IODGearRegistry registry) {
@@ -191,11 +197,20 @@ contract ODAgentRouter is ReentrancyGuardTransient, IODAgentRouter {
         return p.spentUsdg >= p.budgetUsdg ? 0 : p.budgetUsdg - p.spentUsdg;
     }
 
+    /// @notice Returns whether the policy allows `market`.
+    /// @param owner The owner account.
+    /// @param agent The agent address the policy applies to.
+    /// @param market Market id (bytes32 symbol key).
+    /// @return  True when allowed.
     function isAllowedMarket(address owner, address agent, bytes32 market) public view returns (bool) {
         uint256 gen = _generation[owner][agent];
         return gen != 0 && _allowedAt[owner][agent][market] == gen;
     }
 
+    /// @notice Returns the markets the policy allows.
+    /// @param owner The owner account.
+    /// @param agent The agent address the policy applies to.
+    /// @return  The market ids.
     function allowedMarkets(address owner, address agent) external view returns (bytes32[] memory) {
         return _markets[owner][agent];
     }

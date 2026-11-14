@@ -63,10 +63,18 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         uint256 batchId;
     }
 
+    /// @notice Reverts when an address argument is zero.
     error ZeroAddress();
+    /// @notice Reverts when parameters are invalid.
     error InvalidParams();
+    /// @notice Reverts when the caller or action is not allowed.
     error NotAllowed();
+    /// @notice Reverts when the vault does not exist.
+    /// @param vaultId Id of the vault.
     error UnknownVault(uint256 vaultId);
+    /// @notice Reverts when the USDG expected from a pull did not arrive.
+    /// @param needed Amount needed.
+    /// @param received Amount received.
     error UsdgNotReceived(uint256 needed, uint256 received);
 
     IERC20 public immutable usdg;

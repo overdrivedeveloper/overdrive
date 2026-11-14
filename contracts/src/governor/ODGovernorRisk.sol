@@ -115,6 +115,10 @@ library ODGovernorRisk {
 
     // --------------------------------------------------------------------------------------------- book
 
+    /// @notice Computes the book of every listed gear from supply and backer debt.
+    /// @param c The context with the registry and modules.
+    /// @param debt Backer debt per gear id, in tokens.
+    /// @return b  The b.
     function book(Ctx memory c, mapping(bytes32 => uint256) storage debt) external view returns (Book memory b) {
         uint256 n = c.registry.gearCount();
         for (uint256 i; i < n; ++i) {

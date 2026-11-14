@@ -25,7 +25,10 @@ library ODFixed {
     /// @dev expWad reverts above this (e^135 * 1e18 ~ 4.3e76 still fits in uint256).
     int256 internal constant EXP_MAX_WAD = 135e18;
 
+    /// @notice Reverts when the exponent would overflow.
+    /// @param x The input value.
     error ExpOverflow(int256 x);
+    /// @notice Reverts when the logarithm input is not positive.
     error LnUndefined();
 
     /// @notice a * b / 1e18 rounded in `r` (512-bit intermediate, reverts only if the result exceeds uint256).

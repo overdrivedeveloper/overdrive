@@ -18,7 +18,10 @@ library ODIndex {
     uint256 internal constant MIN_R = 0.02e18; // ratio domain: -98% ...
     uint256 internal constant MAX_R = 50e18; // ... +4,900%
 
+    /// @notice Reverts when a ratio input is zero.
     error RatioZero();
+    /// @notice Reverts when the shock is outside the valid range.
+    /// @param shockWad Shock as a WAD fraction.
     error ShockOutOfRange(int256 shockWad);
 
     /// @notice r = p / p0 (WAD) rounded in `rnd`, clamped into [MIN_R, MAX_R]; inDomain = false when clamped.

@@ -9,6 +9,7 @@ import {ODGear} from "./ODGear.sol";
 /// @dev Only its owner (the ODGearRegistry that created it) may deploy, and the registry lists only through the
 /// timelock, so nobody can squat a gear's address first.
 contract ODGearFactory {
+    /// @notice Reverts when the caller is not the factory owner.
     error NotOwner();
 
     address public immutable implementation;

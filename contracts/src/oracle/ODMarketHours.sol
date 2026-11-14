@@ -139,14 +139,17 @@ contract ODMarketHours is AccessControl, IODMarketHours {
         return _sessions;
     }
 
+    /// @inheritdoc IODMarketHours
     function sessionKinds() external view returns (Session[] memory) {
         return _kinds;
     }
 
+    /// @inheritdoc IODMarketHours
     function holidays() external view returns (Holiday[] memory) {
         return _holidays;
     }
 
+    /// @inheritdoc IODMarketHours
     function fallbackEnabled() external view returns (bool) {
         return _fallbackEnabled;
     }

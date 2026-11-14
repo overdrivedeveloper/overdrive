@@ -562,6 +562,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         tripped = _tripped(peakWad, nowWad);
     }
 
+    /// @inheritdoc IERC4626
     function maxDeposit(address receiver) public view override(ERC4626, IERC4626) returns (uint256) {
         if (!isDepositor[receiver]) return 0;
         try this.navBand() returns (int256, int256 high) {
@@ -572,14 +573,17 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         }
     }
 
+    /// @inheritdoc IERC4626
     function maxMint(address) public pure override(ERC4626, IERC4626) returns (uint256) {
         return 0;
     }
 
+    /// @inheritdoc IERC4626
     function maxWithdraw(address) public pure override(ERC4626, IERC4626) returns (uint256) {
         return 0;
     }
 
+    /// @inheritdoc IERC4626
     function maxRedeem(address) public pure override(ERC4626, IERC4626) returns (uint256) {
         return 0;
     }
@@ -741,6 +745,9 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         return (t.owner, t.shares, t.claimableAt);
     }
 
+    /// @notice Returns whether the contract supports an interface (ERC-165).
+    /// @param id Identifier.
+    /// @return  True when supported.
     function supportsInterface(bytes4 id) public view override returns (bool) {
         return id == type(IODGovernor).interfaceId || super.supportsInterface(id);
     }

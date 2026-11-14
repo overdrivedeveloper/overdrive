@@ -21,6 +21,8 @@ import {IODGearRegistry} from "../interfaces/IODGearRegistry.sol";
 import {Quote} from "../interfaces/ODTypes.sol";
 
 interface IODMinterGovernor {
+    /// @notice Returns the Governor the minter uses.
+    /// @return  The Governor address.
     function governor() external view returns (address);
 }
 
@@ -49,9 +51,17 @@ contract ODHook is IHooks, AccessControl, IODHook {
     mapping(bytes32 poolId => bytes32 gearId) private _gearOfPool;
     mapping(bytes32 gearId => bytes32 poolId) private _poolOf;
 
+    /// @notice Reverts when the caller is not the pool manager.
     error NotPoolManager();
+    /// @notice Reverts when a hook callback that this hook does not use is called.
     error HookNotImplemented();
+    /// @notice Reverts when the swap does not match the minter quote.
+    /// @param quotedIn Input amount quoted by the minter.
+    /// @param quotedOut Output amount quoted by the minter.
+    /// @param gotIn Input amount in the pool swap.
+    /// @param gotOut Output amount in the pool swap.
     error QuoteMismatch(uint256 quotedIn, uint256 quotedOut, uint256 gotIn, uint256 gotOut);
+    /// @notice Reverts when an address argument is zero.
     error ZeroAddress();
     /// The PoolManager does not physically hold enough of the input currency to front this swap (see `beforeSwap`).
     error PoolManagerShort(address currency, uint256 have, uint256 need);
@@ -79,6 +89,8 @@ contract ODHook is IHooks, AccessControl, IODHook {
 
     // ================================================================================================ pools
 
+    /// @notice Returns the hook callbacks this contract implements.
+    /// @return p  p=The permission flags.
     function getHookPermissions() public pure returns (Hooks.Permissions memory p) {
         p.beforeInitialize = true;
         p.beforeAddLiquidity = true;
@@ -129,6 +141,9 @@ contract ODHook is IHooks, AccessControl, IODHook {
         revert NotGearPool();
     }
 
+    /// @notice Rejects any liquidity addition.
+    /// @dev Pool manager only. Always reverts with LiquidityNotAllowed.
+    /// @return  The returned bytes4 value.
     function beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
         external
         view
@@ -189,10 +204,17 @@ contract ODHook is IHooks, AccessControl, IODHook {
 
     // ================================================================================================ unused
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
     function afterInitialize(address, PoolKey calldata, uint160, int24) external pure returns (bytes4) {
         revert HookNotImplemented();
     }
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
+    /// @return  The returned BalanceDelta value.
     function afterAddLiquidity(
         address,
         PoolKey calldata,
@@ -204,6 +226,9 @@ contract ODHook is IHooks, AccessControl, IODHook {
         revert HookNotImplemented();
     }
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
     function beforeRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -213,6 +238,10 @@ contract ODHook is IHooks, AccessControl, IODHook {
         revert HookNotImplemented();
     }
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
+    /// @return  The returned BalanceDelta value.
     function afterRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -224,6 +253,10 @@ contract ODHook is IHooks, AccessControl, IODHook {
         revert HookNotImplemented();
     }
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
+    /// @return  The returned int128 value.
     function afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
         external
         pure
@@ -232,10 +265,16 @@ contract ODHook is IHooks, AccessControl, IODHook {
         revert HookNotImplemented();
     }
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
     function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata) external pure returns (bytes4) {
         revert HookNotImplemented();
     }
 
+    /// @notice Unused callback.
+    /// @dev Always reverts with HookNotImplemented.
+    /// @return  The returned bytes4 value.
     function afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata) external pure returns (bytes4) {
         revert HookNotImplemented();
     }

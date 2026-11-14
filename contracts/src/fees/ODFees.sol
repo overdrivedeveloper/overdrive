@@ -9,6 +9,8 @@ import {IODGovernor} from "../interfaces/IODGovernor.sol";
 
 /// @dev The single entry ODFees calls on the stake contract (kept out of IODStake so cores never see it).
 interface IODStakeRewards {
+    /// @notice Streams the USDG just sent to the stake as rewards.
+    /// @param usdg Amount of USDG, in 6-decimal units.
     function notifyRewards(uint256 usdg) external;
 }
 
@@ -63,12 +65,28 @@ contract ODFees is AccessControl, IODFees {
     mapping(bytes32 bucket => address recipient) public recipientOf;
     mapping(address notifier => bool allowed) public isNotifier;
 
+    /// @notice Emitted when a notifier is allowed or removed.
+    /// @param notifier The notifier address.
+    /// @param allowed True to allow, false to disallow.
     event NotifierSet(address indexed notifier, bool allowed);
+    /// @notice Emitted when the fee rates change.
+    /// @param protocolSpreadShareBps The protocol spread share, in basis points.
+    /// @param tollFeeBps The toll fee, in basis points.
     event FeeParamsSet(uint16 protocolSpreadShareBps, uint16 tollFeeBps);
+    /// @notice Emitted when a bucket payout is sent.
+    /// @param bucket Fee bucket tag (bytes32).
+    /// @param to The recipient address.
+    /// @param amount The amount, in the units of the asset concerned.
     event Paid(bytes32 indexed bucket, address indexed to, uint256 amount);
 
+    /// @notice Reverts when the caller is not an allowed notifier.
     error NotNotifier();
+    /// @notice Reverts when the USDG balance is below pending plus held plus the notified amount.
+    /// @param balance Balance observed.
+    /// @param needed Amount needed.
     error NotArrived(uint256 balance, uint256 needed);
+    /// @notice Reverts when the fee kind is not known.
+    /// @param kind Kind tag (bytes32).
     error UnknownKind(bytes32 kind);
 
     constructor(IERC20 usdg_, address admin, address governor) {
@@ -141,22 +159,36 @@ contract ODFees is AccessControl, IODFees {
 
     // ------------------------------------------------------------------------------------------------ views
 
+    /// @inheritdoc IODFees
     function distributable() external view override returns (uint256) {
         return pending;
     }
 
+    /// @inheritdoc IODFees
     function nextDistributionAt() external view override returns (uint256) {
         return lastDistribution + PERIOD;
     }
 
     // ------------------------------------------------------------------------------------------------ admin (timelock)
 
+    /// @notice Sets the top-level split of the distribution.
+    /// @dev Admin only. The four shares must total 10,000 basis points (InvalidParams otherwise).
+    /// @param ops Operations share, in basis points.
+    /// @param treasury Treasury share, in basis points.
+    /// @param stakers Stakers share, in basis points.
+    /// @param burn Burn share, in basis points.
     function setSplit(uint16 ops, uint16 treasury, uint16 stakers, uint16 burn) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (uint256(ops) + treasury + stakers + burn != BPS) revert InvalidParams();
         (opsBps, treasuryBps, stakersBps, burnBps) = (ops, treasury, stakers, burn);
         emit SplitSet(ops, treasury, stakers, burn);
     }
 
+    /// @notice Sets the split of the operations part.
+    /// @dev Admin only. The four shares must total 10,000 basis points (InvalidParams otherwise).
+    /// @param governor Governor share of the operations part, in basis points.
+    /// @param exitReserve Exit reserve share of the operations part, in basis points.
+    /// @param keepers Keepers share of the operations part, in basis points.
+    /// @param hedgers Hedgers share of the operations part, in basis points.
     function setOpsSplit(uint16 governor, uint16 exitReserve, uint16 keepers, uint16 hedgers)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
@@ -173,6 +205,10 @@ contract ODFees is AccessControl, IODFees {
         emit RecipientSet(bucket, recipient);
     }
 
+    /// @notice Sets the protocol share of the spread and the toll fee rate.
+    /// @dev Admin only. Reverts with InvalidParams above the maximum.
+    /// @param spreadShareBps Protocol share of the spread, in basis points.
+    /// @param tollBps Toll fee rate, in basis points.
     function setFeeParams(uint16 spreadShareBps, uint16 tollBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (spreadShareBps > MAX_FEE_PARAM_BPS || tollBps > MAX_FEE_PARAM_BPS) revert InvalidParams();
         (protocolSpreadShareBps, tollFeeBps) = (spreadShareBps, tollBps);

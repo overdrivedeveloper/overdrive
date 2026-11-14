@@ -101,6 +101,7 @@ contract ODVolOracle is AccessControl, EIP712, IODVolOracle {
 
     // ------------------------------------------------------------------ post
 
+    /// @inheritdoc IODVolOracle
     function post(VolPost calldata p, bytes calldata sig) external {
         address current = signer;
         (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(hashPost(p), sig);
@@ -169,12 +170,14 @@ contract ODVolOracle is AccessControl, EIP712, IODVolOracle {
         });
     }
 
+    /// @inheritdoc IODVolOracle
     function bounds(bytes32 market) public view returns (uint64 floorBps, uint64 ceilingBps) {
         Bounds memory b = _bounds[market];
         if (!b.set) return (HARD_MIN_FLOOR_BPS, HARD_MAX_CEILING_BPS);
         return (b.floorBps, b.ceilingBps);
     }
 
+    /// @inheritdoc IODVolOracle
     function lastNonce(bytes32 market) external view returns (uint64) {
         return _vol[market].nonce;
     }
@@ -184,10 +187,14 @@ contract ODVolOracle is AccessControl, EIP712, IODVolOracle {
         return keccak256(abi.encode(a, b));
     }
 
+    /// @inheritdoc IODVolOracle
     function domainSeparator() external view returns (bytes32) {
         return _domainSeparatorV4();
     }
 
+    /// @notice Returns the EIP-712 struct hash of a post.
+    /// @param p The parameter struct.
+    /// @return  The struct hash.
     function structHash(VolPost calldata p) public pure returns (bytes32) {
         return
             keccak256(

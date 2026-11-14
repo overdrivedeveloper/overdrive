@@ -34,14 +34,27 @@ contract ODGearRegistry is AccessControl, IODGearRegistry {
     uint128 public constant MAX_UNIT_WAD = 1000e18;
     uint256 public constant MAX_SYMBOL_BYTES = 32;
 
+    /// @notice Emitted when the minter is set.
+    /// @param minter Address of the minter.
     event MinterSet(address minter);
 
+    /// @notice Reverts when an address argument is zero.
     error ZeroAddress();
+    /// @notice Reverts when the minter is set a second time.
     error MinterAlreadySet();
+    /// @notice Reverts when the minter has not been set yet.
     error MinterNotSet();
+    /// @notice Reverts when the market price is not fresh or buys on the market are paused.
+    /// @param market Market id (bytes32 symbol key).
     error MarketNotReady(bytes32 market);
+    /// @notice Reverts when the market already has the maximum number of gears.
+    /// @param market Market id (bytes32 symbol key).
     error TooManyGears(bytes32 market);
+    /// @notice Reverts when the registry gear cap is reached.
+    /// @param cap The cap value.
     error GearCapReached(uint256 cap);
+    /// @notice Reverts when the token symbol is invalid.
+    /// @param symbol Token symbol.
     error SymbolInvalid(string symbol);
 
     IODOracleGuard public immutable guard;

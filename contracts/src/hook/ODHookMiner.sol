@@ -13,6 +13,7 @@ library ODHookMiner {
         | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG;
     uint256 internal constant MAX_LOOP = 400_000; // expected hits every 16384 salts
 
+    /// @notice Reverts when no salt gives a hook address with the required flags.
     error SaltNotFound();
 
     /// @param deployer the address that will run CREATE2 (a factory, or the deploying contract itself)

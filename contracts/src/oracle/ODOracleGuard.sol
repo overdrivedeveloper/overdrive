@@ -223,10 +223,16 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
         return derived != 0 && derived < latched ? derived : latched;
     }
 
+    /// @notice Returns the stored per-market state.
+    /// @param market Market id (bytes32 symbol key).
+    /// @return  The market state.
     function marketState(bytes32 market) external view returns (MarketState memory) {
         return _st[market];
     }
 
+    /// @notice Returns the values derived from the market configuration.
+    /// @param market Market id (bytes32 symbol key).
+    /// @return  The derived values.
     function derivedConfig(bytes32 market) external view returns (Derived memory) {
         return _derived[market];
     }

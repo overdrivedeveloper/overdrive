@@ -36,15 +36,34 @@ contract ODBuyBurn is AccessControl, ReentrancyGuardTransient {
     uint256 public totalUsdgSpent;
     uint256 public totalBurned;
 
+    /// @notice Emitted when USDG is swapped for the token and the token burned.
+    /// @param usdgIn Amount of USDG paid in, in 6-decimal units.
+    /// @param tokensBurned Amount of tokens burned.
     event Burned(uint256 usdgIn, uint256 tokensBurned);
+    /// @notice Emitted when the swap route is set.
+    /// @param token Address of the token.
+    /// @param swapAdapter Address of the swap adapter.
+    /// @param fee Pool fee tier.
+    /// @param maxSlippageBps Maximum slippage, in basis points.
     event RouteSet(address token, address swapAdapter, uint24 fee, uint16 maxSlippageBps);
+    /// @notice Emitted when the price source is set.
+    /// @param priceSource Address of the price source.
     event PriceSourceSet(address priceSource);
+    /// @notice Emitted when the per-call USDG cap is set.
+    /// @param maxUsdgPerCall Largest USDG amount used per call, 6 decimals.
     event MaxPerCallSet(uint256 maxUsdgPerCall);
 
+    /// @notice Reverts when route or cap parameters are invalid.
     error InvalidParams();
+    /// @notice Reverts when no swap route is configured.
     error NoRoute();
+    /// @notice Reverts when the TWAP reference price is unavailable.
     error TwapUnavailable();
+    /// @notice Reverts when the spot price is too far from the TWAP.
     error SpotOffTwap();
+    /// @notice Reverts when the swap returns less than the minimum output.
+    /// @param got The amount obtained.
+    /// @param minOut The min out.
     error OutputTooLow(uint256 got, uint256 minOut);
 
     constructor(IERC20 usdg_, address admin) {
@@ -85,6 +104,13 @@ contract ODBuyBurn is AccessControl, ReentrancyGuardTransient {
 
     // ------------------------------------------------------------------------------------------------ admin (timelock)
 
+    /// @notice Sets the token and the swap route.
+    /// @dev Admin only. Reverts with InvalidParams if the slippage is above the maximum, the token is USDG, or an adapter
+    /// is set without a pool fee, a token or contract code. A zero adapter disables the route.
+    /// @param token_ Address of the token to buy and burn.
+    /// @param swapAdapter_ Address of the swap adapter (zero disables the route).
+    /// @param fee Pool fee tier.
+    /// @param maxSlippageBps_ Maximum slippage, in basis points.
     function setRoute(address token_, address swapAdapter_, uint24 fee, uint16 maxSlippageBps_)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
@@ -107,6 +133,9 @@ contract ODBuyBurn is AccessControl, ReentrancyGuardTransient {
         emit PriceSourceSet(source);
     }
 
+    /// @notice Sets the largest USDG amount a call may use.
+    /// @dev Admin only; reverts with InvalidParams on zero.
+    /// @param cap The cap value.
     function setMaxUsdgPerCall(uint256 cap) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (cap == 0) revert InvalidParams();
         maxUsdgPerCall = cap;
