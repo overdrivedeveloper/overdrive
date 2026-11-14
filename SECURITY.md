@@ -239,5 +239,5 @@ Known and accepted for the first release, stated generically:
 ## Follow-ups
 
 - NatSpec on every external function is not complete; the contracts are frozen, so it is a follow-up.
-- Slither runs in CI with a triaged config (`contracts/SLITHER.md`); the 140 triaged results were read by class, not one by one. gitleaks also runs in CI.
+- Slither runs in CI with a triaged config (`contracts/SLITHER.md`); the 137 triaged results were read by class, not one by one. gitleaks also runs in CI.
 - Mutation testing has not been measured.

@@ -7,8 +7,8 @@ Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI a
 
 | File | What it holds |
 |---|---|
-| `slither.config.json` | paths skipped, detectors excluded, `fail_pedantic` so any new result fails |
-| `slither.db.json` | the 140 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
+| `slither.config.json` | paths skipped, detectors excluded, `fail_on: pedantic` so any new result fails |
+| `slither.db.json` | the 137 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
 
 ## Excluded detectors (style or by-design, whole class)
 
@@ -25,20 +25,20 @@ Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI a
 
 | Detector | Count | Reason |
 |---|---|---|
-| incorrect-equality | 33 | exact by construction (zero checks, counters), not donation sensitive |
+| incorrect-equality | 32 | exact by construction (zero checks, counters), not donation sensitive |
 | calls-loop | 28 | fixed audited callees, capped batch sizes |
 | unused-return | 27 | callee reverts on failure or value re-read from storage |
-| reentrancy-no-eth | 14 | `nonReentrant` on the entry points, ODFees clears `pending` before paying |
+| reentrancy-no-eth | 14 | `nonReentrant` on the entry points, ODFees `distribute`, `release` and `sync` are `nonReentrant` |
 | divide-before-multiply | 13 | intentional fixed-point steps, covered by fuzz and invariants |
 | missing-zero-check | 6 | zero is valid (optional feeds) or set by the deploy script and its post-deploy check |
-| reentrancy-benign, reentrancy-events | 10 | no exploitable state, role gated or `nonReentrant` |
+| reentrancy-benign, reentrancy-events | 8 | no exploitable state, role gated or `nonReentrant` |
 | return-bomb | 5 | gas capped staticcalls with a fixed word decode; failure halts the market |
 | reentrancy-balance | 2 | `nonReentrant`, the stale balance only feeds a revert floor |
 | weak-prng | 1 | `day % RING` is a ring buffer index |
 | write-after-write | 1 | the first write is the intended clear |
 
-Honest limit: the 140 results were read by class, with the Highs and the reentrancy findings checked against the source
-(guards and ordering); each of the 140 was not traced by hand to a test. A reviewer should treat the db as a worklist,
+Honest limit: the 137 results were read by class, with the Highs and the reentrancy findings checked against the source
+(guards and ordering); each of the 137 was not traced by hand to a test. A reviewer should treat the db as a worklist,
 not as a proof. Never add to the db to make a red run green without reading the new result.
 
 To re-triage: `cd contracts && slither . --config-file slither.config.json`, read the new results, then add them to the db.
