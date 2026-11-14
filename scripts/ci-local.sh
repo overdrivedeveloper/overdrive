@@ -8,6 +8,8 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:-} --no-experimental-webstorage"
+# Private RPC (owner-saved, chmod 600, never printed): loaded only when the env var is not already set.
+if [ -z "${RHC_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then set -a; . "$HOME/.config/overdrive/rpc.env"; set +a; fi
 # slither runs last: it does a forge clean, and the app ABI test would then rebuild everything inside its 120 s limit.
 JOBS="hygiene semgrep contracts app guard scripts python web slither"
 only=""

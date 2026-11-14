@@ -24,6 +24,8 @@ PG_PORT=$((5433 + PORT_OFFSET))
 API_PORT=$((3101 + PORT_OFFSET))
 MCP_PORT=$((3102 + PORT_OFFSET))
 WEB_PORT=$((4291 + PORT_OFFSET))
+# Private RPC (owner-saved, chmod 600, never printed): loaded only when the env var is not already set.
+if [ -z "${RHC_MAINNET_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then set -a; . "$HOME/.config/overdrive/rpc.env"; set +a; fi
 UPSTREAM_RPC="${RHC_MAINNET_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}"
 PG_BIN="${PG_BIN:-$(ls -d /opt/homebrew/opt/postgresql@16/bin /usr/local/opt/postgresql@16/bin 2>/dev/null | head -1 || true)}"
 DB_NAME=od_fork
