@@ -19,7 +19,7 @@ const suite = testDatabaseUrl() ? describe : describe.skip;
 suite("crank boot", () => {
   let db: TestDatabase;
   const dirs: string[] = [];
-  beforeAll(async () => { db = (await createTestDatabase("crankboot"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("crankboot"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => { await db.close(); for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
 
   function setup(overrides: Record<string, string> = {}) {

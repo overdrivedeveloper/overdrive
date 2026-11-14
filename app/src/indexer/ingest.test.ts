@@ -10,7 +10,7 @@ const d = testDeployment();
 
 suite("ingest", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("ingest"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("ingest"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   function build(): FakeChain {

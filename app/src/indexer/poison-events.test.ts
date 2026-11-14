@@ -9,7 +9,7 @@ const d = testDeployment();
 
 suite("poison events", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("poison"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("poison"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("skips_and_records", async () => {

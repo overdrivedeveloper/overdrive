@@ -9,7 +9,7 @@ const d = testDeployment();
 
 suite("handlers", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("handlers"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("handlers"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("nf_equals_latest_history", async () => {

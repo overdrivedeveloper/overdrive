@@ -15,7 +15,7 @@ test("backoff schedule is 15 s doubling to 10 min", () => {
 
 suite("jobs", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("jobs"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("jobs"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("enqueue_is_idempotent", async () => {

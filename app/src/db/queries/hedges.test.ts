@@ -6,7 +6,7 @@ const suite = testDatabaseUrl() ? describe : describe.skip;
 
 suite("hedger store", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("hedgestore"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("hedgestore"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("client_id_unique_signals_single_open_status_merges", async () => {

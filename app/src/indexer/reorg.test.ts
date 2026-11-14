@@ -14,7 +14,7 @@ const winning: Logs[] = [[transfer(TOKEN_1, USERS[0]!, USERS[2]!, 250n)], [accru
 
 suite("reorg", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("reorg"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("reorg"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("rollback_and_reingest_matches_clean_run", async () => {

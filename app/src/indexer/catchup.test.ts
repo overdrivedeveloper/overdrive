@@ -9,7 +9,7 @@ const d = testDeployment();
 
 suite("catchup", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("catchup"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("catchup"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("range_halves_and_applies_in_order", async () => {

@@ -6,7 +6,7 @@ import { applyMigrations, createTestDatabase, testDatabaseUrl, type TestDatabase
 const suite = testDatabaseUrl() ? describe : describe.skip;
 suite("crank scheduler", () => {
   let db: TestDatabase;
-  beforeAll(async () => { db = (await createTestDatabase("crankscheduler"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("crankscheduler"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
 
   test("failure_backoff_isolated", async () => {

@@ -76,7 +76,7 @@ function fakeNode() {
 suite("hedger boot", () => {
   let db: TestDatabase;
   let dir: string;
-  beforeAll(async () => { db = (await createTestDatabase("hedgerboot"))!; await applyMigrations(db); dir = mkdtempSync(join(tmpdir(), "od-hedger-boot-")); });
+  beforeAll(async () => { db = (await createTestDatabase("hedgerboot"))!; await applyMigrations(db); dir = mkdtempSync(join(tmpdir(), "od-hedger-boot-")); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => { await db.close(); rmSync(dir, { recursive: true, force: true }); });
 
   test("boots_with_production_env_shape_and_runs_one_cycle", async () => {

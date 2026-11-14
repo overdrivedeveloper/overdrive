@@ -12,7 +12,7 @@ const acct = (n: number) => `0x${n.toString(16).padStart(40, "0")}`;
 suite("queued-sells", () => {
   let db: TestDatabase;
   let chain: FakeChain;
-  beforeAll(async () => { db = (await createTestDatabase("queuedsells"))!; await applyMigrations(db); });
+  beforeAll(async () => { db = (await createTestDatabase("queuedsells"))!; await applyMigrations(db); }, 60_000); // db + every migration: 5 s default timed out under load
   afterAll(async () => db.close());
   beforeEach(async () => {
     await db.sql`truncate queued_sells, gears`;
