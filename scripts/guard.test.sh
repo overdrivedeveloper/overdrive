@@ -8,8 +8,8 @@ tmp="$root/guardtest-tmp.txt"
 trap 'rm -f "$tmp"' EXIT
 
 # Words are built by concatenation so this file never contains them.
-w1="ren""t"; w2="car""ry"; w3="writ""ers"; w4="yie""ld"; w5="ap""y"; w6="guarantee""d"; w7="risk""-free"; w8="squa""red"; w9="cr""ab"
-for w in "$w1" "$w2" "$w3" "$w4" "$w5" "$w6" "$w7" "$w8" "$w9"; do
+w1="ren""t"; w2="car""ry"; w3="writ""ers"; w4="yie""ld"; w5="ap""y"; w6="guarantee""d"; w7="risk""-free"; w8="squa""red"; w9="cr""ab"; w10="divid""ends"; w11="divid""end"; w12="revenue"" share"
+for w in "$w1" "$w2" "$w3" "$w4" "$w5" "$w6" "$w7" "$w8" "$w9" "$w10" "$w11" "$w12"; do
   echo "the $w here" > "$tmp"
   if "$guard" >/dev/null 2>&1; then echo "FAIL denylist_catches_vocab: '$w' not caught"; fail=1; else echo "ok   caught '$w'"; fi
 done

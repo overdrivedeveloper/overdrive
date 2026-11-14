@@ -572,7 +572,7 @@ contract OracleGuardTest is OracleFixture {
     }
 
     function test_SmallPendingChangeDoesNotPause() public {
-        token.setMultipliers(1e18, 1.002e18, _now() + 1 hours); // dividend-size step
+        token.setMultipliers(1e18, 1.002e18, _now() + 1 hours); // cash-distribution-size step
         assertFalse(_r().buysPaused);
     }
 

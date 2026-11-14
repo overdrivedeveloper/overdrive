@@ -27,7 +27,19 @@ check_no_failopen_pattern() {
     return 1
   fi
 }
-job_contracts() { check_no_failopen_pattern && (cd contracts && forge fmt --check && forge build && forge test); }
+# Stake rule R9: outside src/stake and src/interfaces, no contract reads stake beyond feeDiscountOf and slash
+# (votes are on markets and caps only; they never move toll maths, NF or pricing).
+check_stake_usage() {
+  local bad
+  bad=$(grep -rlE 'votingPower|IODStake[ ;}(]' contracts/src --include='*.sol' | grep -vE '^contracts/src/(stake|interfaces)/' \
+    | xargs grep -nE 'votingPower|\.(coverValueUsdg|stake|requestUnstake|unstake|claimRewards)\(' 2>/dev/null)
+  if [ -n "$bad" ]; then
+    echo "check_stake_usage: a core contract reads stake beyond feeDiscountOf/slash:" >&2
+    echo "$bad" >&2
+    return 1
+  fi
+}
+job_contracts() { check_no_failopen_pattern && check_stake_usage && (cd contracts && forge fmt --check && forge build && forge test); }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
 job_scripts() { bash scripts/quiet-run.test.sh && scripts/export-abis.sh; }
