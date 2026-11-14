@@ -215,7 +215,7 @@ newprov() { # newprov <root>: fake box with Postgres, Caddy (another project's s
   mkdir -p "$S/roles" "$S/dbs" "$S/dbowner"; touch "$S/roles/tenant" "$S/dbs/tenant"; echo tenant >"$S/dbowner/tenant"
   : >"$CALLS"
 }
-prov() { env OD_TEST_ROOT="$PROV" bash "$PROVISION" "$@" 2>&1; }
+prov() { env OD_TEST_ROOT="$PROV" PG_MODE=host bash "$PROVISION" "$@" 2>&1; }
 PROV="$T/p1"; newprov "$PROV"
 mkdir -p "$PROV/etc/overdrive/keys"; printf 'KEYSTORE-BYTES\n' >"$PROV/etc/overdrive/keys/crank.json"; printf 'pw-bytes\n' >"$PROV/etc/overdrive/keys/crank.password"
 keyhash="$(shasum "$PROV/etc/overdrive/keys/"* | shasum)"
@@ -254,27 +254,88 @@ P4="$T/p4"; newprov "$P4"; touch "$S/dbs/overdrive"; echo tenant >"$S/dbowner/ov
 check "an existing database named overdrive owned by another role: refused" bash -c '[ "$1" != 0 ] && grep -q "belongs to role" <<<"$2" && ! grep -q "psql CREATE" "$3"' _ "$rc" "$out" "$CALLS"
 P5="$T/p5"; newprov "$P5"; rm "$S/pg_up"; echo "LISTEN 0 244 127.0.0.1:5432 0.0.0.0:*" >"$S/listeners"; PROV="$P5"; out="$(prov)"; rc=$?
 check "something on 5432 the postgres user cannot reach: refused, never installs a second Postgres" bash -c '[ "$1" != 0 ] && grep -q "listens on port 5432" <<<"$2" && ! grep -q postgresql-16 "$3"' _ "$rc" "$out" "$CALLS"
-P6="$T/p6"; newprov "$P6"; PROV="$P6"; out="$(env OD_TEST_ROOT="$P6" DB_NAME=tenant_overdrive bash "$PROVISION" 2>&1)"; rc=$?
+P6="$T/p6"; newprov "$P6"; PROV="$P6"; out="$(env OD_TEST_ROOT="$P6" PG_MODE=host DB_NAME=tenant_overdrive bash "$PROVISION" 2>&1)"; rc=$?
 check "a database name not starting with overdrive is refused" bash -c '[ "$1" != 0 ] && grep -q "not allowed" <<<"$2"' _ "$rc" "$out"
 P6b="$T/p6b"; newprov "$P6b"; printf 'api.get-overdrive.com {\n\trespond "x"\n}\n' >"$P6b/etc/caddy/conf.d/other.caddy"; PROV="$P6b"; out="$(prov)"; rc=$?
 check "a domain another site already serves is refused" bash -c '[ "$1" != 0 ] && grep -q "already appears" <<<"$2"' _ "$rc" "$out"
 # caddy validation fails: file removed, no reload
 P7="$T/p7"; newprov "$P7"; touch "$S/caddy-invalid"; PROV="$P7"; out="$(prov)"; rc=$?
 check "caddy validate fails: site file removed, Caddy not reloaded, exit nonzero" bash -c '[ "$1" != 0 ] && [ ! -e "$2/etc/caddy/conf.d/overdrive.caddy" ] && ! grep -q "systemctl reload caddy" "$3" && grep -q "not reloaded" <<<"$4"' _ "$rc" "$P7" "$CALLS" "$out"
-# main Caddyfile without an import: written but inactive unless the owner asks
+# main Caddyfile without an import: refused unless the owner asks, then backed up, one line appended, validated, reloaded
 P8="$T/p8"; newprov "$P8"; printf 'other.example.org {\n\trespond "x"\n}\n' >"$P8/etc/caddy/Caddyfile"; main8="$(shasum "$P8/etc/caddy/Caddyfile")"; PROV="$P8"; out="$(prov)"; rc=$?
-check "main Caddyfile has no conf.d import: main file untouched, owner told the line to add, no reload" bash -c '[ "$1" = 0 ] && [ "$(shasum "$2/etc/caddy/Caddyfile")" = "$3" ] && grep -q "does not import" <<<"$4" && ! grep -q "systemctl reload caddy" "$5"' _ "$rc" "$P8" "$main8" "$out" "$CALLS"
-: >"$CALLS"; out="$(env OD_TEST_ROOT="$P8" CADDY_ADD_IMPORT=1 bash "$PROVISION" 2>&1)"
-check "CADDY_ADD_IMPORT=1: one import line appended after a backup, validated, reloaded" bash -c 'tail -1 "$1/etc/caddy/Caddyfile" | grep -q "^import /etc/caddy/conf.d/\*.caddy" && head -3 "$1/etc/caddy/Caddyfile" | grep -q other.example.org && grep -q "systemctl reload caddy" "$2"' _ "$P8" "$CALLS"
+check "main Caddyfile has no conf.d import: stops with a clear message, nothing changed, no reload" bash -c '[ "$1" != 0 ] && [ "$(shasum "$2/etc/caddy/Caddyfile")" = "$3" ] && grep -q "CADDY_ADD_IMPORT=1" <<<"$4" && ! grep -q "systemctl reload caddy" "$5" && [ ! -e "$2/etc/overdrive" ]' _ "$rc" "$P8" "$main8" "$out" "$CALLS"
+: >"$CALLS"; out="$(env OD_TEST_ROOT="$P8" PG_MODE=host CADDY_ADD_IMPORT=1 bash "$PROVISION" 2>&1)"
+check "CADDY_ADD_IMPORT=1: timestamped backup, exactly one import line appended, validated, reloaded" bash -c 'f="$1/etc/caddy/Caddyfile"; [ "$(grep -c "^import " "$f")" = 1 ] && tail -1 "$f" | grep -qx "import /etc/caddy/conf.d/\*.caddy" && head -3 "$f" | grep -q other.example.org && ls "$1"/etc/caddy/Caddyfile.bak.overdrive-2* >/dev/null && [ "$(shasum < "$(ls "$1"/etc/caddy/Caddyfile.bak.overdrive-2* | head -1)")" = "$(printf "other.example.org {\n\trespond \"x\"\n}\n" | shasum)" ] && grep -q "systemctl reload caddy" "$2" && ! grep -qE "systemctl (restart|stop) caddy" "$2"' _ "$P8" "$CALLS"
+: >"$CALLS"; out="$(env OD_TEST_ROOT="$P8" PG_MODE=host CADDY_ADD_IMPORT=1 bash "$PROVISION" 2>&1)"
+check "  ... a second run adds no second line and no reload" bash -c '[ "$(grep -c "^import " "$1/etc/caddy/Caddyfile")" = 1 ] && ! grep -q "systemctl reload" "$2"' _ "$P8" "$CALLS"
+P8b="$T/p8b"; newprov "$P8b"; printf 'other.example.org {\n\trespond "x"\n}\n' >"$P8b/etc/caddy/Caddyfile"; main8b="$(shasum "$P8b/etc/caddy/Caddyfile")"; touch "$S/caddy-invalid"; : >"$CALLS"
+out="$(env OD_TEST_ROOT="$P8b" PG_MODE=host CADDY_ADD_IMPORT=1 bash "$PROVISION" 2>&1)"; rc=$?
+check "CADDY_ADD_IMPORT=1 but validate fails: main Caddyfile restored byte for byte, site removed, no reload" bash -c '[ "$1" != 0 ] && [ "$(shasum "$2/etc/caddy/Caddyfile")" = "$3" ] && [ ! -e "$2/etc/caddy/conf.d/overdrive.caddy" ] && ! grep -q "systemctl reload" "$4" && grep -q "not reloaded" <<<"$5"' _ "$rc" "$P8b" "$main8b" "$CALLS" "$out"
 check "no script drops a database or role, resets a firewall or edits sshd" bash -c '! grep -nE "DROP (DATABASE|ROLE)|dropdb|dropuser|ufw (reset|default|--force enable)|sshd_config|hidepid|apt-get[^#]*upgrade|systemctl restart (caddy|postgresql|ssh)" "$1"/provision.sh "$1"/deploy.sh "$1"/backup.sh' _ "$HERE"
 
 # ---------------------------------------------------------------- H: backup keeps 14, dumps one database
 B="$T/b1"; mkdir -p "$B/etc/overdrive" "$B/var/backups/overdrive"
 i=1; while [ "$i" -le 16 ]; do touch "$B/var/backups/overdrive/overdrive-202601$(printf %02d "$i")T030000Z.dump"; i=$((i + 1)); done
-out="$(OD_TEST_ROOT="$B" bash "$BACKUP" 2>&1)"; rc=$?
+out="$(OD_TEST_ROOT="$B" PG_MODE=host bash "$BACKUP" 2>&1)"; rc=$?
 check "backup keeps the newest 14 dumps and adds today's" bash -c '[ "$1" = 0 ] && [ "$(ls "$2/var/backups/overdrive" | wc -l | tr -d " ")" = 14 ] && [ ! -e "$2/var/backups/overdrive/overdrive-20260101T030000Z.dump" ]' _ "$rc" "$B"
 out="$(OD_TEST_ROOT="$B" DB_NAME=tenant_main bash "$BACKUP" 2>&1)"; rc=$?
 check "backup refuses a database that is not Overdrive's" bash -c '[ "$1" != 0 ]' _ "$rc"
+
+# ---------------------------------------------------------------- G2: PG_MODE=docker (the default): Overdrive's own container
+# A fake docker: ps lists names only; run creates ONLY overdrive-db-postgres; exec and start accept ONLY overdrive-* names.
+# The other project's containers (other-pg on 5432, other-redis on 6379) exist and any touch of them is logged as FOREIGN.
+stub docker 'echo "docker $*" >>"'"$CALLS"'"
+c="'"$S"'/containers"; mkdir -p "$c"
+case "$1" in
+  ps) all=0; for a in "$@"; do [ "$a" = -a ] && all=1; done
+      for f in "$c"/*; do [ -e "$f" ] || continue; if [ "$all" = 1 ] || grep -qx running "$f"; then basename "$f"; fi; done; exit 0;;
+  run) name=""; prev=""; for a in "$@"; do [ "$prev" = --name ] && name="$a"; prev="$a"; done
+       case "$name" in overdrive-*) ;; *) echo "FOREIGN docker run $name" >>"'"$CALLS"'"; exit 99;; esac
+       [ -e "$c/$name" ] && exit 125
+       echo running >"$c/$name"; touch "'"$S"'/pg_up"; mkdir -p "'"$S"'/roles" "'"$S"'/dbs" "'"$S"'/dbowner"; touch "'"$S"'/roles/overdrive" "'"$S"'/dbs/overdrive"; echo overdrive >"'"$S"'/dbowner/overdrive"; echo deadbeef; exit 0;;
+  start) case "$2" in overdrive-*) echo running >"$c/$2"; exit 0;; *) echo "FOREIGN docker start $2" >>"'"$CALLS"'"; exit 99;; esac;;
+  exec) shift; while [ "${1#-}" != "$1" ]; do shift; done
+        case "$1" in overdrive-*) shift; exec "$@";; *) echo "FOREIGN docker exec $1" >>"'"$CALLS"'"; exit 99;; esac;;
+  *) echo "FOREIGN docker $*" >>"'"$CALLS"'"; exit 99;;
+esac'
+newprovd() { # a box with the OTHER project's containers, swap, and Caddy with the import line; no Overdrive container yet
+  newprov "$1"; rm -f "$S/pg_up"; rm -rf "$S/roles" "$S/dbs" "$S/dbowner"; mkdir -p "$S/containers"
+  echo running >"$S/containers/other-pg"; echo running >"$S/containers/other-redis"
+  echo "LISTEN 0 4096 127.0.0.1:5432 0.0.0.0:*" >"$S/listeners"; echo "LISTEN 0 4096 127.0.0.1:6379 0.0.0.0:*" >>"$S/listeners"
+  : >"$CALLS"
+}
+provd() { env OD_TEST_ROOT="$PROV" "$@" bash "$PROVISION" 2>&1; }
+PD="$T/pd"; newprovd "$PD"; PROV="$PD"
+capd="$(shasum "$PD/etc/caddy/Caddyfile" "$PD/etc/caddy/conf.d/tenant.caddy" | shasum)"
+out="$(provd)"; rc=$?; cp "$CALLS" "$T/calls.dock1"
+check "docker mode (default) first run succeeds" bash -c '[ "$1" = 0 ] || { echo "$2"; exit 1; }' _ "$rc" "$out"
+check "  ... exactly one docker run: own name, 127.0.0.1:5433 only, own volume, unless-stopped, 512m, exact image tag" bash -c 'r="$(grep "^docker run" "$1")"; [ "$(grep -c "^docker run" "$1")" = 1 ] && grep -q -- "--name overdrive-db-postgres " <<<"$r" && grep -q -- "-p 127.0.0.1:5433:5432" <<<"$r" && grep -q -- "-v overdrive-pgdata:/var/lib/postgresql/data" <<<"$r" && grep -q -- "--restart unless-stopped" <<<"$r" && grep -q -- "--memory 512m" <<<"$r" && grep -qE " postgres:16\.[0-9]+(-[a-z]+)?( |$)| postgres:16[^ ]*@sha256:" <<<"$r"' _ "$T/calls.dock1"
+check "  ... the roles are made inside the container (overdrive_api read-only), the other project's database is untouched" bash -c 'grep -q "^docker exec -i overdrive-db-postgres psql" "$1" && grep -q "psql CREATE ROLE overdrive_api" "$1" && ! grep -q "psql CREATE ROLE overdrive$" "$1" && ! grep -q tenant "$1"' _ "$T/calls.dock1"
+check "  ... db.env points at port 5433, is mode 600, and no password is printed or on any command line" bash -c 'grep -q "^DATABASE_URL=postgres://overdrive:[0-9a-f]\{48\}@127.0.0.1:5433/overdrive$" "$1/etc/overdrive/db.env" && [ "$(stat -f %Lp "$1/etc/overdrive/db.env" 2>/dev/null || stat -c %a "$1/etc/overdrive/db.env")" = 600 ] && pw="$(sed -n "s#^DATABASE_URL=postgres://overdrive:\([^@]*\)@.*#\1#p" "$1/etc/overdrive/db.env")" && ! grep -q "$pw" "$2" && ! grep -q "$pw" <<<"$3"' _ "$PD" "$T/calls.dock1" "$out"
+check "  ... provision.conf records PG_MODE=docker (backup and deploy follow it)" grep -q "^PG_MODE=docker" "$PD/etc/overdrive/provision.conf"
+check "  ... the other project's Caddy files are unchanged and no new swap was made (swap already existed)" bash -c '[ "$(shasum "$1/etc/caddy/Caddyfile" "$1/etc/caddy/conf.d/tenant.caddy" | shasum)" = "$2" ] && ! grep -qE "^(fallocate|mkswap|swapon)" "$3"' _ "$PD" "$capd" "$T/calls.dock1"
+snapd1="$(snapshot "$PD")"; : >"$CALLS"; out2="$(provd)"; rc2=$?; snapd2="$(snapshot "$PD")"
+check "docker mode second run: exit 0, no file or mode changed, no docker run, no create or alter" bash -c '[ "$1" = 0 ] && [ "$2" = "$3" ] && ! grep -qE "^docker (run|start)|psql CREATE|psql ALTER|^useradd|^apt-get|systemctl (reload|restart|enable|daemon-reload)" "$4"' _ "$rc2" "$snapd1" "$snapd2" "$CALLS"
+check "never calls docker on a non-overdrive name: only ps, and run/start/exec on overdrive-db-postgres" bash -c 'cat "$1" "$2" | grep "docker" | grep -vE "^docker (ps( |$)|run .*--name overdrive-db-postgres |start overdrive-db-postgres|exec (-i )?overdrive-db-postgres )" | grep -c . | grep -qx 0; ! grep -rq "FOREIGN\|other-pg\|other-redis" "$1" "$2"' _ "$T/calls.dock1" "$CALLS"
+check "  ... the other containers are still exactly as they were (running, never started or stopped)" bash -c '[ "$(cat "$1/containers/other-pg")" = running ] && [ "$(cat "$1/containers/other-redis")" = running ]' _ "$S"
+# 5433 held by something that is not our container
+PD2="$T/pd2"; newprovd "$PD2"; echo "LISTEN 0 4096 127.0.0.1:5433 0.0.0.0:*" >>"$S/listeners"; PROV="$PD2"; out="$(provd)"; rc=$?
+check "5433 held by something else: refused before any change, no docker run" bash -c '[ "$1" != 0 ] && grep -q "port 5433 is taken" <<<"$2" && ! grep -qE "^docker run|^useradd|^apt-get" "$3" && [ ! -e "$4/etc/overdrive" ]' _ "$rc" "$out" "$CALLS" "$PD2"
+out="$(provd PG_PORT=5432)"; rc=$?
+check "docker mode refuses any port but 5433 (never the other project's 5432)" bash -c '[ "$1" != 0 ] && grep -q "5433 only" <<<"$2"' _ "$rc" "$out"
+# an existing but stopped container is started, never recreated
+PD3="$T/pd3"; newprovd "$PD3"; PROV="$PD3"; provd >/dev/null; echo exited >"$S/containers/overdrive-db-postgres"; : >"$CALLS"; out="$(provd)"; rc=$?
+check "stopped overdrive container: started (not recreated), still only overdrive names" bash -c '[ "$1" = 0 ] && grep -q "^docker start overdrive-db-postgres" "$2" && ! grep -q "^docker run" "$2"' _ "$rc" "$CALLS"
+# no docker at all: refused clearly, host mode unaffected
+PD4="$T/pd4"; newprovd "$PD4"; PROV="$PD4"; mv "$T/bin/docker" "$T/docker.off"; out="$(env OD_TEST_ROOT="$PD4" PATH="$T/bin:/usr/bin:/bin" bash "$PROVISION" 2>&1)"; rc=$?; mv "$T/docker.off" "$T/bin/docker"
+check "docker mode without docker installed: refused, nothing changed" bash -c '[ "$1" != 0 ] && grep -q "needs docker" <<<"$2" && [ ! -e "$3/etc/overdrive" ]' _ "$rc" "$out" "$PD4"
+# backup in docker mode dumps from the container
+B2="$T/b2"; mkdir -p "$B2/etc/overdrive" "$B2/var/backups/overdrive"; : >"$CALLS"
+i=1; while [ "$i" -le 16 ]; do touch "$B2/var/backups/overdrive/overdrive-202601$(printf %02d "$i")T030000Z.dump"; i=$((i + 1)); done
+out="$(OD_TEST_ROOT="$B2" bash "$BACKUP" 2>&1)"; rc=$?
+check "backup (docker mode): docker exec pg_dump on overdrive-db-postgres, still keeps 14" bash -c '[ "$1" = 0 ] && grep -q "^docker exec overdrive-db-postgres pg_dump -U overdrive" "$2" && ! grep -q FOREIGN "$2" && [ "$(ls "$3/var/backups/overdrive" | wc -l | tr -d " ")" = 14 ]' _ "$rc" "$CALLS" "$B2"
+B3="$T/b3"; mkdir -p "$B3/etc/overdrive"; echo PG_MODE=host >"$B3/etc/overdrive/provision.conf"; : >"$CALLS"; OD_TEST_ROOT="$B3" bash "$BACKUP" >/dev/null 2>&1
+check "backup with PG_MODE=host in provision.conf keeps the host path (no docker)" bash -c '! grep -q "^docker" "$1"' _ "$CALLS"
 
 # ---------------------------------------------------------------- I: env.example matches the code (launch incident)
 APP="$HERE/../.."; REPO="$APP/.."

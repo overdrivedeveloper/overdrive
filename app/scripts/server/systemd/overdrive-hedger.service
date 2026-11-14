@@ -1,6 +1,6 @@
 [Unit]
 Description=Overdrive hedger
-After=network-online.target postgresql.service
+After=network-online.target postgresql.service docker.service
 Wants=network-online.target
 PartOf=overdrive.target
 StartLimitIntervalSec=300

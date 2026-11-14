@@ -2,10 +2,11 @@
 # Nightly backup of the Overdrive database only: one pg_dump (custom format) per run in /var/backups/overdrive, the newest
 # KEEP dumps kept (default 14). Installed as /usr/local/sbin/overdrive-backup by provision.sh and run as root by
 # overdrive-backup.timer. It dumps ONE database (DB_NAME, default overdrive) and touches no other project's data.
-# Restore into an empty database with:
-#   runuser -u postgres -- pg_restore --clean --if-exists --no-owner --role=overdrive -d overdrive <file>.dump
+# Restore into an empty database with (docker mode, the default; PG_MODE=host in provision.conf means the host server):
+#   docker exec -i overdrive-db-postgres pg_restore -U overdrive --clean --if-exists --no-owner -d overdrive <file>.dump
+#   host mode: runuser -u postgres -- pg_restore --clean --if-exists --no-owner --role=overdrive -d overdrive <file>.dump
 #
-# Env (optional): DB_NAME (default from /etc/overdrive/provision.conf, else overdrive), BACKUP_DIR, KEEP (default 14).
+# Env (optional): PG_MODE (docker default, from provision.conf), DB_NAME (default from /etc/overdrive/provision.conf, else overdrive), BACKUP_DIR, KEEP (default 14).
 # OD_TEST_ROOT: tests only, refused as root (every path is under it and no root check is made).
 # The dumps stay on this server's disk: copy them somewhere else too (README.md, "Backups").
 set -euo pipefail
@@ -17,6 +18,8 @@ if [[ -r "$P/etc/overdrive/provision.conf" ]]; then
   source "$P/etc/overdrive/provision.conf"
 fi
 DB_NAME="${DB_NAME:-overdrive}"
+PG_MODE="${PG_MODE:-docker}"
+PG_CONTAINER=overdrive-db-postgres
 BACKUP_DIR="${BACKUP_DIR:-$P/var/backups/overdrive}"
 KEEP="${KEEP:-14}"
 
@@ -36,9 +39,14 @@ out="$BACKUP_DIR/${DB_NAME}-${stamp}.dump"
 tmp="$out.partial"
 trap 'rm -f "$tmp"' EXIT
 
-runuser -u postgres -- pg_dump --format=custom --compress=6 --no-password "$DB_NAME" >"$tmp"
-# A dump that pg_restore cannot list is not a backup.
-pg_restore --list "$tmp" >/dev/null
+if [[ "$PG_MODE" == docker ]]; then
+  docker exec "$PG_CONTAINER" pg_dump -U overdrive --format=custom --compress=6 --no-password "$DB_NAME" >"$tmp"
+  # A dump that pg_restore cannot list is not a backup.
+  docker exec -i "$PG_CONTAINER" pg_restore --list <"$tmp" >/dev/null
+else
+  runuser -u postgres -- pg_dump --format=custom --compress=6 --no-password "$DB_NAME" >"$tmp"
+  pg_restore --list "$tmp" >/dev/null
+fi
 mv "$tmp" "$out"
 trap - EXIT
 

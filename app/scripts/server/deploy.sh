@@ -348,7 +348,12 @@ server_main() {
     dbname="$(sed -n 's#^DATABASE_URL=.*/\([A-Za-z0-9_]*\)$#\1#p' "$ETC/db.env" | tail -1)"
     pgport="$(sed -n 's#^DATABASE_URL=.*@127.0.0.1:\([0-9]*\)/.*#\1#p' "$ETC/db.env" | tail -1)"
     if [[ -n "$dbname" && -n "$pgport" ]]; then
-      runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -p "$pgport" -d "$dbname" -f "$R/app/scripts/api-readonly-role.sql" || s_die "could not apply the read-only API role grants"
+      local pgmode; pgmode="$( { sed -n 's/^PG_MODE=//p' "$ETC/provision.conf" 2>/dev/null || true; } | tail -1)"
+      if [[ "${pgmode:-docker}" == docker ]]; then
+        docker exec -i overdrive-db-postgres psql -X -q -v ON_ERROR_STOP=1 -U overdrive -d "$dbname" <"$R/app/scripts/api-readonly-role.sql" || s_die "could not apply the read-only API role grants"
+      else
+        runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -p "$pgport" -d "$dbname" -f "$R/app/scripts/api-readonly-role.sql" || s_die "could not apply the read-only API role grants"
+      fi
     fi
     unset ropw
   fi
@@ -478,7 +483,7 @@ if [[ "$MODE" == provision ]]; then
   git -C "$ROOT" archive --format=tar "$SHA" app/scripts/server | gzip -c \
     | ssh_ "rm -rf /root/overdrive-server && mkdir -p /root/overdrive-server && tar -xzf - -C /root/overdrive-server --strip-components=3 --no-same-owner"
   envs=""
-  for v in API_DOMAIN MCP_DOMAIN DB_NAME SWAP_SIZE PG_PORT CADDY_ADD_IMPORT CADDY_MAIN CADDY_CONF_DIR CADDY_RELOAD_CMD; do
+  for v in API_DOMAIN MCP_DOMAIN DB_NAME SWAP_SIZE PG_PORT PG_MODE PG_IMAGE PG_MEMORY CADDY_ADD_IMPORT CADDY_MAIN CADDY_CONF_DIR CADDY_RELOAD_CMD; do
     [[ -n "${!v:-}" ]] && envs+="$v=$(printf '%q' "${!v}") "
   done
   log "running provision.sh on the server (takes a few minutes)"

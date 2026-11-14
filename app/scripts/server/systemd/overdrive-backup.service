@@ -1,6 +1,6 @@
 [Unit]
 Description=Overdrive database backup (pg_dump of the overdrive database only)
-After=postgresql.service
+After=postgresql.service docker.service
 
 [Service]
 Type=oneshot

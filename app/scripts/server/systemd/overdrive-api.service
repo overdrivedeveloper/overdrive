@@ -1,6 +1,6 @@
 [Unit]
 Description=Overdrive API (read only, port 38101 on 127.0.0.1)
-After=network-online.target postgresql.service
+After=network-online.target postgresql.service docker.service
 Wants=network-online.target
 PartOf=overdrive.target
 StartLimitIntervalSec=300

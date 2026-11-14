@@ -1,6 +1,6 @@
 [Unit]
 Description=Overdrive database migrations (run by deploy.sh before the services restart)
-After=network-online.target postgresql.service
+After=network-online.target postgresql.service docker.service
 
 [Service]
 Type=oneshot

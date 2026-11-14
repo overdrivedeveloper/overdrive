@@ -17,18 +17,26 @@
 #              -liquidator, -vol-engine, -mcp, -risk-sim
 #   Ports      127.0.0.1 only: 38101 (api), 38102 (mcp). Listeners are detected first; a port that something else
 #              holds makes the script refuse before it changes anything.
-#   Postgres   the existing server is reused (never reinstalled, never restarted, no config edit); one new role and one
-#              new database (default overdrive) plus the SELECT-only role overdrive_api. No other role or database is read,
-#              altered or dropped. Installed only when the box has no Postgres at all.
+#   Postgres   PG_MODE=docker (default): Overdrive's OWN Postgres 16 container `overdrive-db-postgres` (image PG_IMAGE, an
+#              exact tag), bound to 127.0.0.1:5433 only, named volume overdrive-pgdata, restart unless-stopped, 512m memory
+#              limit; roles overdrive and read-only overdrive_api and the database live inside it. The only docker commands
+#              are `docker ps` (names only) and commands naming overdrive-db-postgres / overdrive-pgdata: no other
+#              container is ever inspected, stopped, entered or connected to. 5433 held by anything else: refused.
+#              PG_MODE=host: the box's own host Postgres is reused (never reinstalled, never restarted, no config edit).
 #   Memory     units run in overdrive.slice (MemoryMax 1536M in total) and each has its own MemoryMax.
 #   Swap       a 4G swap file only when the box has no swap at all.
 #   Caddy      one separate site file (conf.d/overdrive.caddy); the other sites are never edited or removed; Caddy is
-#              reloaded (never restarted) only after `caddy validate` accepts the whole configuration.
+#              reloaded (never restarted) only after `caddy validate` accepts the whole configuration. When the main
+#              Caddyfile has no `import /etc/caddy/conf.d/*.caddy` line the script stops, unless CADDY_ADD_IMPORT=1: then it
+#              copies the main file to Caddyfile.bak.overdrive-<UTC time>, appends that one line, validates, and on a
+#              validation failure puts the copy back and does not reload.
 #   Tools      Bun and cast at pinned versions under /opt/overdrive/bin (not /usr/local/bin).
 #
 # Env (optional; saved to /etc/overdrive/provision.conf and reused on the next run):
 #   API_DOMAIN   default api.get-overdrive.com        MCP_DOMAIN  blank = no public MCP route        ACME_EMAIL (unused here)
-#   DB_NAME      default overdrive                    API_PORT / MCP_PORT  defaults 38101 / 38102   PG_PORT  default 5432
+#   DB_NAME      default overdrive                    API_PORT / MCP_PORT  defaults 38101 / 38102   PG_PORT  default 5433 (docker) / 5432 (host)
+#   PG_MODE      docker (default) or host          PG_IMAGE  default postgres:16.10-bookworm (exact tag; pin a digest if you prefer)
+#   PG_MEMORY    default 512m (container limit)
 #   SWAP_SIZE    default 4G (0 = never add swap)      CADDY_ADD_IMPORT=1  append the conf.d import to the main Caddyfile
 #   CADDY_MAIN   default /etc/caddy/Caddyfile         CADDY_CONF_DIR  default /etc/caddy/conf.d
 #   CADDY_RELOAD_CMD  default "systemctl reload caddy" (set it when Caddy runs in a container)
@@ -161,7 +169,16 @@ saved() { [[ -r "$CONF" ]] && (set +u; source "$CONF" >/dev/null 2>&1; eval "pri
 API_DOMAIN="${API_DOMAIN:-$(saved API_DOMAIN || true)}"; API_DOMAIN="${API_DOMAIN:-api.get-overdrive.com}"
 MCP_DOMAIN="${MCP_DOMAIN:-$(saved MCP_DOMAIN || true)}"
 DB_NAME="${DB_NAME:-$(saved DB_NAME || true)}"; DB_NAME="${DB_NAME:-overdrive}"
-API_PORT="${API_PORT:-38101}"; MCP_PORT="${MCP_PORT:-38102}"; PG_PORT="${PG_PORT:-5432}"
+API_PORT="${API_PORT:-38101}"; MCP_PORT="${MCP_PORT:-38102}"
+PG_MODE="${PG_MODE:-$(saved PG_MODE || true)}"; PG_MODE="${PG_MODE:-docker}"
+[[ "$PG_MODE" == docker || "$PG_MODE" == host ]] || die "PG_MODE must be docker or host"
+if [[ "$PG_MODE" == docker ]]; then PG_PORT="${PG_PORT:-5433}"; else PG_PORT="${PG_PORT:-5432}"; fi
+PG_IMAGE="${PG_IMAGE:-postgres:16.10-bookworm}"; PG_MEMORY="${PG_MEMORY:-512m}"
+PG_CONTAINER=overdrive-db-postgres; PG_VOLUME=overdrive-pgdata
+[[ "$PG_IMAGE" =~ ^[A-Za-z0-9._/:@-]+$ && "$PG_MEMORY" =~ ^[0-9]+[mg]$ ]] || die "PG_IMAGE or PG_MEMORY has a bad value"
+if [[ "$PG_MODE" == docker ]]; then
+  [[ "$PG_PORT" == 5433 ]] || die "docker mode binds 127.0.0.1:5433 only (PG_PORT=$PG_PORT is not allowed)"
+fi
 SWAP_SIZE="${SWAP_SIZE:-4G}"
 CADDY_MAIN="${CADDY_MAIN:-/etc/caddy/Caddyfile}"
 CADDY_CONF_DIR="${CADDY_CONF_DIR:-/etc/caddy/conf.d}"
@@ -191,13 +208,25 @@ if [[ -n "$MCP_DOMAIN" ]] || systemctl is-enabled --quiet overdrive-mcp.service 
 fi
 [[ "$API_PORT" == 38101 && "$MCP_PORT" == 38102 ]] || warn "ports differ from the ones in systemd/*.service and Caddyfile (38101, 38102): edit those too"
 PG_STATE=none
-if command -v psql >/dev/null 2>&1 && runuser -u postgres -- pg_isready -q -p "$PG_PORT" 2>/dev/null; then
+if [[ "$PG_MODE" == docker ]]; then
+  # Only `docker ps` (names) is ever read about containers; the other project's containers are never inspected.
+  if ! command -v docker >/dev/null 2>&1; then
+    problem "PG_MODE=docker needs docker, which is not installed (this script does not install it): install it or use PG_MODE=host"
+  elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$PG_CONTAINER"; then
+    PG_STATE=container
+  elif [[ -n "$(listener "$PG_PORT")" ]]; then
+    PG_STATE=foreign
+    problem "port $PG_PORT is taken by something that is not $PG_CONTAINER: $(listener "$PG_PORT")"
+  else
+    PG_STATE=new
+  fi
+elif command -v psql >/dev/null 2>&1 && runuser -u postgres -- pg_isready -q -p "$PG_PORT" 2>/dev/null; then
   PG_STATE=reuse
 elif [[ -n "$(listener "$PG_PORT")" ]]; then
   PG_STATE=foreign
   problem "something listens on port $PG_PORT but the postgres OS user cannot reach it (a container?): set PG_PORT to the host cluster's port, or ask first"
 fi
-if [[ "$PG_STATE" == reuse ]]; then
+if [[ "$PG_MODE" == host && "$PG_STATE" == reuse ]]; then
   owner="$(runuser -u postgres -- psql -X -tA -p "$PG_PORT" -d postgres -c "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '$DB_NAME'" 2>/dev/null || true)"
   [[ -z "$owner" || "$owner" == overdrive ]] || problem "database $DB_NAME already exists and belongs to role '$owner', not overdrive: pick another DB_NAME"
 fi
@@ -205,8 +234,12 @@ if [[ -f "$CADDY_MAIN" || -d "$P$(dirname "$CADDY_MAIN")" ]] || [[ -f "$P$CADDY_
   clash="$( { grep -rlF -- "$API_DOMAIN" "$P$(dirname "$CADDY_MAIN")" 2>/dev/null || true; } | grep -v '/overdrive\.caddy$' | head -1 || true)"
   [[ -z "$clash" ]] || problem "$API_DOMAIN already appears in ${clash#"$P"}: another site owns it"
 fi
+MAIN="$P$CADDY_MAIN"
+if [[ -f "$MAIN" ]] && ! grep -qE "^[[:space:]]*import[[:space:]]+.*conf\.d" "$MAIN" && [[ "${CADDY_ADD_IMPORT:-0}" != 1 ]]; then
+  problem "$CADDY_MAIN has no 'import $CADDY_CONF_DIR/*.caddy' line, so Overdrive's site file would stay inactive. Run again with CADDY_ADD_IMPORT=1 (backs the file up, appends that one line, validates, restores on failure) or add the line yourself"
+fi
 swap_now="$(swapon --show --noheadings 2>/dev/null || true)"
-log "preflight: postgres=$PG_STATE (port $PG_PORT), swap=$([[ -n "$swap_now" ]] && echo present || echo none), ports $API_PORT/$MCP_PORT, domain $API_DOMAIN"
+log "preflight: postgres=$PG_MODE/$PG_STATE (port $PG_PORT), swap=$([[ -n "$swap_now" ]] && echo present || echo none), ports $API_PORT/$MCP_PORT, domain $API_DOMAIN"
 [[ "$PROBLEMS" == 0 ]] || die "$PROBLEMS problem(s) above: nothing was changed"
 if [[ "$MODE" == preflight ]]; then
   if command -v ufw >/dev/null 2>&1; then ufw status 2>/dev/null | head -1 | sed 's/^/ufw (left as it is): /' || true; fi
@@ -220,7 +253,7 @@ need=()
 for pkg in git build-essential ca-certificates curl gnupg unzip jq openssl python3 python3-venv python3-pip postgresql-client; do
   dpkg -s "$pkg" >/dev/null 2>&1 || need+=("$pkg")
 done
-if [[ "$PG_STATE" == none ]]; then need+=(postgresql-16); fi
+if [[ "$PG_MODE" == host && "$PG_STATE" == none ]]; then need+=(postgresql-16); fi
 if ! command -v caddy >/dev/null 2>&1; then need+=(caddy); fi
 if [[ "${#need[@]}" -gt 0 ]]; then
   log "apt: installing only what is missing: ${need[*]}"
@@ -253,7 +286,7 @@ ensure_service_users
 umask 077
 {
   echo "# Written by provision.sh; read by provision.sh and overdrive-backup."
-  printf 'API_DOMAIN=%q\nMCP_DOMAIN=%q\nDB_NAME=%q\n' "$API_DOMAIN" "$MCP_DOMAIN" "$DB_NAME"
+  printf 'API_DOMAIN=%q\nMCP_DOMAIN=%q\nDB_NAME=%q\nPG_MODE=%q\n' "$API_DOMAIN" "$MCP_DOMAIN" "$DB_NAME" "$PG_MODE"
 } >"$CONF.tmp"
 if cmp -s "$CONF.tmp" "$CONF" 2>/dev/null; then rm -f "$CONF.tmp"; else mv "$CONF.tmp" "$CONF"; fi
 chmod 0600 "$CONF"
@@ -297,12 +330,47 @@ install_bun
 install_cast
 
 # ---------------------------------------------------------------- Postgres: reuse the server; own role + database
-PSQL=(runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -p "$PG_PORT")
-if [[ "$PG_STATE" == none ]]; then
-  systemctl enable --now --quiet postgresql || die "postgresql did not start"
-  for _ in $(seq 1 30); do runuser -u postgres -- pg_isready -q -p "$PG_PORT" && break; sleep 1; done
+if [[ "$PG_MODE" == docker ]]; then
+  # The container's first superuser is the role overdrive (POSTGRES_USER), and POSTGRES_DB creates the database. Local
+  # socket connections inside the container are trusted, so roles are managed with `docker exec` and no admin password.
+  PSQL=(docker exec -i "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U overdrive)
+  pg_ready() { docker exec "$PG_CONTAINER" pg_isready -q -U overdrive -d postgres; }
+  if [[ "$PG_STATE" == new ]]; then
+    umask 077
+    pgpass_pw=""
+    if [[ -f "$ETC/db.env" ]]; then pgpass_pw="$(sed -n 's#^DATABASE_URL=postgres://overdrive:\([^@]*\)@.*#\1#p' "$ETC/db.env" | tail -1)"; fi
+    [[ -n "$pgpass_pw" ]] || pgpass_pw="$(openssl rand -hex 24)"
+    envf="$(mktemp)"
+    printf 'POSTGRES_USER=overdrive\nPOSTGRES_DB=%s\nPOSTGRES_PASSWORD=%s\n' "$DB_NAME" "$pgpass_pw" >"$envf"
+    umask 022
+    log "docker: creating the $PG_CONTAINER container ($PG_IMAGE, 127.0.0.1:$PG_PORT, volume $PG_VOLUME, memory $PG_MEMORY)"
+    if ! docker run -d --name "$PG_CONTAINER" --restart unless-stopped --memory "$PG_MEMORY" --memory-swap "$PG_MEMORY" \
+      -p "127.0.0.1:$PG_PORT:5432" -v "$PG_VOLUME:/var/lib/postgresql/data" --env-file "$envf" \
+      "$PG_IMAGE" -c shared_buffers=128MB -c max_connections=60 -c listen_addresses='*' >/dev/null; then
+      rm -f "$envf"; unset pgpass_pw; die "docker run failed for $PG_CONTAINER: nothing else was changed"
+    fi
+    rm -f "$envf"
+    # Keep the generated password: db.env is written below with it (the role overdrive has this password).
+    PG_FIRST_PW="$pgpass_pw"; unset pgpass_pw
+  else
+    PG_FIRST_PW=""
+    if [[ "$(docker ps --format '{{.Names}}' | grep -cx "$PG_CONTAINER")" == 0 ]]; then
+      log "docker: $PG_CONTAINER exists but is stopped: starting it"
+      docker start "$PG_CONTAINER" >/dev/null || die "could not start $PG_CONTAINER"
+    fi
+  fi
+  for _ in $(seq 1 60); do pg_ready && break; sleep 1; done
+  pg_ready || die "$PG_CONTAINER does not answer"
+else
+  PSQL=(runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -p "$PG_PORT")
+  PG_FIRST_PW=""
+  pg_ready() { runuser -u postgres -- pg_isready -q -p "$PG_PORT"; }
+  if [[ "$PG_STATE" == none ]]; then
+    systemctl enable --now --quiet postgresql || die "postgresql did not start"
+    for _ in $(seq 1 30); do pg_ready && break; sleep 1; done
+  fi
+  pg_ready || die "Postgres does not answer on port $PG_PORT"
 fi
-runuser -u postgres -- pg_isready -q -p "$PG_PORT" || die "Postgres does not answer on port $PG_PORT"
 role_exists() { [[ "$("${PSQL[@]}" -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$1'")" == 1 ]]; }
 db_password="" ro_password=""
 if [[ -f "$ETC/db.env" ]]; then
@@ -314,14 +382,15 @@ if [[ -n "$db_password" && -n "$ro_password" ]] && role_exists overdrive && role
   log "postgres: role overdrive, role overdrive_api and database $DB_NAME already in place"
 else
   log "postgres: role overdrive, role overdrive_api, database $DB_NAME (the other databases and roles are not touched)"
-  [[ -n "$db_password" ]] || db_password="$(openssl rand -hex 24)"
+  [[ -n "$db_password" ]] || db_password="${PG_FIRST_PW:-$(openssl rand -hex 24)}"
   [[ -n "$ro_password" ]] || ro_password="$(openssl rand -hex 24)"
   role_exists overdrive || "${PSQL[@]}" -d postgres -c "CREATE ROLE overdrive LOGIN"
   role_exists overdrive_api || "${PSQL[@]}" -d postgres -c "CREATE ROLE overdrive_api LOGIN"
   # Passwords go through stdin, never through a command line.
   printf "ALTER ROLE overdrive WITH LOGIN PASSWORD '%s';\nALTER ROLE overdrive_api WITH LOGIN PASSWORD '%s';\n" "$db_password" "$ro_password" | "${PSQL[@]}" -d postgres
   if [[ "$("${PSQL[@]}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'")" != 1 ]]; then
-    runuser -u postgres -- createdb -p "$PG_PORT" --owner=overdrive "$DB_NAME"
+    if [[ "$PG_MODE" == docker ]]; then "${PSQL[@]}" -d postgres -c "CREATE DATABASE $DB_NAME OWNER overdrive"
+    else runuser -u postgres -- createdb -p "$PG_PORT" --owner=overdrive "$DB_NAME"; fi
   fi
   umask 077
   {
@@ -333,7 +402,7 @@ else
   own root:root "$ETC/db.env"; chmod 0600 "$ETC/db.env"
   umask 022
 fi
-unset db_password ro_password
+unset db_password ro_password PG_FIRST_PW
 
 # ---------------------------------------------------------------- /etc/overdrive/overdrive.env (first run only)
 if [[ ! -f "$ETC/overdrive.env" ]]; then
@@ -351,10 +420,9 @@ sed -e "s/__API_DOMAIN__/${API_DOMAIN}/g" -e "s/__MCP_DOMAIN__/${MCP_DOMAIN}/g" 
 rm -f "$site_tmp.bak"
 chmod 0644 "$site_tmp"
 SITE="$P$CADDY_CONF_DIR/overdrive.caddy"
-MAIN="$P$CADDY_MAIN"
 import_missing=0
 if [[ -f "$MAIN" ]] && ! grep -qE "^[[:space:]]*import[[:space:]]+.*conf\.d" "$MAIN"; then import_missing=1; fi
-if cmp -s "$site_tmp" "$SITE" 2>/dev/null && { [[ "$import_missing" == 0 ]] || [[ "${CADDY_ADD_IMPORT:-0}" != 1 ]]; }; then
+if cmp -s "$site_tmp" "$SITE" 2>/dev/null && [[ "$import_missing" == 0 ]]; then
   log "caddy: $CADDY_CONF_DIR/overdrive.caddy unchanged"
 else
   mkdir -p "$(dirname "$SITE")"
@@ -363,20 +431,21 @@ else
   install -m 0644 "$site_tmp" "$SITE"
   if [[ -f "$MAIN" ]] && ! grep -qE "^[[:space:]]*import[[:space:]]+.*conf\.d" "$MAIN"; then
     if [[ "${CADDY_ADD_IMPORT:-0}" == 1 ]]; then
-      main_bak="$MAIN.bak.overdrive"; cp -p "$MAIN" "$main_bak"
-      printf '\n# Added by Overdrive provision.sh: loads the per-project site files.\nimport %s/*.caddy\n' "$CADDY_CONF_DIR" >>"$MAIN"
+      main_bak="$MAIN.bak.overdrive-$(date -u +%Y%m%dT%H%M%SZ)"; cp -p "$MAIN" "$main_bak"
+      [[ -z "$(tail -c1 "$MAIN")" ]] || echo >>"$MAIN"
+      printf 'import %s/*.caddy\n' "$CADDY_CONF_DIR" >>"$MAIN"
+      log "caddy: appended one import line to $CADDY_MAIN (backup: ${main_bak#"$P"})"
     else
-      warn "$CADDY_MAIN does not import $CADDY_CONF_DIR: the site file is written but inactive. Run again with CADDY_ADD_IMPORT=1, or add this line yourself: import $CADDY_CONF_DIR/*.caddy"
+      die "$CADDY_MAIN has no import line for $CADDY_CONF_DIR: run again with CADDY_ADD_IMPORT=1"
     fi
   fi
   if [[ -f "$MAIN" ]] && ! caddy validate --adapter caddyfile --config "$MAIN" >/dev/null 2>"$site_tmp.err"; then
     sed 's/^/        | /' "$site_tmp.err" >&2
     if [[ "$had_site" == 1 ]]; then cp "$site_tmp.prev" "$SITE"; else rm -f "$SITE"; fi
-    [[ -z "$main_bak" ]] || mv "$main_bak" "$MAIN"
+    [[ -z "$main_bak" ]] || cp -p "$main_bak" "$MAIN"
     rm -f "$site_tmp" "$site_tmp.err" "$site_tmp.prev"
     die "caddy validate rejected the configuration: the site file and any main-file edit were reverted, Caddy was not reloaded"
   fi
-  [[ -z "$main_bak" ]] || rm -f "$main_bak"
   if grep -qE "^[[:space:]]*import[[:space:]]+.*conf\.d" "$MAIN" 2>/dev/null; then
     $CADDY_RELOAD_CMD || warn "caddy reload failed; the configuration is valid, reload it by hand"
     log "caddy: $CADDY_CONF_DIR/overdrive.caddy written for $API_DOMAIN${MCP_DOMAIN:+ and $MCP_DOMAIN}; validated and reloaded"
@@ -391,7 +460,7 @@ cat <<EOT
 
 provision: done.
   Users      overdrive (releases, migrations) and overdrive-{api,indexer,crank,hedger,liquidator,vol-engine,mcp,risk-sim}
-  Postgres   $PG_STATE server on port $PG_PORT, database $DB_NAME, roles overdrive and overdrive_api; URLs in /etc/overdrive/db.env (0600)
+  Postgres   $PG_MODE ($PG_STATE) on 127.0.0.1:$PG_PORT, database $DB_NAME, roles overdrive and overdrive_api; URLs in /etc/overdrive/db.env (0600)
   Caddy      $API_DOMAIN -> 127.0.0.1:$API_PORT${MCP_DOMAIN:+, $MCP_DOMAIN -> 127.0.0.1:$MCP_PORT} (certificates arrive once DNS points here)
   Backups    nightly to /var/backups/overdrive (systemctl list-timers overdrive-backup.timer)
 Next (README.md in this folder):
