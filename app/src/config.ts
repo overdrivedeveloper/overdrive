@@ -4,7 +4,7 @@ import { KeyConfigError, assertDistinctKeys } from "./keys";
 /** Valid job names, one exported const per service. Config validation imports them, so an unknown name fails at boot. */
 export const CRANK_JOBS = ["sessions", "toll", "poke", "vol-watch", "queued-sells", "fees", "risk-monitor", "admin-watch", "gas-watch", "heartbeat"] as const;
 export const HEDGER_JOBS = ["cycle", "post", "reconcile"] as const;
-export const LIQUIDATOR_JOBS = ["scan", "seal", "execute"] as const;
+export const LIQUIDATOR_JOBS = ["scan", "seal", "execute", "watch"] as const;
 export type CrankJob = (typeof CRANK_JOBS)[number];
 export type HedgerJob = (typeof HEDGER_JOBS)[number];
 export type LiquidatorJob = (typeof LIQUIDATOR_JOBS)[number];

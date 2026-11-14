@@ -29,6 +29,13 @@
       "when": 1794700100004,
       "tag": "0004_hedger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794700100006,
+      "tag": "0006_liquidator",
+      "breakpoints": true
     }
   ]
 }

@@ -208,3 +208,17 @@ export const hedgerSignals = pgTable("hedger_signals", {
   kind: text("kind", { enum: ["gamma_over_budget", "unhedged", "venue_down", "proxy_basis", "disagree_with_chain", "stale_inputs", "hedge_post_missed"] }).notNull(),
   underlying: text("underlying").notNull().default(""), detail: jsonb("detail").notNull().default({}), clearedAt: at("cleared_at"),
 }, (t) => [index("hedger_signals_open_idx").on(t.kind, t.underlying).where(sql`cleared_at IS NULL`)]);
+
+// drizzle/0006_liquidator.sql (todo 17): the liquidator's own run and attempt log.
+export const liquidationRuns = pgTable("liquidation_runs", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), ts: at("ts").notNull().defaultNow(), batchId: int78("batch_id"), gear: text("gear").notNull(),
+  vaultIds: numeric("vault_ids", { precision: 78, scale: 0 }).array().notNull().default(sql`'{}'`),
+  phase: text("phase", { enum: ["verified", "simulated", "sealed", "executed", "executed_by_other", "voided", "abandoned"] }).notNull(),
+  sealTx: text("seal_tx"), executeTx: text("execute_tx"), bonusUsdg: int78("bonus_usdg"), badDebtUsdg: int78("bad_debt_usdg"),
+  coveredUsdg: int78("covered_usdg"), error: text("error"),
+}, (t) => [index("liquidation_runs_ts_idx").on(t.ts), index("liquidation_runs_batch_idx").on(t.batchId)]);
+
+export const liquidationAttempts = pgTable("liquidation_attempts", {
+  ts: at("ts").notNull().defaultNow(), vaultId: int78("vault_id").notNull(), gear: text("gear"), verdict: text("verdict").notNull(),
+  ratioBps: int78("ratio_bps"), requiredBps: int78("required_bps"), reason: text("reason"),
+}, (t) => [index("liquidation_attempts_ts_idx").on(t.ts), index("liquidation_attempts_vault_idx").on(t.vaultId, t.ts)]);
