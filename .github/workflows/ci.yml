@@ -155,3 +155,12 @@ jobs:
       - run: bash scripts/quiet-run.test.sh
       - run: scripts/export-abis.sh
       - run: bash app/scripts/server/deploy-local.test.sh
+
+  python-locks:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-python-locks.sh

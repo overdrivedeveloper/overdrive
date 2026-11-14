@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Local CI: runs the same jobs, with the same commands, as .github/workflows/ci.yml.
 # The workflow skips itself on a private repository, so this script is the CI for the private repo.
-# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts
+# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts python
 # Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:-} --no-experimental-webstorage"
-JOBS="hygiene semgrep contracts app guard scripts"
+JOBS="hygiene semgrep contracts app guard scripts python"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -49,6 +49,7 @@ job_contracts() { check_no_failopen_pattern && check_stake_usage && (cd contract
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
 job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
+job_python() { bash scripts/check-python-locks.sh; }
 
 failed=0
 for j in $JOBS; do

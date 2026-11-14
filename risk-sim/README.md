@@ -7,7 +7,7 @@ access, and a cap changes only through the 48 h timelock.
 ## Run
 ```
 python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements-dev.lock && pip install --no-build-isolation --no-deps -e .
+pip install --require-hashes --no-deps -r requirements-dev.lock && pip install --no-build-isolation --no-deps -e .
 pytest -q
 risk-sim run --nightly                                   # reads the indexer schema (todo 13), writes risk_runs, risk_scenario_results, risk_caps
 risk-sim run --scenario single_stock_minus_18_7 --from-fixture tests/fixtures/book_small.json

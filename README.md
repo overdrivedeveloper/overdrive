@@ -56,7 +56,26 @@ The cores are non-upgradeable. Admin actions go through a 48 hour timelock; the 
 
 ### Deployment
 
-Not deployed yet. No addresses are published. This section will list them from `app/deployments/<chain>.json` once the contracts are live.
+Not deployed yet. No addresses are published. This section will list them from `app/deployments/<chain>.json` once the contracts are live. See Deploy below for the order.
+
+### Actors and roles
+
+Intended holders at deployment. Nothing is deployed, so no address holds any role yet. The full list of privileged functions, with bounds, is in [SECURITY.md](SECURITY.md).
+
+| Actor | Role | What it can do | Holder |
+| --- | --- | --- | --- |
+| Holder | none | Buy, sell, queue and cancel a sell, transfer gear tokens | Anyone |
+| Backer | none | Open a vault, mint against collateral, repay, withdraw; the only party that can be liquidated | Anyone |
+| Liquidity provider | depositor allowlist | Deposit into the Governor, request a withdrawal, claim after the delay | Allowed accounts |
+| Staker | none | Stake OVRD for a fee discount and first-loss cover; unstake after a delay | Anyone |
+| Executor | none | Seal and execute liquidation batches, poke risk, accrue the toll | Anyone |
+| Admin | `DEFAULT_ADMIN_ROLE` (owner for the paymaster) | Every setter, within hard bounds; unpause | Safe 3-of-5 behind a 48 hour timelock |
+| Guardian | `GUARDIAN_ROLE` | Pause buys, lower a cap, revoke the vol signer; cannot unpause or raise a limit | Safe 2-of-5 |
+| Keeper | `KEEPER_ROLE` | Session windows, move cash into the exit reserve, fee buy-and-burn | Crank key (gas only) |
+| Hedger | `HEDGER_ROLE` | Send USDG to the hedger wallet and back; post hedge equity | Hedger key |
+| Vol signer | signer address | Sign volatility posts, clamped to per-market bounds | Vol-engine key |
+| Paymaster signer | signer address | Sign gas sponsorship for agent accounts | Paymaster signer key |
+| Modules | one-time wiring | Minter, backer, hook and fee contract call into the Governor, gear tokens and stake | Contracts |
 
 ### Services (`app/src`)
 
@@ -77,7 +96,7 @@ Other folders: `abi/` (contract ABIs), `chain/` (RPC pool, clients, deployment l
 - [Bun](https://bun.sh) 1.4+
 - [Foundry](https://getfoundry.sh) (solc version is set in `contracts/foundry.toml`)
 - Postgres 16
-- Python 3.11+ for `vol-engine/` and `risk-sim/`
+- Python 3.11+ for `vol-engine/` and `risk-sim/`; install them only from their lock files with `pip install --require-hashes --no-deps -r requirements-dev.lock` (see each README)
 
 ## Contracts
 
@@ -86,6 +105,18 @@ cd contracts
 forge build
 forge test
 ```
+
+## Deploy
+
+Deploy scripts arrive with todo 11. Until then there is no deploy command in this repository and no address is published. The planned order, taken from the todo, is:
+
+1. Run the deploy script against a fork or local node first; a mainnet broadcast needs an explicit owner approval and an armed flag.
+2. Deploy the cores with their constructor arguments, mining the hook salt for the real deployer.
+3. Wire the once-only setters (minter, backer, hook, stake, coverers, notifiers) exactly once each.
+4. List the launch gears and initialise their pools; seed each pool as set out in SECURITY.md (known residual L-7).
+5. Hand every admin role to the timelock, with the Safe 3-of-5 as proposer, and renounce the deployer's roles; set the guardian Safe 2-of-5.
+6. Run the read-only post-deploy check: chain, code present, wiring, roles, the 48 hour delay, hook address bits, pool initialisation.
+7. Verify the deployed bytecode against the local build and write `app/deployments/<chain>.json`; the services and the SDK read addresses only from it.
 
 ## Services
 
@@ -205,6 +236,8 @@ cd app
 bun run typecheck
 bun test
 ```
+
+The protocol invariants and the tests that check them are listed in [contracts/INVARIANTS.md](contracts/INVARIANTS.md).
 
 The whole suite (contracts, app, guard, scripts), the same jobs as the CI workflow:
 
