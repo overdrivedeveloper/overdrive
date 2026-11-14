@@ -1,0 +1,20 @@
+# gitleaks configuration (CI: `gitleaks git . --config .github/gitleaks.toml`, full history).
+# The default rules stay on. Each allowlist is narrow on purpose: an exact published test value or a vendored path.
+# Never add a broad pattern (all 40-hex values, all 64-hex values, whole test folders): add the exact value instead,
+# with the reason, in the same commit that first adds the value.
+title = "overdrive"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Anvil default dev accounts 0 and 1 (published with Foundry, never funded on a real chain): exact values"
+regexTarget = "secret"
+regexes = [
+  '''^0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80$''',  # // test-key
+  '''^0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d$''',  # // test-key
+]
+
+[[allowlists]]
+description = "Vendored Foundry libraries (forge install --no-git, upstream code at the versions in contracts/lib/VERSIONS.md)"
+paths = ['''^contracts/lib/''']

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Local CI: runs the same jobs, with the same commands, as .github/workflows/ci.yml.
 # The workflow skips itself on a private repository, so this script is the CI for the private repo.
-# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: contracts app guard scripts
+# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts
 # Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
-export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:/opt/homebrew/bin:$PATH"
+export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:-} --no-experimental-webstorage"
-JOBS="contracts app guard scripts"
+JOBS="hygiene semgrep contracts app guard scripts"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -39,6 +39,12 @@ check_stake_usage() {
     return 1
   fi
 }
+# hygiene and semgrep need gitleaks and semgrep on PATH (brew install gitleaks; pipx install semgrep); a missing tool fails.
+job_hygiene() {
+  python3 .github/scripts/check-hygiene.py && python3 .github/scripts/readme-deployments.py --check \
+    && gitleaks git . --config .github/gitleaks.toml --redact --no-banner
+}
+job_semgrep() { bash .github/scripts/semgrep.sh; }
 job_contracts() { check_no_failopen_pattern && check_stake_usage && (cd contracts && forge fmt --check && forge build && forge test); }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }

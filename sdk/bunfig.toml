@@ -1,0 +1,5 @@
+[install]
+# Never install a release younger than 7 days (seconds): a hijacked package is usually caught in that window.
+minimumReleaseAge = 604800
+# New dependencies are saved with an exact version.
+exact = true
