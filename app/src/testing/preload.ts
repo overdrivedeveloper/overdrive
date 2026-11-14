@@ -6,7 +6,7 @@ import { startEphemeralPostgres } from "./pg";
 // Locally the database tests skip when no Postgres is installed. In CI (CI=true) a missing database fails the run
 // instead, so a green CI always includes the database tests.
 // CI is not a service variable, so it is read here directly rather than through config.ts.
-const inCi = process.env.CI?.trim() === "true";
+const inCi = optionalEnv("CI")?.trim() === "true";
 if (!optionalEnv("TEST_DATABASE_URL")) {
   let failure: string | undefined;
   try {

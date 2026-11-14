@@ -202,7 +202,7 @@ export function setTestDatabaseEnv(url: string): void {
   process.env.TEST_DATABASE_EPHEMERAL = "1";
 }
 
-export type TestEnvName = "TEST_DATABASE_URL" | "TEST_DATABASE_EPHEMERAL" | "PG_BIN" | "PATH" | "RHC_FORK_RPC";
+export type TestEnvName = "TEST_DATABASE_URL" | "TEST_DATABASE_EPHEMERAL" | "PG_BIN" | "PATH" | "RHC_FORK_RPC" | "CI";
 /** Trimmed value of a tooling variable, or undefined when unset or empty. */
 export function optionalEnv(name: OptionalEnvName | TestEnvName): string | undefined {
   const value = process.env[name]?.trim();
