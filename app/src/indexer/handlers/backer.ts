@@ -41,7 +41,7 @@ export async function handleBackerEvent(context: IndexerContext, event: ChainEve
     }
     case "BatchVoided": {
       const batch = big(event, "batchId");
-      const rows = await context.tx<{ vault_ids: string[] }[]>`SELECT vault_ids FROM liquidation_batches WHERE batch_id = ${batch}`;
+      const rows = await context.tx<{ vault_ids: string[] }[]>`SELECT vault_ids::text[] AS vault_ids FROM liquidation_batches WHERE batch_id = ${batch}`;
       await change(context, event, "batch", batch, "voided", { reason: bytes32Text(event.args.reason) });
       for (const id of rows[0]?.vault_ids ?? []) await change(context, event, "vault", String(id), "released", {});
       context.kinds.add("liquidation");

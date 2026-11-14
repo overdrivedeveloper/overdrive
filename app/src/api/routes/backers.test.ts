@@ -63,3 +63,20 @@ test("health_equals_liquidator_function", async () => {
   expect(liquidationPriceWad(WAD, 0n, 15000n, 2)).toBeNull();
 });
 void idOf;
+
+test("uplift_is_read_for_a_gear_whose_market_the_deployment_file_does_not_list", async () => {
+  if (!h) return;
+  // BUG-3: the route used to look the market up in deployment.json by symbol and report active=false when it was absent.
+  const gear = h.deployment.gears.find((g) => g.symbol === "TSLA-SPORT")!;
+  const saved = h.deployment.markets.slice();
+  // the indexer stores the on-chain market id in gears.market_a (the fixture stores the symbol): store the real shape
+  await h.raw`UPDATE gears SET market_a = ${saved.find((m) => m.symbol === "TSLA")!.id} WHERE id = ${gear.id}`;
+  h.deployment.markets.splice(0, h.deployment.markets.length, ...saved.filter((m) => m.symbol !== "TSLA"));
+  try {
+    uplift = true;
+    h.deps.cache.sweep(Number.MAX_SAFE_INTEGER);
+    const body = (await (await h.app.request("/v1/vaults/1")).json()) as any;
+    expect(body.vault.gearId.toLowerCase()).toBe(gear.id.toLowerCase());
+    expect(body.vault.weekendUplift.active).toBe(true);
+  } finally { h.deployment.markets.splice(0, h.deployment.markets.length, ...saved); uplift = false; }
+});

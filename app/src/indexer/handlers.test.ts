@@ -67,4 +67,14 @@ suite("handlers", () => {
     expect((await db.sql`SELECT bonus_usdg FROM liquidations`)[0]!.bonus_usdg).toBe("10");
     expect((await db.sql`SELECT balance FROM balances`)[0]!.balance).toBe("100");
   });
+
+  test("a voided batch releases its vaults (vault_ids is a numeric[] column read as text)", async () => {
+    await resetDb(db.sql);
+    const chain = new FakeChain();
+    chain.add([listGear(d, GEAR_1, MARKET_TSLA, TOKEN_1, 0), vaultOpened(d, 4n, USERS[1]!, GEAR_1),
+      ev(addressOf(d, "ODBacker"), IODBackerAbi as Abi, "BatchSealed", { batchId: 6n, gearId: GEAR_1, sealedValueWad: 10n ** 18n, sealedAt: 1n, vaultIds: [4n, 5n] })]);
+    chain.add([ev(addressOf(d, "ODBacker"), IODBackerAbi as Abi, "BatchVoided", { batchId: 6n, reason: `0x${Buffer.from("RECOVERED").toString("hex").padEnd(64, "0")}` })]);
+    await drain(await newState(db.sql, chain));
+    expect((await db.sql`SELECT status FROM liquidation_batches WHERE batch_id = 6`)[0]!.status).toBe("voided");
+  });
 });

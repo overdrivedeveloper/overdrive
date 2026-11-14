@@ -106,6 +106,19 @@ def load_fixture(path: str | Path) -> Book:
                 as_of=d.get("as_of", ""), book_ts=d.get("book_ts", d.get("as_of", "")), price_ts=d.get("price_ts", d.get("as_of", "")))
 
 
+def market_key(key: str) -> str:
+    """The indexer stores vol_posts under the on-chain market id (0x + bytes32, the symbol's ASCII, zero padded); the book keys gears
+    by symbol. A key that is not a printable-ASCII market id (a pair hash, a gear id, a symbol) is returned unchanged."""
+    if len(key) == 66 and key.startswith("0x"):
+        try:
+            raw = bytes.fromhex(key[2:]).rstrip(b"\0")
+        except ValueError:
+            return key
+        if raw and all(0x20 < b < 0x7f for b in raw) and b"\0" not in raw:
+            return raw.decode("ascii")
+    return key
+
+
 def load_book(conn, as_of: datetime) -> Book:
     """Reads the indexer schema (todo 13) with a read-only connection. Units: USDG raw 6 dp, tokens and NF WAD."""
     cur = conn.cursor()
@@ -138,7 +151,7 @@ def load_book(conn, as_of: datetime) -> Book:
         gears.append(GearPos(id=gid, key=f"{ua}/{ub}" if ub else ua, power=float(power), supply_tokens=supply, backer_debt_tokens=debt,
                              value_per_token=float(v[0]) / WAD, cap_usd=float(cap) / USDG))
     cur.execute("SELECT DISTINCT ON (gear_or_underlying) gear_or_underlying, sigma_bps FROM vol_posts ORDER BY gear_or_underlying, ts DESC")
-    sigma = {r[0]: float(r[1]) for r in cur.fetchall()}
+    sigma = {market_key(r[0]): float(r[1]) for r in cur.fetchall()}
     cur.execute("SELECT max(ts) FROM prices")
     price_ts = cur.fetchone()[0]
     cur.execute("SELECT meta FROM service_status WHERE job = 'hedger'")

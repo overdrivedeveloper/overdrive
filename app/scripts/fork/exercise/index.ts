@@ -8,12 +8,17 @@ import { RESULTS_FILE, loadResults, saveResults, shouldRun, summary, toMarkdown 
 
 export interface Area { flows: Flow[]; /** Lists the gears and fixtures the flows need, before the first flow runs. */ prepare?: (ctx: Ctx) => Promise<void> }
 export const AREAS: Record<string, () => Promise<Area>> = {
+  // first-money runs FIRST: G01 and G02 need the empty Governor (holders prepare seeds its capital).
+  "first-money": async () => import("./first-money"),
   holders: async () => import("./holders"),
   admin: async () => import("./admin"),
   agents: async () => import("./agents"),
   parity: async () => import("./api-parity"),
   web: async () => import("./web"),
-  // 22c: backers, governor, hedger, crank, liquidation, first-money go here.
+  backers: async () => import("./backers"),
+  liquidation: async () => import("./liquidation"),
+  governor: async () => import("./governor"),
+  hedger: async () => import("./hedger"),
 };
 
 export function parseArgs(argv: string[]): { areas: string[]; only: string[]; resume: boolean } {

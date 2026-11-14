@@ -30,6 +30,14 @@ const VaultSchema = z.object({
 const Backer = z.object({ ...MetaFields, vaults: z.array(VaultSchema) }).openapi("Backer");
 const VaultOne = z.object({ ...MetaFields, vault: VaultSchema }).openapi("VaultOne");
 
+/** The market whose weekend uplift applies to a gear. The indexed gear row carries the on-chain market id (market_a), which is
+ * authoritative: resolving it through the deployment file's market list silently reported "no uplift" for any gear whose market
+ * the file does not list (BUG-3), so the file is only a fallback. */
+export function underlyingMarketOf(deps: ApiDependencies, g: { marketA: string; underlying: string }): string | undefined {
+  if (/^0x[0-9a-fA-F]{64}$/.test(g.marketA)) return g.marketA;
+  return deps.deployment.markets.find((m) => m.symbol === g.underlying)?.id;
+}
+
 export function registerBackerRoutes(app: OpenAPIHono, deps: ApiDependencies): void {
   const ttl = 10_000;
   async function view(row: VaultRow, prices: Map<string, { price: bigint; power: number; underlyingMarket: string | undefined }>) {
@@ -45,7 +53,7 @@ export function registerBackerRoutes(app: OpenAPIHono, deps: ApiDependencies): v
   }
   async function priceMap() {
     const gears = await listGears(deps.sql);
-    return new Map(gears.map((g) => [g.id.toLowerCase(), { price: g.priceWad ? BigInt(g.priceWad) : 0n, power: Number(g.power), underlyingMarket: deps.deployment.markets.find((m) => m.symbol === g.underlying)?.id }]));
+    return new Map(gears.map((g) => [g.id.toLowerCase(), { price: g.priceWad ? BigInt(g.priceWad) : 0n, power: Number(g.power), underlyingMarket: underlyingMarketOf(deps, g) }]));
   }
   defineRoute(app, { method: "get", path: "/v1/backers/{address}", summary: "A backer's vaults with health against maintenance", tag: "accounts", params: z.object({ address: AddressSchema }), response: Backer, cache: "public, max-age=5", errors: [400, 502] }, async (_c, { params }) => {
     const now = nowOf(deps);

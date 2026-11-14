@@ -22,7 +22,7 @@ const GEAR_SELECT = (sql: Sql, where: ReturnType<Sql>) => sql<GearRow[]>`
   FROM gears g
   LEFT JOIN LATERAL (SELECT toll, ts FROM nf_history WHERE gear = g.id ORDER BY block DESC, log_index DESC LIMIT 1) h ON true
   LEFT JOIN LATERAL (SELECT price_wad, ts, session, fresh FROM prices WHERE underlying = g.underlying ORDER BY ts DESC LIMIT 1) p ON true
-  LEFT JOIN LATERAL (SELECT sigma_bps, ts FROM vol_posts WHERE gear_or_underlying IN (g.underlying, g.id) ORDER BY ts DESC LIMIT 1) v ON true
+  LEFT JOIN LATERAL (SELECT sigma_bps, ts FROM vol_posts WHERE gear_or_underlying IN (g.underlying, g.id, g.market_a) ORDER BY ts DESC LIMIT 1) v ON true
   LEFT JOIN LATERAL (SELECT value_per_token, block, log_index FROM trades WHERE gear = g.id AND value_per_token IS NOT NULL ORDER BY block DESC, log_index DESC LIMIT 1) t ON true
   LEFT JOIN LATERAL (SELECT nf FROM nf_history WHERE gear = g.id AND t.block IS NOT NULL AND (block < t.block OR (block = t.block AND log_index <= t.log_index)) ORDER BY block DESC, log_index DESC LIMIT 1) tn ON true
   ${where} ORDER BY g.underlying, g.power`;

@@ -11,7 +11,7 @@ import { activeJobs, loadConfig, safeConfigSummary } from "../config";
 import { createDbClient } from "../db/client";
 import { createSqlHedgerStore } from "../db/queries/hedges";
 import { createChainExposureReader, createIndexedReader } from "../hedger/exposure";
-import { hedgeMarkets } from "../hedger/markets";
+import { hedgeMarkets, oracleMarkAgeMs } from "../hedger/markets";
 import { runHedgeCycle } from "../hedger/service";
 import { assertHedgerKeyDistinct, loadHedgerKey, loadHedgerSettings, stripOtherRoleSecrets } from "../hedger/settings";
 import { newHedgerState } from "../hedger/state";
@@ -110,8 +110,7 @@ const deps = {
   indexed: createIndexedReader(sql),
   async markAgeMs(m: { market: `0x${string}` }) {
     const read = await reader.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "read", args: [m.market] });
-    if (!read.fresh) return Number.POSITIVE_INFINITY;
-    return Date.now() - Number(read.updatedAt) * 1000;
+    return oracleMarkAgeMs(read, Date.now());
   },
 };
 await store.writeStatus("hedger", true, { booted: new Date().toISOString(), config: safeConfigSummary(config), dryRun: settings.dryRun, venues: venueNames, jobs, markets: markets.map((m) => m.symbol) });

@@ -168,8 +168,11 @@ if want vol-engine; then
   fi
 fi
 # Governor capital, once (its totalSupply is the marker): with no equity the cap is 0 and every buy closes with CAP.
+# FORK_SEED_CAPITAL=0 leaves the Governor empty (todo 22c G01 needs the empty Governor; its exercise seeds capital afterwards).
+if [ "${FORK_SEED_CAPITAL:-1}" = "0" ]; then echo "up: Governor capital NOT seeded (FORK_SEED_CAPITAL=0)"; else
 (cd "$APP" && "$BUN" scripts/fork/setup.ts --seed-capital) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
   || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "seeding Governor capital failed"; }
+fi
 if want web; then
   if [ -f "$ROOT/web/package.json" ]; then
     # exec vite itself (not `bun run dev`, which forks it) so the pid file names the process that holds the port.

@@ -589,7 +589,11 @@ export async function syncDeployment(ctx: Ctx): Promise<boolean> {
   writeFileSync(DEPLOYMENT_FILE, `${JSON.stringify(next, null, 2)}\n`);
   for (const script of ["down.sh", "up.sh"]) {
     const p = Bun.spawnSync(["/bin/bash", `${import.meta.dir}/../${script}`], { env: { ...process.env, PORT_OFFSET: process.env.PORT_OFFSET ?? "0" }, stdout: "pipe", stderr: "pipe" });
-    if (p.exitCode !== 0) throw new Error(`${script} failed: ${p.stdout.toString().slice(-400)} ${p.stderr.toString().slice(-400)}`);
+    // the web profile is not part of the exercises: a web health failure alone (exit 1 after "api" and "indexer" are up) is tolerated
+    const out = p.stdout.toString();
+    const all = `${out}\n${p.stderr.toString()}`;
+    const webOnly = script === "up.sh" && /up: web\b/.test(all) && !/up: (?!web\b)(\w+) (exited|not healthy)/.test(all) && /up: api\b/.test(all);
+    if (p.exitCode !== 0 && !webOnly) throw new Error(`${script} failed: ${p.stdout.toString().slice(-400)} ${p.stderr.toString().slice(-400)}`);
   }
   void FORK_DIR;
   return true;
