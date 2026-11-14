@@ -126,9 +126,13 @@ function vaultOf(vaultId: bigint, result: unknown): VaultView {
   return { vaultId, owner: t[0], gearId: t[1], collateralUsdg: BigInt(t[2]), debtTokens: BigInt(t[3]), batchId: BigInt(t[4]) };
 }
 
-/** Rough gas of sealing and executing n vaults, used to bound a plan before the live estimate replaces it. */
-export const PLAN_GAS_BASE = 160_000n;
-export const PLAN_GAS_PER_VAULT = 120_000n;
+/** Rough gas of sealing and executing n vaults, used to bound a plan before the live estimate replaces it. Measured on
+ * the chain fork (BatchGasFork.t.sol, deep-crash vaults drawing insurance): seal about 0.32M + 92k per vault, the
+ * lowest execute gas limit about 0.47M + 165k per vault (M-6 keeps MIN_VAULT_GAS in hand before each vault). */
+export const PLAN_GAS_BASE = 800_000n;
+export const PLAN_GAS_PER_VAULT = 260_000n;
+/** One transaction on Robinhood Chain (Arbitrum Orbit) is capped near 32M gas; plans stay under 24M for headroom. */
+export const TX_GAS_CAP = 24_000_000n;
 
 /** Only vaults with a `vault()` view, nonzero debt, no batch, and a liquidatable chain verdict (R5). */
 export function isOpenLiquidatable(v: Verified): v is Verified & { vault: VaultView; health: HealthView } {

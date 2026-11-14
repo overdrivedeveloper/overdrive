@@ -8,8 +8,9 @@ import {ForkSystem} from "./ForkSystem.sol";
 import {Gear} from "overdrive/interfaces/ODTypes.sol";
 
 /// Gas of one hook buy (NVDA SPORT, 1,000 USDG, exact in, real PoolManager, every touched account cold) and of the
-/// keeper's `pokeRisk` as the listed gear count grows 1, 5, 10, 20, 40, every gear holding supply (worst case for the
-/// loops). The buy path loops the gears of ITS market only (registry cap MAX_GEARS_PER_MARKET = 12): NVDA reaches 12 at
+/// keeper's `pokeRisk` as the listed gear count grows 1, 5, 10, 20, 32 (the registry cap MAX_GEARS), every gear holding
+/// supply (worst case for the loops). At the cap it also measures an LP deposit and a ticket claim (both price the whole
+/// book) and asserts pokeRisk, deposit and claim each under 10M. The buy path loops the gears of ITS market only (registry cap MAX_GEARS_PER_MARKET = 12): NVDA reaches 12 at
 /// gear 12 (4 single names + 8 NVDA/x pairs), the rest list on other markets. `pokeRisk` loops every listed gear.
 contract GearCountGasForkTest is ForkSystem {
     struct G {
@@ -77,13 +78,13 @@ contract GearCountGasForkTest is ForkSystem {
 
     function test_GasPerBuyVsGearCount() public {
         _plan();
-        uint256[5] memory marks = [uint256(1), 5, 10, 20, 40];
+        uint256[5] memory marks = [uint256(1), 5, 10, 20, 32];
         uint256[5] memory buyGas;
         uint256[5] memory pokeGas;
         uint256[5] memory onMarket;
         uint256 k;
         bytes32 target;
-        for (uint256 i; i < 40; ++i) {
+        for (uint256 i; i < 32; ++i) {
             G memory x = order[i];
             if (x.b != NONE && sigmaOf[vol.pairKey(x.a, x.b)] == 0) postVol(vol.pairKey(x.a, x.b), 3500);
             bytes32 id = _listOne(x.a, x.b, x.g);
@@ -111,9 +112,37 @@ contract GearCountGasForkTest is ForkSystem {
                 if (k == 5) break;
             }
         }
+        assertEq(reg.gearCount(), reg.MAX_GEARS(), "swept to the registry cap");
         assertEq(onMarket[4], 12, "NVDA at the per-market cap");
+        assertLt(pokeGas[4], 10_000_000, "pokeRisk at the gear cap under 10M");
+        (uint256 depGas, uint256 claimGas) = _lpGas();
+        console2.log("at the cap: LP deposit gas, claim gas", depGas, claimGas);
+        assertLt(depGas, 10_000_000, "deposit at the gear cap under 10M");
+        assertLt(claimGas, 10_000_000, "claim at the gear cap under 10M");
         assertLt(buyGas[4], 30_000_000, "buy fits a block");
-        // the buy path is bounded by the per-market cap: 20 to 40 gears adds no per-market work
+        // the buy path is bounded by the per-market cap: 20 to 32 gears adds no per-market work
         assertLt(buyGas[4], buyGas[3] * 115 / 100, "buy gas bounded past the per-market cap");
+    }
+
+    /// Cold LP deposit and ticket claim with every listed gear holding supply.
+    function _lpGas() internal returns (uint256 depGas, uint256 claimGas) {
+        uint256 shares = gov.balanceOf(lp) / 100;
+        vm.prank(lp);
+        uint256 ticket = gov.requestWithdraw(shares);
+        _warpFresh(gov.getParams().withdrawDelay + 60);
+        _fundUsdg(lp, 10_000e6);
+        vm.prank(lp);
+        usdg.approve(address(gov), 10_000e6);
+        _coolAll();
+        vm.prank(lp);
+        uint256 g0 = gasleft();
+        gov.deposit(10_000e6, lp);
+        depGas = g0 - gasleft();
+        _coolAll();
+        vm.prank(lp);
+        g0 = gasleft();
+        uint256 paid = gov.claim(ticket, 1);
+        claimGas = g0 - gasleft();
+        assertGt(paid, 0, "claim pays");
     }
 }

@@ -13,7 +13,7 @@ import { closeRun, insertAttempts, insertRun, type AttemptRow } from "../db/quer
 import { safeErrorSummary } from "../log";
 import { usdgDecimal } from "../lib/fixed";
 import { IODOracleGuardAbi } from "../abi";
-import { assertLiquidatorCall, buildPlans, encodeExecute, encodeSeal, liquidatorAddresses, readBackerTerms, readBatchWindow, verifyOnChain, type BackerTerms, type LiquidatorAddresses } from "./batch";
+import { assertLiquidatorCall, buildPlans, encodeExecute, encodeSeal, liquidatorAddresses, readBackerTerms, readBatchWindow, TX_GAS_CAP, verifyOnChain, type BackerTerms, type LiquidatorAddresses } from "./batch";
 import { decideEconomics, expectedBonusUsdg, gasCostUsdg } from "./economics";
 import { scanWithReport } from "./scan";
 import type { LiquidatorSettings } from "./settings";
@@ -209,7 +209,9 @@ async function ethPriceWad(c: Ctx): Promise<bigint | undefined> {
 
 async function sealBest(c: Ctx, verified: Verified[], attempts: AttemptRow[]): Promise<void> {
   const block = await c.clients.stateClient.getBlock();
-  const gasBudget = BigInt((block as { gasLimit?: bigint }).gasLimit ?? 30_000_000n) / 2n;
+  const half = BigInt((block as { gasLimit?: bigint }).gasLimit ?? 30_000_000n) / 2n;
+  const gasBudget = half < TX_GAS_CAP ? half : TX_GAS_CAP; // Orbit reports a huge block gas limit; one tx is capped
+
   const terms = c.terms ?? (c.terms = c.state.terms = await readBackerTerms(c.clients, c.addresses.backer));
   const plans = buildPlans(verified, { maxVaults: c.settings.maxVaultsPerBatch, gasBudget, terms });
   if (!plans.length) return;

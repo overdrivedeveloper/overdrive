@@ -102,7 +102,7 @@ describe("verification and plans (R3, R5, R9, R10)", () => {
     expect(plans[1]!.vaultIds).toHaveLength(20);
     expect(plans[1]!.vaultIds).toEqual([...ids].reverse().slice(0, 20)); // lowest collateral first
     // the gas budget bounds too
-    expect(buildPlans(v, { maxVaults: 20, gasBudget: 600_000n }).find((p) => p.gearId === GEAR_TSLA)!.vaultIds).toHaveLength(3);
+    expect(buildPlans(v, { maxVaults: 20, gasBudget: 1_600_000n }).find((p) => p.gearId === GEAR_TSLA)!.vaultIds).toHaveLength(3);
     expect(plans[1]!.expectedBonusUsdg).toBeGreaterThan(0n);
     // the chain's MAX_BATCH caps a plan below the setting, and no terms means no claimed bonus
     expect(buildPlans(v, { maxVaults: 20, gasBudget: 100_000_000n, terms: { bonusBps: 500n, minRewardUsdg: 1n, maxBatch: 7 } })[1]!.vaultIds).toHaveLength(7);
