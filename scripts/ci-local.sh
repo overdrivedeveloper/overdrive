@@ -11,6 +11,8 @@ export NODE_OPTIONS="${NODE_OPTIONS:-} --no-experimental-webstorage"
 # Private RPC (owner-saved, chmod 600, never printed): loaded only when the env var is not already set.
 if [ -z "${RHC_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then set -a; . "$HOME/.config/overdrive/rpc.env"; set +a; fi
 # slither runs last: it does a forge clean, and the app ABI test would then rebuild everything inside its 120 s limit.
+# One shared RPC (Alchemy free tier or public) answers 429 in bursts: throttle forge (retry flags need --rpc-url, so none).
+FORK_FLAGS="--compute-units-per-second 100"
 JOBS="hygiene semgrep contracts app guard scripts python web slither"
 only=""
 while [ $# -gt 0 ]; do
@@ -52,7 +54,7 @@ job_hygiene() {
     && gitleaks git . --config .github/gitleaks.toml --redact --no-banner
 }
 job_semgrep() { bash .github/scripts/semgrep.sh; }
-job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test); }
+job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
 job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
