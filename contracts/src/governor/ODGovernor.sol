@@ -36,6 +36,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     uint256 private constant DD_DAYS = 30;
     uint256 private constant MIN_FIRST_DEPOSIT = 1e6;
     uint256 private constant MAX_HEDGED_MARKETS = 64;
+    int256 private constant TRANSIT_DUST = 1e6; // L-8: unabsorbed transit up to 1 USDG never ages (venue fee, rounding)
 
     IODGearRegistry public immutable registry;
     IODOracleGuard public immutable guard;
@@ -75,7 +76,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     bytes32[] private _hedged;
     uint256 private _hedgePosted; // sum of the markets' posted equity (USDG)
     int256 private _transit; // USDG sent to the hedger (+) or returned (-) and not yet seen in a post
-    uint64 private _transitAt; // L-2: when _transit last turned positive (0 while it is not)
+    uint64 private _transitAt; // L-2: when _transit last rose above TRANSIT_DUST (0 while it is not above it)
     ODGovernorRisk.JumpWindow private _jump; // unexplained hedge change this window (M-2)
 
     int256 private _eqWad;
@@ -668,10 +669,12 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     /// @dev True when any market with a live hedge (delta or equity not zero) has a post older than hedgeMaxAge, or
-    /// USDG sent to the hedger has gone unabsorbed by any post for longer than that (L-2: transit ages).
+    /// more than TRANSIT_DUST of USDG sent to the hedger has gone unabsorbed by any post for longer than that (L-2:
+    /// transit ages; L-8: a residue up to the dust floor does not).
     function hedgeStale() public view returns (bool) {
         uint256 maxAge = _p.hedgeMaxAge;
-        if (_transit > 0 && block.timestamp > uint256(_transitAt) + maxAge) return true;
+        uint256 at = _transitAt;
+        if (at != 0 && block.timestamp > at + maxAge) return true;
         for (uint256 i; i < _hedged.length; ++i) {
             Hedge storage h = _hedge[_hedged[i]];
             if ((h.deltaWad != 0 || h.equityUsdg != 0) && block.timestamp > uint256(h.asOf) + maxAge) return true;
@@ -818,10 +821,11 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         return _eqWad - int256(_hedgeTotal() * TO_WAD);
     }
 
-    /// L-2: the age of unabsorbed transit starts when it turns positive and clears when it is not.
+    /// L-2: the age of unabsorbed transit starts when it rises above the dust floor and clears when it falls to it
+    /// (L-8), so a residue never stales a fresh hedge and a later send ages from its own time.
     function _setTransit(int256 t) private {
-        if (t <= 0) _transitAt = 0;
-        else if (_transit <= 0) _transitAt = uint64(block.timestamp);
+        if (t <= TRANSIT_DUST) _transitAt = 0;
+        else if (_transit <= TRANSIT_DUST) _transitAt = uint64(block.timestamp);
         _transit = t;
     }
 
