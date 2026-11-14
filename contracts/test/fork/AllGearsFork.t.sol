@@ -47,11 +47,27 @@ contract AllGearsForkTest is ForkSystem {
         return tokens * price / 1e30;
     }
 
+    /// Independent mirror of the M-4 per-gear lag floor (D28): f = ceil(|p| x band / 2 x (1 + |p| x band)) in bps,
+    /// with |p| the gear's power (CRUISE 1.5, SPORT 2, RACE 3, ECO 0.5, REVERSE 1) and band = tradeParams().lagBandBps.
+    /// The spread of a plain sell (no skew, no discount, no closed extra) is max(base spread, floor).
+    function _expectedPlainSpread(bytes32 id) internal view returns (uint256) {
+        GearConfig memory c = reg.gear(id);
+        uint256 pw = c.gear == Gear.CRUISE
+            ? 15
+            : c.gear == Gear.SPORT ? 20 : c.gear == Gear.RACE ? 30 : c.gear == Gear.ECO ? 5 : 10;
+        uint256 m = pw * minter.tradeParams().lagBandBps; // |power| x band, in bps x 10 x 1e4 scale below
+        // f_bps = (pw/10 x band/1e4) / 2 x (1 + pw/10 x band/1e4) x 1e4, rounded up; m = pw x band (units of 1e-1 bps).
+        uint256 num = m * (100_000 + m); // m is in 1e-5 units
+        uint256 den = 2 * 10 * 100_000; // 2 x 10 (power scale) x 1e5
+        uint256 f = (num + den - 1) / den;
+        return f > c.spreadBps ? f : c.spreadBps;
+    }
+
     /// Hook sell of `tokens` checked against the independent expectation (within 1 wei of USDG).
     function _checkedSell(bytes32 id, uint256 tokens) internal returns (uint256 out) {
         minter.accrue(id); // NF now, same block as the sell
         Quote memory q = minter.quote(id, false, true, tokens);
-        assertEq(q.spreadBps, 30, "base spread, no skew on a shrinking sell");
+        assertEq(q.spreadBps, _expectedPlainSpread(id), "max(base spread, lag floor), no skew on a shrinking sell");
         uint256 exp = _expectedSell(id, tokens, q.spreadBps);
         out = _hookSell(alice, id, tokens);
         assertApproxEqAbs(out, exp, 1, "tokens x NF x I x UNIT x (1 - spread)");
