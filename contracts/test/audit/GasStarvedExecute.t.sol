@@ -132,11 +132,24 @@ contract GasStarvedExecuteTest is BackerFixture {
         backer.executeBatch(b);
     }
 
-    /// Below MIN_VAULT_GAS before a vault the execute reverts with the named error.
+    /// Below MIN_VAULT_GAS before a vault the execute reverts with the named error. The gas limit is derived, not
+    /// hard-coded (the gas before the loop differs by compiler profile, e.g. coverage): sweep up from 100,000 to the
+    /// first limit that gets past the prelude, which must revert with ExecuteOutOfGas and not without data.
     function test_UnderFloorRevertsNamed() public {
         (uint256 b,) = _sealMany(1);
+        bytes memory named = abi.encodeWithSelector(IODBacker.ExecuteOutOfGas.selector);
+        uint256 found;
+        for (uint256 g = 100_000; g <= 3_000_000 && found == 0; g += 2_000) {
+            uint256 snap = vm.snapshotState();
+            vm.prank(griefer);
+            (bool ok, bytes memory ret) = address(backer).call{gas: g}(abi.encodeCall(backer.executeBatch, (b)));
+            vm.revertToState(snap);
+            assertFalse(ok, "succeeded before any named revert");
+            if (keccak256(ret) == keccak256(named)) found = g;
+        }
+        assertGt(found, 0, "no gas limit reverts with ExecuteOutOfGas");
         vm.prank(griefer);
         vm.expectRevert(IODBacker.ExecuteOutOfGas.selector);
-        backer.executeBatch{gas: 500_000}(b);
+        backer.executeBatch{gas: found}(b);
     }
 }
