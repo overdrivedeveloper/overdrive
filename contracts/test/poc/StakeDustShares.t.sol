@@ -12,7 +12,8 @@ import {StakeHandler} from "../stake/StakeInvariant.t.sol";
 /// leaves only dust, assetsOf rounds with the +1 virtual offset (shares * (A + 1) / (S + 1)), so an exit of just over
 /// half the shares takes every remaining unit: the other shares stay with totalAssets = 0. Dust scale only (the
 /// remaining shares were worth at most one unit), but `invariant_SharesAddUp` asserts totalAssets > 0 whenever shares
-/// exist and fails on this sequence. This test replays the shrunk sequence and asserts the state IS reached.
+/// exist and fails on this sequence. Fixed: assetsOf (what unstake pays) is capped at the plain pro-rata value, rounded
+/// down against the leaving holder. This test replays the shrunk sequence and asserts the remaining shares keep assets.
 contract StakeDustSharesTest is ODTest {
     function test_Repro_DustSlashLeavesSharesWithNoAssets() public {
         MockUSDG usdg = new MockUSDG();
@@ -32,13 +33,19 @@ contract StakeDustSharesTest is ODTest {
 
         h.stake(3515, 12265);
         h.slash(22300745198530623141535718272648361505980414, 101);
+        uint256 a0 = stk.totalAssets();
+        uint256 s0 = stk.totalShares();
         h.requestUnstake(
             3349862669567204944143294862009334018364878905256929073363297349209294,
             115792089237316195423570985008687907853269984665640564039457584007913129639934
         );
         h.unstake(1115);
 
-        assertGt(stk.totalShares(), 0, "shares remain");
-        assertEq(stk.totalAssets(), 0, "bug present: shares exist with no assets behind them");
+        uint256 s1 = stk.totalShares();
+        assertGt(s1, 0, "shares remain");
+        assertGt(stk.totalAssets(), 0, "fixed: remaining shares keep assets");
+        // the remaining holders keep at least their pro-rata share of what was there before the exit
+        assertGe(stk.totalAssets() * s0, a0 * s1, "remaining shares not diluted by the exit");
+        assertGe(ovrd.balanceOf(address(stk)), stk.totalAssets(), "assets covered");
     }
 }

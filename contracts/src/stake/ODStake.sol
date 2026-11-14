@@ -302,11 +302,20 @@ contract ODStake is AccessControl, ReentrancyGuardTransient, IODStake {
 
     // ------------------------------------------------------------------------------------------------ views
 
-    /// @notice Returns the token amount that `shares` are worth.
+    /// @notice Returns the token amount that `shares` are worth (what `unstake` pays for them).
+    /// @dev The lower of the virtual-offset value and the plain pro-rata value, both rounded down. After a slash the
+    /// +1 virtual asset is worth more than the real ones per share, so the virtual value alone let an exit of just over
+    /// half the shares take the last unit and leave the other shares with nothing. The pro-rata cap keeps every
+    /// remaining share at no less than its share of `totalAssets`; the last exit still takes everything.
     /// @param shares Amount of shares (vault share decimals).
-    /// @return  Amount of tokens.
-    function assetsOf(uint256 shares) public view returns (uint256) {
-        return Math.mulDiv(shares, totalAssets + 1, totalShares + 1);
+    /// @return amount Amount of tokens.
+    function assetsOf(uint256 shares) public view returns (uint256 amount) {
+        uint256 s = totalShares;
+        amount = Math.mulDiv(shares, totalAssets + 1, s + 1);
+        if (s != 0) {
+            uint256 proRata = Math.mulDiv(shares, totalAssets, s);
+            if (proRata < amount) amount = proRata;
+        }
     }
 
     /// @notice Returns the token amount staked by an account.

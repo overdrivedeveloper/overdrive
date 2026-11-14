@@ -45,7 +45,7 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | # | Invariant | Checked by (file : function) |
 | --- | --- | --- |
 | 22 | The stress figure equals an independent brute-force computation | `governor/Stress.t.sol : testFuzz_StressMatchesBruteForce` |
-| 23 | Stake: assets held cover shares, rewards stay solvent, shares add up | `stake/StakeInvariant.t.sol : invariant_AssetsHeld`, `invariant_RewardsSolvent`, `invariant_SharesAddUp` |
+| 23 | Stake: assets held cover shares, rewards stay solvent, shares add up and never outlive their assets (exits round down against the leaver, so a dust slash cannot leave shares with totalAssets = 0) | `stake/StakeInvariant.t.sol : invariant_AssetsHeld`, `invariant_RewardsSolvent`, `invariant_SharesAddUp`; `poc/StakeDustShares.t.sol : test_Repro_DustSlashLeavesSharesWithNoAssets` |
 | 24 | Stake: only the Governor and the Backer can slash; stake is read by the cores only through the fee discount and the slash | `stake/Stake.t.sol : test_SlashOnlyCallers`, `test_CoresUseOnlyDiscountAndSlash`; CI also greps for stake reads outside `src/stake` (`scripts/ci-local.sh : check_stake_usage`) |
 
 ## Privilege limits
@@ -116,7 +116,7 @@ USDG (with pause and blocklist) and mock recipients; the sell queue runs on the 
 | F2 | notify, sync, distribute and release never mint or destroy value: books = notified + synced - paid out, USDG in - out = balance, notify never books USDG that has not arrived; covers the F12-1 path (the Governor settling owed fees back with notify inside fundCash), pulls of half, reverts, unnotified hand-backs, a stake that reverts and blocked pots | `invariant/FeesInvariant.t.sol : invariant_F2_NoValueMinted` |
 | F3 | totalHeld = sum of the seven buckets; both splits sum to 10,000 bps; fee params stay at or under MAX_FEE_PARAM_BPS | `invariant/FeesInvariant.t.sol : invariant_F3_HeldSumAndSplits` |
 | F4 | Only the admin sets splits, recipients, fee params and notifiers; only notifiers notify; distribute runs at most once per PERIOD | `invariant/FeesInvariant.t.sol : invariant_F4_AuthAndCadence` |
-| F5 | (Informational, bug present) a callback recipient that calls release on another bucket inside its own payout has that payout counted as its own: its bucket's books drop though it received nothing. Coverage holds and sync recovers it; needs an admin-set recipient that re-enters | `poc/FeeReentrantRelease.t.sol : test_Repro_ReentrantReleaseDropsGovernorBooks` |
+| F5 | A callback recipient cannot re-enter distribute, release or sync during its payout: the re-entering call reverts, nothing is pulled, the bucket keeps its share and the books stay exact (closed in fix round 4; the sync variant had pushed books above the balance) | `poc/FeeReentrantRelease.t.sol : test_Repro_ReentrantReleaseDropsGovernorBooks`, `test_Repro_ReentrantSyncCannotBookInFlightSplit` |
 | I1 | ODInsurance holds exactly funded + donated - paid; payouts never exceed what came in | `invariant/InsuranceInvariant.t.sol : invariant_I1_BalanceConserved` |
 | I2 | Every cover pays exactly min(asked, balance) to its caller and to nobody else, once; funds and coverer draws never fail with the token live | `invariant/InsuranceInvariant.t.sol : invariant_I2_PayoutsBounded` |
 | I3 | Only the Governor and the backer draw (the admin, funders and strangers are refused); coverers are set once and never replaced | `invariant/InsuranceInvariant.t.sol : invariant_I3_OnlyCoverers` |
@@ -127,7 +127,6 @@ USDG (with pause and blocklist) and mock recipients; the sell queue runs on the 
 
 ## Known gaps
 
-- `stake/StakeInvariant.t.sol : invariant_SharesAddUp` fails on rare seeds: after a slash that leaves dust, the +1 virtual offset in `assetsOf` lets an exit of just over half the shares take the last unit, leaving shares with totalAssets = 0 (dust scale). Reproduced by `poc/StakeDustShares.t.sol : test_Repro_DustSlashLeavesSharesWithNoAssets`; either round the exit down against the remaining holders or relax the assertion to dust.
 - The sell queue suite does not drive `settleGear` (the 30 day halt settlement); its fill-at-settled-value path is example-based (`minter/Settle.t.sol`).
 - Several rows are example-based rather than fuzzed or stateful; they pin the behaviour but do not search for counter-examples.
 - The Halmos checks are not run in CI and have not been confirmed to finish on a loaded machine.

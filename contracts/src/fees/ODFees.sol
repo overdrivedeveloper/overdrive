@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IODFees} from "../interfaces/IODFees.sol";
 import {IODGovernor} from "../interfaces/IODGovernor.sol";
 
@@ -23,8 +24,10 @@ interface IODStakeRewards {
 /// `fundExitReserve` (the Governor pulls them, so its own books see them); the stakers share through
 /// `notifyRewards` on the stake contract; every other share is a plain transfer. A share whose recipient is unset or
 /// whose payment fails is held and paid with a later distribution or `release` (one recipient cannot block the rest).
-/// Rounding dust stays in `distributable`. Admin is the timelock.
-contract ODFees is AccessControl, IODFees {
+/// Rounding dust stays in `distributable`. Admin is the timelock. `distribute`, `release` and `sync` are nonReentrant:
+/// a payout measures the balance drop of one call, so a recipient must not start another payout (or book the
+/// in-flight split as pending) from its callback. `notify` stays open, since the Governor settles its fees with it.
+contract ODFees is AccessControl, ReentrancyGuardTransient, IODFees {
     using SafeERC20 for IERC20;
 
     bytes32 public constant B_GOVERNOR = "GOVERNOR";
@@ -114,7 +117,7 @@ contract ODFees is AccessControl, IODFees {
     /// @notice L-3: anyone books USDG that arrived without a successful `notify` (a notify that failed or never came,
     /// or a plain transfer) as pending, so it goes through the next split like any fee. Pays nothing out and moves
     /// nothing; afterwards balance == pending + totalHeld.
-    function sync() external override returns (uint256 amount) {
+    function sync() external override nonReentrant returns (uint256 amount) {
         uint256 booked = pending + totalHeld;
         uint256 bal = usdg.balanceOf(address(this));
         if (bal <= booked) return 0;
@@ -126,7 +129,7 @@ contract ODFees is AccessControl, IODFees {
     // ------------------------------------------------------------------------------------------------ split
 
     /// @inheritdoc IODFees
-    function distribute() external override returns (uint256 amount) {
+    function distribute() external override nonReentrant returns (uint256 amount) {
         uint256 next = lastDistribution + PERIOD;
         if (block.timestamp < next) revert TooEarly(next);
         lastDistribution = block.timestamp;
@@ -153,7 +156,7 @@ contract ODFees is AccessControl, IODFees {
     }
 
     /// @notice Pays a bucket's held USDG to its recipient now (anyone; no-op while unset or failing).
-    function release(bytes32 bucket) external returns (uint256 paid) {
+    function release(bytes32 bucket) external nonReentrant returns (uint256 paid) {
         return _settle(bucket, 0);
     }
 
@@ -260,7 +263,7 @@ contract ODFees is AccessControl, IODFees {
             if (!ok || (ret.length != 0 && !abi.decode(ret, (bool)))) return 0;
         }
         uint256 afterBal = usdg.balanceOf(address(this));
-        uint256 out = before + (pending - p0); // pending only grows during the call (distribute cannot re-enter)
+        uint256 out = before + (pending - p0); // pending only grows during the call (only notify is reachable)
         paid = out > afterBal ? out - afterBal : 0;
         if (paid > amount) paid = amount;
     }
