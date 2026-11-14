@@ -15,6 +15,7 @@ sdk/          TypeScript client for the API (second deliverable, not yet publish
 mcp/          Agent MCP package (bundles app/src/mcp into one file) and its guide, MCP.md
 vol-engine/   Python volatility engine: computes sigma per market and signs EIP-712 posts for the vol oracle
 risk-sim/     Python nightly stress simulation of the Governor book; recommends caps, holds no keys
+exit/         Standalone exit page: one static HTML file (build.mjs, lib.cjs, tests) that works with no website and no API
 scripts/      CI and tooling: ci-local.sh, quiet-run.sh, export-abis.sh and their tests
 .githooks/    pre-commit public guard and commit-msg guard
 .github/      CI workflow and SECURITY.md

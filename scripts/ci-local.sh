@@ -42,7 +42,7 @@ check_stake_usage() {
 job_contracts() { check_no_failopen_pattern && check_stake_usage && (cd contracts && forge fmt --check && forge build && forge test); }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
-job_scripts() { bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
+job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
 
 failed=0
 for j in $JOBS; do
