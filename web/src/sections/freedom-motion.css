@@ -1,0 +1,91 @@
+/* Each reveal plays once when its own content reaches the viewport. */
+.freedom-section [data-reveal='freedom'] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 600ms var(--ease-soft),
+    transform 700ms var(--ease-soft);
+}
+
+.freedom-section .freedom-header[data-reveal='freedom'] {
+  transform: translateY(24px);
+  transition-duration: 650ms, 800ms;
+}
+
+.freedom-section .freedom-center[data-reveal='freedom'] {
+  transform: translateY(20px) scale(.95);
+  transition-duration: 650ms, 800ms;
+}
+
+.freedom-section .freedom-card:nth-of-type(2) { transition-delay: 50ms; }
+.freedom-section .freedom-card:nth-of-type(3) { transition-delay: 100ms; }
+.freedom-section .freedom-card:nth-of-type(4) { transition-delay: 150ms; }
+.freedom-section .freedom-card:nth-of-type(5) { transition-delay: 200ms; }
+
+.freedom-section [data-reveal='freedom'].is-in,
+.freedom-section [data-reveal='freedom']:focus-within {
+  opacity: 1;
+  transform: none;
+}
+
+/* Only the photographic layer moves; the token label stays still. */
+.freedom-center.is-in .freedom-circle > img {
+  animation: freedom-texture-settle 6s var(--ease-soft) both;
+}
+
+.freedom-circle-sweep {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 25%, #ffd3c64d 48%, transparent 68%);
+  transform: translateX(-110%);
+}
+
+.freedom-center.is-in .freedom-circle-sweep {
+  animation: freedom-light-pass 1800ms var(--ease-soft) 150ms both;
+}
+
+@keyframes freedom-texture-settle {
+  from { transform: translateX(-3%) scale(1.12); }
+  to { transform: translateX(0) scale(1); }
+}
+
+@keyframes freedom-light-pass {
+  0% { opacity: 0; transform: translateX(-110%); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(110%); }
+}
+
+@media (min-width: 1200px) {
+  .freedom-section .freedom-risks .freedom-card[data-reveal='freedom'] {
+    transform: translate(-18px, 12px);
+  }
+  .freedom-section .freedom-safeguards .freedom-card[data-reveal='freedom'] {
+    transform: translate(18px, 12px);
+  }
+  .freedom-section .freedom-card[data-reveal='freedom'].is-in {
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .freedom-section .freedom-card[data-reveal='freedom'] {
+    transition-delay: 30ms;
+    transition-duration: 450ms, 600ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .freedom-section [data-reveal='freedom'],
+  .freedom-section .freedom-card[data-reveal='freedom'] {
+    opacity: 1;
+    transform: none !important;
+    transition: none !important;
+  }
+  .freedom-center.is-in .freedom-circle > img,
+  .freedom-center.is-in .freedom-circle-sweep {
+    animation: none;
+  }
+  .freedom-circle-sweep { display: none; }
+}

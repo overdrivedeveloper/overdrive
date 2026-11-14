@@ -1,0 +1,1165 @@
+# People Directory — People UI Rebuild Prompt
+
+> Build this exactly as described. Every measurement, colour and piece of copy below is deliberate — reproduce it rather than improving on it.
+
+## What this screen is
+
+A pale yellow shell with a brand chip, a pill nav and three counts — employees, open roles, projects. A large greeting sits above a four-stage funnel bar labelled interviews, hired, project time and payout, each stage carrying its own percentage. The left column is a week strip over a day schedule where meeting cards overlap their time slots, one in near-black and one in accent yellow. The centre is a salary table: five named rows with avatars, job titles, net salary and a paid, absent or pending state chip. The right column stacks a near-black attendance report built from a dotted matrix with a ratio read-out, above an employee-composition donut with a total in its centre and a two-part legend. A hiring-statistics panel closes the bottom with two lines — one black, one yellow — crossing over a twelve-month axis.
+
+## Add this to the project I already have
+
+**Do not scaffold a new application.** Do not run `create-react-app`, `npm create vite`, or any generator. Do not create, overwrite or reformat `package.json`, `vite.config.*`, `tsconfig.*`, `index.html`, `src/main.*`, `src/App.*`, or any global stylesheet I already have. Do not reorganise my folders and do not add a router.
+
+Add **only** the files listed under `## File:` below, at those paths, then render the screen where I ask for it. If a file already exists at one of those paths, stop and tell me instead of overwriting it.
+
+This is one screen, and it renders inline in normal document flow — it takes its own height from its 16:9 canvas, so it can sit inside a page, a tab or a route that already exists:
+
+```jsx
+import PeopleNine from "./sections/PeopleNine/PeopleNine";
+
+// ...wherever the screen belongs
+<PeopleNine />
+```
+
+If I have no React project at all, then and only then create a minimal Vite + React one first (`npm create vite@latest . -- --template react`), and add these files to it unchanged.
+
+## Reproduce this exactly
+
+- The funnel is one continuous bar in four labelled stages, not four separate bars.
+- State chips keep three distinct values: paid, absent, pending. Collapsing them to two loses the point of the column.
+- Meeting cards overlap in the schedule. Real days overlap and the layout should show it.
+- The attendance matrix is dots on near-black — inverting it to dark dots on light breaks the column.
+- The screen is authored on a fixed 1600x900 canvas in absolute pixels. `SectionFrame` scales that canvas to whatever width it is given. Do not convert the values to rem, percentages or viewport units — the layout depends on them being fixed.
+- Every chart here is hand-drawn SVG with fixed sample data. Do not swap in Recharts, Chart.js, D3 or any other charting library: the shapes were drawn to fit their cards, not plotted from a series.
+- Keep the markup structure and class names as written. The CSS is matched to them and selectors are not defensive.
+
+## Tech stack (required — do not substitute)
+
+- **React 19** with function components and hooks
+- **Plain CSS**, one stylesheet per screen, imported by the component
+- **No UI, chart or animation libraries.** No Tailwind, no styled-components, no Framer Motion, no icon packages. Every icon, chart and illustration here is inline SVG or CSS.
+- Bundler-agnostic: it needs `react`, `react-dom`, and the ability to `import` a `.css` file. Nothing else.
+
+## Fonts
+
+Add these to your document head if they are not already loaded — the screen uses Inter for UI text, Inter Tight for figures and headings, and JetBrains Mono where a monospace is called for:
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+```
+
+## Assets
+
+None. Every icon, chart, card and 3D-looking object on this screen is inline SVG or CSS gradients — there is nothing to download and no image paths to wire up.
+
+## Steps to build
+
+1. Create `src/styles/tokens.css` and `src/styles/base.css`, and import both **once** from your entry stylesheet or `main.jsx`. Every selector in them is scoped under `.frame`, so neither can restyle anything you already have.
+2. Create `src/lib/hooks.js`. It holds the entrance, count-up and tilt hooks plus the number formatters the screen uses.
+3. Create `src/components/SectionFrame.jsx` and `SectionFrame.css`. If you already have these from another screen in this set, reuse them — they are identical and are meant to be shared.
+4. Create the screen's own folder under `src/sections/PeopleNine/` with the files below.
+5. Render `<PeopleNine />` wherever the screen belongs.
+
+## Files
+
+## File: `src/styles/tokens.css`
+
+```css
+/* ===============================================================
+   Design tokens
+   One source of truth for colour, elevation, radius and motion.
+   Every component reads from here — nothing hard-codes a hex.
+
+   Declared on `.frame`, not on `:root`. These names are deliberately
+   generic — --bg, --ink, --line, --surface — and a project this screen
+   is dropped into may well have its own. Putting them on :root would
+   silently redefine them for that whole page. On the frame they reach
+   the screen and stop there.
+
+   Written `:where(.frame)` so they add no specificity: a section's
+   own palette block overrides them exactly as it did when these lived
+   on :root.
+   =============================================================== */
+
+:where(.frame) {
+  /* ---- accent ----
+     This is only the DEFAULT ramp. Each section re-declares the whole
+     --accent-* scale on its own root element to match its reference, so
+     nothing inherits a palette it did not ask for. See the palette block
+     at the top of any section's CSS.
+
+     Sections 01–03 happen to be orange because their references are; the
+     rest override to lime, coral, pink, yellow, blue, sage and so on. */
+  --accent-50: #fff3ec;
+  --accent-100: #ffe1d1;
+  --accent-200: #ffc0a3;
+  --accent-300: #ff9a70;
+  --accent-400: #fb7440;
+  --accent-500: #f2571b;
+  --accent-600: #d8430c;
+  --accent-700: #ad3309;
+  --accent-contrast: #ffffff;
+
+  /* ---- neutrals, warm-tinted so they sit with the accent ---- */
+  --n-0: #ffffff;
+  --n-25: #fcfbfa;
+  --n-50: #f7f6f4;
+  --n-100: #f1efec;
+  --n-200: #e5e2dd;
+  --n-300: #d2cdc6;
+  --n-400: #a8a29a;
+  --n-500: #7a746c;
+  --n-600: #57524b;
+  --n-700: #3b3731;
+  --n-800: #262320;
+  --n-900: #17150f;
+  --n-950: #0d0c09;
+
+  /* ---- semantic ---- */
+  --ok-bg: #e7f6ec;
+  --ok-fg: #1c7a42;
+  --warn-bg: #fdf0da;
+  --warn-fg: #9a6708;
+  --bad-bg: #fdeaea;
+  --bad-fg: #b4322d;
+  --info-bg: #e8effd;
+  --info-fg: #2a56c6;
+
+  /* ---- surfaces (light) ---- */
+  --bg: var(--n-50);
+  --surface: var(--n-0);
+  --surface-2: var(--n-100);
+  --surface-3: var(--n-200);
+  --ink: var(--n-900);
+  --ink-2: var(--n-600);
+  --ink-3: var(--n-400);
+  --line: var(--n-200);
+  --line-soft: var(--n-100);
+  --invert-bg: var(--n-900);
+  --invert-ink: var(--n-0);
+
+  /* ---- elevation ---- */
+  --sh-1: 0 1px 2px rgba(23, 21, 15, 0.05);
+  --sh-2: 0 2px 4px rgba(23, 21, 15, 0.04), 0 6px 14px rgba(23, 21, 15, 0.05);
+  --sh-3: 0 4px 10px rgba(23, 21, 15, 0.05), 0 16px 34px rgba(23, 21, 15, 0.07);
+  --sh-4: 0 8px 20px rgba(23, 21, 15, 0.07), 0 30px 60px rgba(23, 21, 15, 0.1);
+  --sh-accent: 0 8px 24px rgba(242, 87, 27, 0.28);
+  --ring: 0 0 0 3px rgba(242, 87, 27, 0.18);
+
+  /* ---- radius ---- */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 999px;
+
+  /* ---- motion ----
+     out    : settles quickly, for entrances and layout shifts
+     spring : slight overshoot, for controls that should feel physical
+     smooth : symmetric, for colour and opacity                       */
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --e-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 140ms;
+  --t-base: 240ms;
+  --t-slow: 520ms;
+  --t-draw: 900ms;
+
+  /* ---- type ---- */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* ---- surfaces (dark) ----
+   Keyed off the frame's own data-theme, which SectionFrame writes from
+   its `theme` prop, so one screen can be dark on an otherwise light page. */
+:where(.frame[data-theme="dark"]) {
+  --bg: #0e0d0b;
+  --surface: #191714;
+  --surface-2: #211e1a;
+  --surface-3: #2c2823;
+  --ink: #f6f4f1;
+  --ink-2: #a8a29a;
+  --ink-3: #6f6960;
+  --line: #2e2a25;
+  --line-soft: #241f1b;
+  --invert-bg: #f6f4f1;
+  --invert-ink: #17150f;
+
+  --ok-bg: #12301f;
+  --ok-fg: #5ed48c;
+  --warn-bg: #33270e;
+  --warn-fg: #e9b75c;
+  --bad-bg: #351917;
+  --bad-fg: #ef857f;
+  --info-bg: #14203f;
+  --info-fg: #7ea2f5;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sh-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 6px 14px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 4px 10px rgba(0, 0, 0, 0.45), 0 16px 34px rgba(0, 0, 0, 0.5);
+  --sh-4: 0 8px 20px rgba(0, 0, 0, 0.5), 0 30px 60px rgba(0, 0, 0, 0.6);
+  --ring: 0 0 0 3px rgba(242, 87, 27, 0.3);
+}
+
+/* Motion is decoration. If the reader has asked for less of it, the
+   components still arrive — they just arrive already finished. */
+@media (prefers-reduced-motion: reduce) {
+  :where(.frame) {
+    --t-fast: 1ms;
+    --t-base: 1ms;
+    --t-slow: 1ms;
+    --t-draw: 1ms;
+  }
+
+  :where(.frame),
+  :where(.frame) *,
+  :where(.frame) *::before,
+  :where(.frame) *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+```
+
+## File: `src/styles/base.css`
+
+```css
+/* ===============================================================
+   Base — reset, typography and the primitives every component leans
+   on: .ui-card (a surface), .ui-num (lining figures), .ui-pill and
+   friends.
+
+   The reset half used to sit on `*` and `body`, because this began as
+   a whole page. It is scoped to `.frame` now: a screen has to hold
+   its own resets — the layouts are absolute pixels and go to pieces
+   under content-box — without reaching into the stylesheet of a
+   project it was dropped into.
+
+   `:where(.frame)` contributes no specificity, so these land exactly
+   where the global `*` and `body` rules they replace did. Written
+   plainly, `.frame button` would outrank every section's own
+   single-class rule and quietly restyle its controls.
+   =============================================================== */
+
+:where(.frame),
+:where(.frame) *,
+:where(.frame) *::before,
+:where(.frame) *::after {
+  box-sizing: border-box;
+}
+
+:where(.frame) {
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11" 1, "ss01" 1;
+  transition: background var(--t-base) var(--e-smooth), color var(--t-base) var(--e-smooth);
+}
+
+:where(.frame) button,
+:where(.frame) input,
+:where(.frame) select,
+:where(.frame) textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+:where(.frame) button {
+  cursor: pointer;
+}
+
+:where(.frame) :focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--r-sm);
+}
+
+/* Figures line up in columns and never jitter while counting up. */
+.ui-num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  letter-spacing: -0.03em;
+}
+
+/* Shared surface. Components add their own padding and layout. */
+.ui-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  transition:
+    transform var(--t-base) var(--e-out),
+    box-shadow var(--t-base) var(--e-out),
+    border-color var(--t-base) var(--e-smooth),
+    background var(--t-base) var(--e-smooth);
+}
+
+.ui-card[data-hoverable="true"]:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--sh-3);
+  border-color: var(--n-300);
+}
+
+:where(.frame[data-theme="dark"]) .ui-card[data-hoverable="true"]:hover {
+  border-color: var(--surface-3);
+}
+
+/* Label above a figure, or a column heading. */
+.ui-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+.ui-eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Small status pill — trend deltas, states, counts. */
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.ui-pill[data-tone="up"] { background: var(--ok-bg); color: var(--ok-fg); }
+.ui-pill[data-tone="down"] { background: var(--bad-bg); color: var(--bad-fg); }
+.ui-pill[data-tone="flat"] { background: var(--surface-2); color: var(--ink-2); }
+.ui-pill[data-tone="accent"] { background: var(--accent-500); color: var(--accent-contrast); }
+.ui-pill[data-tone="ink"] { background: var(--invert-bg); color: var(--invert-ink); }
+
+/* Entrance. Components opt in with data-in, flipped by useInView. */
+.ui-rise {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--t-slow) var(--e-out),
+    transform var(--t-slow) var(--e-out);
+  transition-delay: var(--delay, 0ms);
+}
+
+.ui-rise[data-in="true"] {
+  opacity: 1;
+  transform: none;
+}
+```
+
+## File: `src/lib/hooks.js`
+
+```js
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const reduced = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * Fires once when the element first scrolls into view. Every component
+ * that animates on arrival uses this rather than animating on mount,
+ * so nothing plays its entrance off-screen.
+ */
+export function useInView({ threshold = 0.25, once = true } = {}) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (reduced()) {
+      setInView(true);
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          if (once) io.disconnect();
+        } else if (!once) {
+          setInView(false);
+        }
+      },
+      { threshold }
+    );
+
+    io.observe(el);
+    return () => io.disconnect();
+  }, [threshold, once]);
+
+  return [ref, inView];
+}
+
+/**
+ * Eases a number up to its target on a rAF loop. Returns the live value
+ * so the caller can format it however it likes (currency, %, compact).
+ */
+export function useCountUp(target, { duration = 1100, start = 0, run = true } = {}) {
+  const [value, setValue] = useState(start);
+  const frame = useRef(0);
+
+  useEffect(() => {
+    if (!run) return;
+    if (reduced()) {
+      setValue(target);
+      return;
+    }
+
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / duration);
+      // easeOutExpo — fast off the line, long settle
+      const eased = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+      setValue(start + (target - start) * eased);
+      if (p < 1) frame.current = requestAnimationFrame(tick);
+    };
+
+    frame.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame.current);
+  }, [target, duration, start, run]);
+
+  return value;
+}
+
+/**
+ * Pointer-tracked 3D tilt. Writes rotation and a glare position to CSS
+ * custom properties so the surface can light up as it turns.
+ */
+export function useTilt({ max = 9, glare = true } = {}) {
+  const ref = useRef(null);
+
+  const onMove = useCallback(
+    (e) => {
+      const el = ref.current;
+      if (!el || reduced()) return;
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width;
+      const py = (e.clientY - r.top) / r.height;
+      el.style.setProperty("--rx", `${(0.5 - py) * max * 2}deg`);
+      el.style.setProperty("--ry", `${(px - 0.5) * max * 2}deg`);
+      if (glare) {
+        el.style.setProperty("--gx", `${px * 100}%`);
+        el.style.setProperty("--gy", `${py * 100}%`);
+      }
+    },
+    [max, glare]
+  );
+
+  const onLeave = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.setProperty("--rx", "0deg");
+    el.style.setProperty("--ry", "0deg");
+  }, []);
+
+  return { ref, onMouseMove: onMove, onMouseLeave: onLeave };
+}
+
+/** Compact currency / number formatting used across the data components. */
+export const fmt = {
+  money: (n, currency = "$") =>
+    currency +
+    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+  compact: (n) =>
+    n >= 1000
+      ? (n / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "K"
+      : Math.round(n).toLocaleString("en-US"),
+  int: (n) => Math.round(n).toLocaleString("en-US"),
+  pct: (n, dp = 1) => n.toFixed(dp) + "%",
+};
+```
+
+## File: `src/components/SectionFrame.css`
+
+```css
+.frame {
+  position: relative;
+  width: 100%;
+  /* Height comes from the design canvas's own ratio, so the block reserves the
+     right space before any JavaScript runs. */
+  aspect-ratio: 1600 / 900;
+  overflow: hidden;
+}
+
+.frame__canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Top-left rather than center: the canvas is scaled down from the container's
+     own origin, so no translate is needed to keep it registered to the corner. */
+  transform-origin: top left;
+  will-change: transform;
+}
+```
+
+## File: `src/components/SectionFrame.jsx`
+
+```jsx
+import { useEffect, useRef, useState } from "react";
+import "./SectionFrame.css";
+
+/**
+ * Every screen is authored on a fixed 1600x900 (16:9) canvas so the layout
+ * stays pixel-identical everywhere. SectionFrame measures the width it has
+ * been given and uniformly scales that canvas to match, so the screen always
+ * fills its container edge to edge with no cropping and no scrollbars.
+ *
+ * It scales to *width* only, and takes its height from the 16:9 ratio in CSS.
+ * That is what lets a screen drop into a page that already exists: it flows in
+ * normal document order like any other block, rather than claiming the
+ * viewport. Scaling to `min(width, height)` instead would letterbox the canvas
+ * inside whatever height the host happened to give it.
+ *
+ * The ratio lives on `.frame` as an `aspect-ratio`, not in this component's
+ * state. Height is then correct on the very first paint, before the effect
+ * below has measured anything — driving it from `scale` instead renders one
+ * frame at the full 900px and visibly collapses.
+ *
+ * `theme` is written to `data-theme` on the frame itself, which is what the
+ * dark half of the token file keys off. Scoping it here rather than on
+ * `<html>` means one screen can be dark on a light page.
+ */
+const DESIGN_W = 1600;
+const DESIGN_H = 900;
+
+export default function SectionFrame({ id, children, background = "#ffffff", theme }) {
+  const hostRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    const fit = () => {
+      const { width } = host.getBoundingClientRect();
+      if (width) setScale(width / DESIGN_W);
+    };
+
+    fit();
+    // Observing the host is safe here because its height is derived from its
+    // own width by `aspect-ratio`, so nothing this callback does can feed back
+    // into the measurement and loop.
+    const ro = new ResizeObserver(fit);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <section
+      id={id}
+      className="frame"
+      ref={hostRef}
+      style={{ background }}
+      data-theme={theme}
+    >
+      <div
+        className="frame__canvas"
+        style={{
+          width: DESIGN_W,
+          height: DESIGN_H,
+          transform: `scale(${scale})`,
+        }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+```
+
+## File: `src/sections/PeopleNine/PeopleNine.css`
+
+```css
+/* ---------------------------------------------------------------
+   09 · People — yellow page, per the reference.
+   Authored on the 1600x900 canvas.
+--------------------------------------------------------------- */
+
+.p9 {
+  /* ---- palette: butter yellow on cream ---- */
+  --accent-50: #fffce8;
+  --accent-100: #fdf6c2;
+  --accent-200: #faec86;
+  --accent-300: #f5e04c;
+  --accent-400: #ecd226;
+  --accent-500: #dcbf10;
+  --accent-600: #b19709;
+  --accent-700: #837006;
+  --accent-contrast: #241f04;
+  --sh-accent: 0 8px 24px rgba(236, 210, 38, 0.34);
+
+  --bg: #faf8ea;
+  --surface: #ffffff;
+  --surface-2: #f8f6e6;
+  --surface-3: #ece9d4;
+  --line: #efeddc;
+  --ink: #1b1a12;
+  --ink-2: #61604f;
+  --ink-3: #9d9b86;
+
+  position: absolute;
+  inset: 26px 34px;
+  padding: 20px 24px 24px;
+  border-radius: 26px;
+  /* the page itself carries the colour, as in the reference */
+  background: linear-gradient(152deg, #fdfcf4 0%, #fbf7dd 44%, #f7edb6 100%);
+  box-shadow: var(--sh-3);
+  font-family: var(--font-ui);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+/* ---------- shared ---------- */
+
+.p9__ico {
+  position: relative;
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: var(--surface); color: var(--ink-2);
+  transition: background var(--t-base) var(--e-smooth), color var(--t-base) var(--e-smooth), transform var(--t-fast) var(--e-out);
+}
+
+.p9__ico svg { width: 16px; height: 16px; }
+.p9__ico:hover { background: var(--surface-2); color: var(--ink); transform: translateY(-2px); }
+.p9__ico--sm { width: 26px; height: 26px; }
+.p9__ico--sm svg { width: 13px; height: 13px; }
+.p9__ico[data-v="light"] { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.12); color: #fff; }
+.p9__ico u { position: absolute; top: 7px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-400); }
+
+/* ---------- chrome ---------- */
+
+.p9__top { display: flex; align-items: center; gap: 18px; }
+
+.p9__brand {
+  display: inline-flex; align-items: center;
+  height: 38px; padding: 0 20px;
+  border: 1px solid var(--line); border-radius: var(--r-full);
+  background: var(--surface);
+  font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: -.024em;
+}
+
+.p9__nav { position: relative; display: inline-flex; gap: 1px; padding: 4px; border-radius: var(--r-full); background: var(--surface); margin: 0 auto; }
+
+.p9__navMark {
+  position: absolute; top: 4px; left: 0;
+  height: calc(100% - 8px); border-radius: var(--r-full);
+  background: var(--ink);
+  transition: transform var(--t-base) var(--e-spring), width var(--t-base) var(--e-spring);
+}
+
+.p9__nav button {
+  position: relative; z-index: 1;
+  padding: 7px 13px; border: 0; border-radius: var(--r-full);
+  background: transparent; font-size: 11.5px; font-weight: 500; color: var(--ink-2);
+  transition: color var(--t-base) var(--e-smooth);
+}
+
+.p9__nav button[data-active="true"] { color: #fff; }
+.p9__topRight { display: flex; gap: 8px; }
+
+/* ---------- lead ---------- */
+
+.p9__lead { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; margin-top: 20px; }
+.p9__lead h1 { margin: 0; font-family: var(--font-display); font-size: 40px; font-weight: 600; letter-spacing: -.04em; }
+
+.p9__metrics { display: flex; gap: 40px; }
+.p9__metric { text-align: right; }
+.p9__metric span { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--ink-3); }
+.p9__metric svg { width: 13px; height: 13px; }
+.p9__metric b { display: block; font-size: 34px; font-weight: 600; letter-spacing: -.038em; }
+
+/* ---------- funnel ---------- */
+
+.p9-funnel { margin-top: 16px; }
+.p9-funnel__bar { display: flex; gap: 5px; height: 26px; }
+
+.p9-funnel__bar span {
+  width: 0;
+  display: grid; place-items: center;
+  border-radius: var(--r-full);
+  font-size: 10px; font-weight: 700;
+  overflow: hidden;
+  transition: width var(--t-slow) var(--e-out);
+  transition-delay: calc(var(--i) * 90ms);
+}
+
+.p9-funnel__bar span[data-in="true"] { width: var(--w); }
+.p9-funnel__bar span[data-tone="ink"] { background: var(--ink); color: #fff; }
+.p9-funnel__bar span[data-tone="accent"] { background: var(--accent-300); color: var(--accent-contrast); }
+.p9-funnel__bar span[data-tone="hatch"] { background: repeating-linear-gradient(115deg, var(--surface-2) 0 5px, var(--surface-3) 5px 8px); color: var(--ink-2); }
+.p9-funnel__bar span[data-tone="soft"] { background: var(--surface-3); color: var(--ink-2); }
+
+.p9-funnel__keys { display: flex; gap: 22px; margin-top: 7px; font-size: 10px; color: var(--ink-3); }
+
+/* ---------- cards ---------- */
+
+.p9__card {
+  position: absolute;
+  display: flex; flex-direction: column;
+  padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--surface);
+  transition: box-shadow var(--t-base) var(--e-out), transform var(--t-base) var(--e-out);
+}
+
+.p9__card:hover { box-shadow: var(--sh-2); transform: translateY(-2px); }
+.p9__card header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.p9__card h3 { margin: 0; font-family: var(--font-display); font-size: 14.5px; font-weight: 600; letter-spacing: -.022em; }
+
+/* ---------- schedule ---------- */
+
+.p9__sched { top: 258px; left: 24px; width: 280px; bottom: 24px; }
+
+.p9__days { display: flex; gap: 4px; margin: 14px 0 12px; }
+.p9__days span { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; border-radius: var(--r-sm); transition: background var(--t-base) var(--e-smooth); }
+.p9__days i { font-style: normal; font-size: 9.5px; color: var(--ink-3); }
+.p9__days b { font-size: 12.5px; font-weight: 600; }
+.p9__days span[data-active="true"] { background: var(--ink); }
+.p9__days span[data-active="true"] i { color: rgba(255,255,255,.6); }
+.p9__days span[data-active="true"] b { color: #fff; }
+
+.p9__slots { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.p9__slot { display: flex; align-items: center; gap: 10px; }
+.p9__slotTime { width: 38px; font-size: 9.5px; color: var(--ink-3); }
+
+.p9__slot > span:nth-child(2) {
+  flex: 1; padding: 9px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.p9__slot b { display: block; font-size: 11.5px; font-weight: 600; }
+.p9__slot i { font-style: normal; font-size: 9.5px; color: var(--ink-3); }
+
+.p9__slot--now > span:nth-child(2) { background: var(--ink); }
+.p9__slot--now b { color: #fff; }
+.p9__slot--now i { color: rgba(255,255,255,.55); }
+
+.p9__slot--alt > span:nth-child(2) { background: var(--accent-200); }
+
+.p9__slotEmpty { display: block; height: 14px; border-radius: var(--r-full); background: repeating-linear-gradient(115deg, transparent 0 5px, var(--surface-3) 5px 7px); }
+
+.p9__slotBadge {
+  display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent-300); color: var(--accent-contrast);
+  font-family: var(--font-display); font-size: 10px; font-weight: 700;
+}
+
+.p9__slotFaces { display: flex; }
+.p9__slotFaces i { display: grid; place-items: center; width: 22px; height: 22px; margin-left: -7px; border: 2px solid var(--accent-200); border-radius: 50%; font-style: normal; font-family: var(--font-display); font-size: 8.5px; font-weight: 700; color: #fff; background: #3f5a84; }
+.p9__slotFaces i:first-child { margin-left: 0; background: #c2622a; }
+
+/* ---------- salary ---------- */
+
+.p9__salary { top: 258px; left: 320px; right: 336px; height: 268px; overflow: hidden; }
+.p9__salTools { display: flex; align-items: center; gap: 8px; }
+
+.p9__search { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: var(--r-full); background: var(--surface-2); color: var(--ink-3); }
+.p9__search svg { width: 12px; height: 12px; }
+.p9__search input { width: 86px; border: 0; background: transparent; font-size: 11px; color: var(--ink); outline: none; }
+
+.p9__table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 11.5px; }
+.p9__table th { padding: 0 0 8px; text-align: left; font-size: 10px; font-weight: 500; color: var(--ink-3); }
+.p9__table td { padding: 5px 0; border-top: 1px solid var(--line); color: var(--ink-2); }
+.p9__table tr[data-on="true"] td { color: var(--ink); }
+
+.p9__check {
+  display: grid; place-items: center;
+  width: 17px; height: 17px;
+  border: 1.5px solid var(--surface-3); border-radius: 5px;
+  color: var(--accent-contrast);
+}
+
+.p9__check[data-on="true"] { border-color: transparent; background: var(--accent-300); }
+.p9__check svg { width: 10px; height: 10px; }
+
+.p9__person { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); }
+.p9__person i { display: grid; place-items: center; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; font-style: normal; font-family: var(--font-display); font-size: 9px; font-weight: 700; color: #fff; }
+.p9__person i[data-i="0"] { background: linear-gradient(150deg,#f0a15a,#c2622a); }
+.p9__person i[data-i="1"] { background: linear-gradient(150deg,#8fa6c9,#3f5a84); }
+.p9__person i[data-i="2"] { background: linear-gradient(150deg,#c6a0d8,#7a4a99); }
+.p9__person i[data-i="3"] { background: linear-gradient(150deg,#8fd0b0,#2f7a58); }
+.p9__person i[data-i="4"] { background: linear-gradient(150deg,#e5a9a9,#a8443f); }
+
+.p9__status { padding: 3px 9px; border-radius: var(--r-full); font-size: 10px; font-weight: 600; }
+.p9__status[data-st="paid"] { background: #e4f4e8; color: #1c7a42; }
+.p9__status[data-st="absent"] { background: #fdeaea; color: #b4322d; }
+.p9__status[data-st="pending"] { background: var(--accent-100); color: var(--accent-700); }
+
+/* ---------- attendance ---------- */
+
+.p9__attend {
+  position: absolute; top: 258px; right: 24px; width: 300px; height: 268px;
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+  background: linear-gradient(158deg,#2a2a24 0%,#1a1a15 60%,#101009 100%);
+  color: #fff;
+  display: flex; flex-direction: column;
+  transition: transform var(--t-base) var(--e-out);
+}
+
+.p9__attend:hover { transform: translateY(-2px); }
+.p9__attend header { display: flex; align-items: center; justify-content: space-between; }
+.p9__attend h3 { margin: 0; font-family: var(--font-display); font-size: 14.5px; font-weight: 600; letter-spacing: -.022em; }
+
+.p9__attendFig { display: flex; align-items: baseline; gap: 6px; margin: 12px 0; font-size: 26px; font-weight: 600; letter-spacing: -.034em; }
+.p9__attendFig i { font-style: normal; font-size: 13px; color: var(--accent-300); }
+.p9__dim { color: rgba(255,255,255,.4) !important; }
+
+.p9-heat { display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; margin-top: auto; }
+
+.p9-heat span {
+  aspect-ratio: 1; border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  opacity: 0; transform: scale(.3);
+  transition: opacity var(--t-base) var(--e-out), transform var(--t-base) var(--e-spring);
+  transition-delay: var(--d);
+}
+
+.p9-heat span[data-in="true"] { opacity: 1; transform: none; }
+.p9-heat span[data-lvl="1"] { background: rgba(245,224,76,.32); }
+.p9-heat span[data-lvl="2"] { background: rgba(245,224,76,.62); }
+.p9-heat span[data-lvl="3"] { background: var(--accent-300); }
+
+/* ---------- hiring ---------- */
+
+.p9__hiring { top: 542px; left: 320px; right: 336px; bottom: 24px; }
+
+.p9__keys { display: flex; gap: 12px; font-size: 10px; color: var(--ink-3); }
+.p9__keys span { display: inline-flex; align-items: center; gap: 5px; }
+.p9__keys span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+.p9__keys span[data-k="a"]::before { background: var(--ink); }
+.p9__keys span[data-k="b"]::before { background: var(--accent-400); }
+
+/* an svg with an intrinsic ratio gets min-height:auto as a flex item,
+   which forces it past its slot — min-height:0 lets it shrink to fit */
+.p9-lines { flex: 1; min-height: 0; width: 100%; margin-top: 8px; }
+.p9-lines__grid line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+
+.p9-lines__a, .p9-lines__b {
+  vector-effect: non-scaling-stroke;
+  fill: none; stroke-width: 2; stroke-linecap: round;
+  stroke-dasharray: 700; stroke-dashoffset: 700;
+  transition: stroke-dashoffset 1.4s var(--e-out);
+}
+
+.p9-lines__a { stroke: var(--ink); }
+.p9-lines__b { stroke: var(--accent-400); transition-delay: .18s; }
+.p9-lines__a[data-in="true"], .p9-lines__b[data-in="true"] { stroke-dashoffset: 0; }
+
+.p9-lines__dot { fill: var(--ink); stroke: var(--surface); stroke-width: 2.5; opacity: 0; transition: opacity var(--t-base) var(--e-smooth) 1s; }
+.p9-lines__dot[data-in="true"] { opacity: 1; }
+
+.p9__hireAxis { display: flex; justify-content: space-between; padding: 0 8px; font-size: 9.5px; color: var(--ink-3); }
+
+/* ---------- composition ---------- */
+
+.p9__comp { top: 542px; right: 24px; width: 300px; bottom: 24px; }
+
+.p9-donut { position: relative; display: grid; place-items: center; width: 156px; height: 156px; margin: auto; }
+.p9-donut svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.p9-donut__t { fill: none; stroke: var(--accent-200); }
+.p9-donut__f { fill: none; stroke: var(--ink); transition: stroke-dashoffset var(--t-draw) var(--e-out); }
+.p9-donut span { text-align: center; }
+.p9-donut b { display: block; font-size: 26px; font-weight: 600; letter-spacing: -.034em; }
+.p9-donut i { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
+
+.p9__compKeys { display: flex; justify-content: center; gap: 24px; font-size: 11px; color: var(--ink-2); }
+.p9__compKeys span { display: inline-flex; align-items: center; gap: 6px; }
+.p9__compKeys i { width: 9px; height: 9px; border-radius: 50%; }
+.p9__compKeys i[data-k="a"] { background: var(--ink); }
+.p9__compKeys i[data-k="b"] { background: var(--accent-300); }
+.p9__compKeys em { font-style: normal; color: var(--ink-3); }
+```
+
+## File: `src/sections/PeopleNine/PeopleNine.jsx`
+
+```jsx
+import { useLayoutEffect, useRef, useState } from "react";
+import SectionFrame from "../../components/SectionFrame";
+import { useInView, useCountUp, fmt } from "../../lib/hooks";
+import "./PeopleNine.css";
+
+const I = {
+  gear: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3.2" /><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7" /></svg>,
+  bell: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 16V10a6 6 0 1 0-12 0v6l-1.6 2.2h15.2L18 16Z" /><path d="M10 20.4a2.2 2.2 0 0 0 4 0" /></svg>,
+  user: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8.4" r="3.6" /><path d="M5 19.4c.8-3.3 3.4-5 7-5s6.2 1.7 7 5" /></svg>,
+  up: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M9 7h8v8" /></svg>,
+  search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>,
+  check: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.4 4.4L19 7" /></svg>,
+  people: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="9.5" cy="8.6" r="3.4" /><path d="M3.6 19c.7-3 2.9-4.6 5.9-4.6s5.2 1.6 5.9 4.6M16.4 6.2a3 3 0 0 1 0 5.6M18 19c-.3-1.5-.9-2.7-1.8-3.6" /></svg>,
+  brief: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><rect x="3" y="7.5" width="18" height="12.5" rx="2.6" /><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" /></svg>,
+  box: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Z" /><path d="M4 7l8 4 8-4M12 11v10" /></svg>,
+};
+
+const TABS = ["Dashboard", "People", "Hiring", "Devices", "Apps", "Salary", "Calendar", "Reviews"];
+
+function Nav() {
+  const [active, setActive] = useState(0);
+  const [box, setBox] = useState(null);
+  const wrap = useRef(null), refs = useRef([]);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = refs.current[active], host = wrap.current;
+      if (!el || !host) return;
+      const a = el.getBoundingClientRect(), b = host.getBoundingClientRect();
+      // SectionFrame scales the whole canvas, so rects come back in visual px
+      // while the marker is positioned in layout px — divide the scale back out
+      const scale = b.width / (host.offsetWidth || b.width || 1);
+      const n = { left: (a.left - b.left) / scale, width: a.width / scale };
+      // the equality guard is load-bearing: without it every measure sets a new
+      // object and the observer below re-renders forever
+      setBox((p) => (p && Math.abs(p.left - n.left) < .5 && Math.abs(p.width - n.width) < .5 ? p : n));
+    };
+    measure();
+    // webfonts land after first paint and change the tab widths, and the tab
+    // that is active at mount never re-runs this effect on its own
+    document.fonts?.ready.then(measure);
+    const ro = new ResizeObserver(measure);
+    if (wrap.current) ro.observe(wrap.current);
+    return () => ro.disconnect();
+  }, [active]);
+  return (
+    <div className="p9__nav" ref={wrap}>
+      {box && <span className="p9__navMark" style={{ transform: `translateX(${box.left}px)`, width: box.width }} />}
+      {TABS.map((t, i) => (
+        <button key={t} ref={(el) => (refs.current[i] = el)} data-active={i === active} onClick={() => setActive(i)}>{t}</button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- funnel ---------- */
+const FUNNEL = [
+  { l: "Interviews", v: 70, tone: "ink" },
+  { l: "Hired", v: 10, tone: "accent" },
+  { l: "Project time", v: 15, tone: "hatch" },
+  { l: "Output", v: 5, tone: "soft" },
+];
+
+function Funnel() {
+  const [ref, inView] = useInView({ threshold: .4 });
+  return (
+    <div className="p9-funnel" ref={ref}>
+      <div className="p9-funnel__bar">
+        {FUNNEL.map((f, i) => (
+          <span key={f.l} data-tone={f.tone} data-in={inView} style={{ "--w": `${f.v}%`, "--i": i }}>{f.v}%</span>
+        ))}
+      </div>
+      <div className="p9-funnel__keys">
+        {FUNNEL.map((f) => <span key={f.l}>{f.l}</span>)}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- attendance heat ---------- */
+function Heat() {
+  const [ref, inView] = useInView({ threshold: .2 });
+  const h = (i) => Math.abs(Math.sin(i * 5.7));
+  return (
+    <div className="p9-heat" ref={ref}>
+      {Array.from({ length: 7 * 14 }, (_, i) => {
+        const n = h(i);
+        return <span key={i} data-lvl={n > .78 ? 3 : n > .52 ? 2 : n > .3 ? 1 : 0} data-in={inView}
+          style={{ "--d": `${((i % 14) + Math.floor(i / 14)) * 16}ms` }} />;
+      })}
+    </div>
+  );
+}
+
+/* ---------- hiring lines ---------- */
+function Lines() {
+  const [ref, inView] = useInView();
+  return (
+    <svg className="p9-lines" ref={ref} viewBox="0 0 420 150" preserveAspectRatio="none">
+      <g className="p9-lines__grid">
+        {[20, 52, 84, 116].map((y) => <line key={y} x1="26" y1={y} x2="414" y2={y} />)}
+      </g>
+      <path className="p9-lines__a" data-in={inView}
+        d="M30 106 C68 92 92 112 128 88 C166 62 190 96 228 72 C266 48 296 78 336 52 C372 30 396 46 412 38" />
+      <path className="p9-lines__b" data-in={inView}
+        d="M30 122 C70 116 94 96 130 108 C170 122 194 82 232 96 C270 110 300 66 340 82 C376 96 398 74 412 66" />
+      <circle className="p9-lines__dot" data-in={inView} cx="232" cy="96" r="5" />
+    </svg>
+  );
+}
+
+/* ---------- donut ---------- */
+function Donut() {
+  const [ref, inView] = useInView();
+  const n = useCountUp(345, { run: inView, duration: 1200 });
+  const c = 78, r = 62, circ = 2 * Math.PI * r;
+  return (
+    <div className="p9-donut" ref={ref}>
+      <svg viewBox="0 0 156 156">
+        <circle className="p9-donut__t" cx={c} cy={c} r={r} strokeWidth="16" />
+        <circle className="p9-donut__f" cx={c} cy={c} r={r} strokeWidth="16" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={inView ? circ * .3 : circ} transform={`rotate(-90 ${c} ${c})`} />
+      </svg>
+      <span><b className="ui-num">{Math.round(n)}</b><i>Total</i></span>
+    </div>
+  );
+}
+
+const STAFF = [
+  { n: "Yulia Polishchuk", r: "Head of design", s: "$2,500", st: "Paid", on: true },
+  { n: "Bogdan Nikitin", r: "Front-end dev", s: "$3,000", st: "Absent", on: false },
+  { n: "Daria Yurchenko", r: "Product designer", s: "$1,500", st: "Pending", on: false },
+  { n: "Marek Duval", r: "Data analyst", s: "$2,200", st: "Paid", on: true },
+  { n: "Ines Carvalho", r: "QA engineer", s: "$1,950", st: "Paid", on: true },
+];
+
+function Metric({ v, label, icon }) {
+  const [ref, inView] = useInView({ threshold: .4 });
+  const n = useCountUp(v, { run: inView, duration: 1150 });
+  return (
+    <div className="p9__metric" ref={ref}>
+      <span>{icon}{label}</span>
+      <b className="ui-num">{fmt.int(n)}</b>
+    </div>
+  );
+}
+
+/* ================= section ================= */
+export default function PeopleNine() {
+  return (
+    <SectionFrame id="people-nine" background="#c9c9c9">
+      <div className="p9">
+        <header className="p9__top">
+          <span className="p9__brand">Staffwyn</span>
+          <Nav />
+          <span className="p9__topRight">
+            <button className="p9__ico" aria-label="Settings">{I.gear}</button>
+            <button className="p9__ico" aria-label="Alerts">{I.bell}<u /></button>
+            <button className="p9__ico" aria-label="Account">{I.user}</button>
+          </span>
+        </header>
+
+        <div className="p9__lead">
+          <h1>Hello Valentina</h1>
+          <div className="p9__metrics">
+            <Metric v={91} label="Employees" icon={I.people} />
+            <Metric v={104} label="Open roles" icon={I.brief} />
+            <Metric v={185} label="Projects" icon={I.box} />
+          </div>
+        </div>
+
+        <Funnel />
+
+        {/* schedule */}
+        <section className="p9__card p9__sched">
+          <header><h3>Schedule</h3><button className="p9__ico p9__ico--sm" aria-label="Open">{I.up}</button></header>
+          <div className="p9__days">
+            {[["Su", 22], ["Mo", 23], ["Tu", 24], ["We", 25], ["Th", 26], ["Fr", 27], ["Sa", 28]].map(([d, n], i) => (
+              <span key={d} data-active={i === 3}><i>{d}</i><b className="ui-num">{n}</b></span>
+            ))}
+          </div>
+          <ul className="p9__slots">
+            <li className="p9__slot p9__slot--now">
+              <span className="p9__slotTime">09:00</span>
+              <span><b>Daily sync</b><i>09:30am – 10:00am</i></span>
+              <span className="p9__slotBadge">4</span>
+            </li>
+            <li className="p9__slot"><span className="p9__slotTime">10:00</span><span className="p9__slotEmpty" /></li>
+            <li className="p9__slot"><span className="p9__slotTime">11:00</span><span><b>Task review with team</b><i>11:30am – 12:00pm</i></span></li>
+            <li className="p9__slot p9__slot--alt"><span className="p9__slotTime">12:00</span><span><b>Daily meeting</b><i>12:00pm – 01:00pm</i></span><span className="p9__slotFaces"><i>AK</i><i>MR</i></span></li>
+            <li className="p9__slot"><span className="p9__slotTime">01:00</span><span className="p9__slotEmpty" /></li>
+          </ul>
+        </section>
+
+        {/* salary */}
+        <section className="p9__card p9__salary">
+          <header>
+            <h3>Salary</h3>
+            <span className="p9__salTools">
+              <label className="p9__search">{I.search}<input placeholder="Search" /></label>
+              <button className="p9__ico p9__ico--sm" aria-label="Open">{I.up}</button>
+            </span>
+          </header>
+          <table className="p9__table">
+            <thead><tr><th /><th>Name</th><th>Job title</th><th>Net salary</th><th>Status</th></tr></thead>
+            <tbody>
+              {STAFF.map((s, i) => (
+                <tr key={s.n} data-on={s.on}>
+                  <td><span className="p9__check" data-on={s.on}>{s.on && I.check}</span></td>
+                  <td><span className="p9__person"><i data-i={i}>{s.n.split(" ").map((w) => w[0]).join("")}</i>{s.n}</span></td>
+                  <td>{s.r}</td>
+                  <td className="ui-num">{s.s}</td>
+                  <td><span className="p9__status" data-st={s.st.toLowerCase()}>{s.st}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        {/* attendance */}
+        <section className="p9__attend">
+          <header><h3>Attendance report</h3><button className="p9__ico p9__ico--sm" data-v="light" aria-label="Open">{I.up}</button></header>
+          <p className="p9__attendFig"><b className="ui-num">63</b><i>↗</i><b className="ui-num p9__dim">12</b><i className="p9__dim">↘</i></p>
+          <Heat />
+        </section>
+
+        {/* hiring */}
+        <section className="p9__card p9__hiring">
+          <header>
+            <h3>Hiring statistics</h3>
+            <span className="p9__keys"><span data-k="a">Others</span><span data-k="b">Design</span></span>
+          </header>
+          <Lines />
+          <div className="p9__hireAxis">{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov"].map((m) => <span key={m}>{m}</span>)}</div>
+        </section>
+
+        {/* composition */}
+        <section className="p9__card p9__comp">
+          <header><h3>Employee composition</h3></header>
+          <Donut />
+          <div className="p9__compKeys">
+            <span><i data-k="a" />70% <em>◍</em></span>
+            <span><i data-k="b" />30% <em>◍</em></span>
+          </div>
+        </section>
+      </div>
+    </SectionFrame>
+  );
+}
+```
+
+## Design notes (context, not instructions to change anything)
+
+- The schedule positions cards by start time and duration against a fixed pixel-per-minute constant, so two overlapping meetings genuinely overlap rather than being nudged by hand.
+- The salary table is a CSS grid with named columns rather than a `<table>`, because the state chip and the avatar cell need alignment rules a table cell fights.
+- Yellow is a hard accent to read text on, so every label over an accent surface is near-black rather than white — the one place in the set where the accent's contrast colour is dark.
+- The two hiring lines are deliberately allowed to cross. A chart where the series never meet is a chart that did not need two series.
+- The dotted attendance matrix reuses the same index-maths idiom as the widget board's profit grid and the finance desk's activity strip.
+- `SectionFrame` scales to width only and takes its height from a 16:9 `aspect-ratio` in CSS. That is what lets the screen flow inline instead of claiming the viewport. Because the canvas is fixed at 1600x900, everything shrinks together — on a narrow phone the whole screen scales down uniformly, so treat this as a wide-layout screen and give narrow viewports a different treatment if you need one.
+- `tokens.css` and `base.css` are scoped with `:where(.frame)`, which contributes no specificity. That matters: written plainly, `.frame button` would outrank the screen's own single-class rules and silently restyle its controls. The scope keeps the reset landing exactly where a global `*` and `button` rule would.
+- The token names are deliberately generic — `--bg`, `--ink`, `--line`, `--surface`. They are declared on the frame rather than `:root` so a project that already uses those names is not quietly redefined.
+- All data is hard-coded sample data. Nothing is fetched, no control recalculates anything, and every figure is invented — wire your own data in where the constants sit at the top of the component.

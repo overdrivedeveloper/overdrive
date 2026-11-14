@@ -1,0 +1,114 @@
+[
+  {
+    "symbol": "TSLA",
+    "name": "Tesla",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/tesla.svg",
+    "file": "tsla.svg",
+    "bytes": 541
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/nvidia.svg",
+    "file": "nvda.svg",
+    "bytes": 881
+  },
+  {
+    "symbol": "AAPL",
+    "name": "Apple",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/apple.svg",
+    "file": "aapl.svg",
+    "bytes": 650
+  },
+  {
+    "symbol": "MSFT",
+    "name": "Microsoft",
+    "source": "https://companieslogo.com/img/orig/MSFT-7d7cf874.svg",
+    "sourcePage": "https://companieslogo.com/microsoft/logo/",
+    "file": "msft.svg",
+    "bytes": 723
+  },
+  {
+    "symbol": "META",
+    "name": "Meta",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/meta.svg",
+    "file": "meta.svg",
+    "bytes": 1324
+  },
+  {
+    "symbol": "AMZN",
+    "name": "Amazon",
+    "source": "https://companieslogo.com/img/orig/AMZN-434f1137.svg",
+    "sourcePage": "https://companieslogo.com/amazon/logo/",
+    "file": "amzn.svg",
+    "bytes": 2716
+  },
+  {
+    "symbol": "HOOD",
+    "name": "Robinhood",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/robinhood.svg",
+    "file": "hood.svg",
+    "bytes": 763
+  },
+  {
+    "symbol": "COIN",
+    "name": "Coinbase",
+    "source": "https://companieslogo.com/img/orig/COIN-6f1ac628.svg",
+    "sourcePage": "https://companieslogo.com/coinbase/logo/",
+    "file": "coin.svg",
+    "bytes": 606
+  },
+  {
+    "symbol": "MSTR",
+    "name": "Strategy",
+    "source": "https://companieslogo.com/img/orig/MSTR-2221948f.svg",
+    "sourcePage": "https://companieslogo.com/microstrategy/logo/",
+    "file": "mstr.svg",
+    "bytes": 640
+  },
+  {
+    "symbol": "PLTR",
+    "name": "Palantir",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/palantir.svg",
+    "file": "pltr.svg",
+    "bytes": 287
+  },
+  {
+    "symbol": "ETH",
+    "name": "Ethereum",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/ethereum.svg",
+    "file": "eth.svg",
+    "bytes": 228
+  },
+  {
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/bitcoin.svg",
+    "file": "btc.svg",
+    "bytes": 908
+  },
+  {
+    "symbol": "AMD",
+    "name": "AMD",
+    "source": "https://companieslogo.com/img/orig/AMD-782bc665.svg",
+    "sourcePage": "https://companieslogo.com/amd/logo/",
+    "file": "amd.svg",
+    "bytes": 464
+  },
+  {
+    "symbol": "SPY",
+    "name": "SPDR",
+    "source": "https://companieslogo.com/img/orig/spdr-8d54528b.svg",
+    "sourcePage": "https://companieslogo.com/spdr-etf/logo/",
+    "file": "spy.svg",
+    "bytes": 1219
+  },
+  {
+    "symbol": "QQQ",
+    "name": "Invesco",
+    "source": "https://companieslogo.com/img/orig/IVZ-794ce4fd.svg",
+    "sourcePage": "https://companieslogo.com/invesco/logo/",
+    "file": "qqq.svg",
+    "bytes": 837
+  }
+]

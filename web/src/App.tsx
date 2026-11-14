@@ -1,0 +1,16 @@
+import {useCallback, useEffect, useState} from 'react';
+import {Nav} from './components/Nav';
+import {Loader} from './components/Loader';
+import {useReducedMotion} from './hooks/useReducedMotion';
+import {startScroll} from './lib/scroll';
+import {Hero} from './sections/Hero';
+import {OverdriveLanding} from './sections/OverdriveLanding';
+import {OverdriveDashboard} from './sections/OverdriveDashboard';
+function currentPath(){return window.location.pathname.startsWith('/dashboard')?'/dashboard':'/'}
+export default function App(){const [path,setPath]=useState(currentPath);const [loading,setLoading]=useState(()=>!sessionStorage.getItem('overdrive-loaded'));const [transition,setTransition]=useState(false);const reduced=useReducedMotion();
+ const finish=useCallback(()=>{sessionStorage.setItem('overdrive-loaded','1');setLoading(false)},[]);
+ useEffect(()=>{const pop=()=>{const next=currentPath();if(next!==path){setPath(next);window.scrollTo(0,0)}};window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop)},[path]);
+ useEffect(()=>{if(path!=='/')return;return startScroll(reduced)},[path,reduced]);
+ const navigate=(next:string)=>{if(next===path){window.scrollTo({top:0,behavior:'smooth'});return}setTransition(true);window.setTimeout(()=>{history.pushState({},'',next);setPath(next);window.scrollTo(0,0);setTransition(false)},reduced?0:160)};
+ return <>{loading&&<Loader done={finish}/>}<div className={`route-content ${transition?'route-exit':''}`}>{path==='/'?<><Nav navigate={navigate}/><main><Hero reduced={reduced}/><OverdriveLanding navigate={navigate}/></main><div className="grain" aria-hidden/></>:<OverdriveDashboard navigate={navigate}/>}</div></>
+}

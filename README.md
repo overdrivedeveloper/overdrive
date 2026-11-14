@@ -15,13 +15,25 @@ sdk/          TypeScript client for the API (second deliverable, not yet publish
 mcp/          Agent MCP package (bundles app/src/mcp into one file) and its guide, MCP.md
 vol-engine/   Python volatility engine: computes sigma per market and signs EIP-712 posts for the vol oracle
 risk-sim/     Python nightly stress simulation of the Governor book; recommends caps, holds no keys
+web/          Website and dashboard (Vite, React, Tailwind): landing page and the Overdrive dashboard, static build
 exit/         Standalone exit page: one static HTML file (build.mjs, lib.cjs, tests) that works with no website and no API
 scripts/      CI and tooling: ci-local.sh, quiet-run.sh, export-abis.sh and their tests
 .githooks/    pre-commit public guard and commit-msg guard
 .github/      CI workflow and SECURITY.md
 ```
 
-The front end is built by another team and lives outside this repository. It talks to the API through `sdk/`.
+The website and dashboard live in `web/` (built by the design team, imported unchanged). The dashboard is moving to the API through `sdk/`.
+
+### Frontend (`web/`)
+
+A Vite, React and Tailwind single-page app: the landing page plus the dashboard views (Dashboard, Markets, Portfolio, Trade, Backers, Governor, Activity, Token). It is static; there is no server code and no secret. Wallet connection is by injected EVM wallet on Robinhood Chain (4663). Until the API wiring lands, missing data shows as unavailable and no transaction is submitted.
+
+```
+cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build   # output in web/dist
+npm run dev                                                              # local dev server
+```
+
+`web/vercel.json` serves `index.html` for `/dashboard` and its query-string views; real assets are served as files. CI and `scripts/ci-local.sh` run the `web` job (install, typecheck, build).
 
 ### Contracts (`contracts/src`)
 

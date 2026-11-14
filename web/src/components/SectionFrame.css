@@ -1,0 +1,18 @@
+.frame {
+  position: relative;
+  width: 100%;
+  /* Height comes from the design canvas's own ratio, so the block reserves the
+     right space before any JavaScript runs. */
+  aspect-ratio: 1600 / 900;
+  overflow: hidden;
+}
+
+.frame__canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Top-left rather than center: the canvas is scaled down from the container's
+     own origin, so no translate is needed to keep it registered to the corner. */
+  transform-origin: top left;
+  will-change: transform;
+}

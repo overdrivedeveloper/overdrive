@@ -1,0 +1,159 @@
+/* ===============================================================
+   Design tokens
+   One source of truth for colour, elevation, radius and motion.
+   Every component reads from here - nothing hard-codes a hex.
+
+   Declared on `.frame`, not on `:root`. These names are deliberately
+   generic - --bg, --ink, --line, --surface - and a project this screen
+   is dropped into may well have its own. Putting them on :root would
+   silently redefine them for that whole page. On the frame they reach
+   the screen and stop there.
+
+   Written `:where(.frame)` so they add no specificity: a section's
+   own palette block overrides them exactly as it did when these lived
+   on :root.
+   =============================================================== */
+
+:where(.frame) {
+  /* ---- accent ----
+     This is only the DEFAULT ramp. Each section re-declares the whole
+     --accent-* scale on its own root element to match its reference, so
+     nothing inherits a palette it did not ask for. See the palette block
+     at the top of any section's CSS.
+
+     Sections 01–03 happen to be orange because their references are; the
+     rest override to lime, coral, pink, yellow, blue, sage and so on. */
+  --accent-50: #fff3ec;
+  --accent-100: #ffe1d1;
+  --accent-200: #ffc0a3;
+  --accent-300: #ff9a70;
+  --accent-400: #fb7440;
+  --accent-500: #f2571b;
+  --accent-600: #d8430c;
+  --accent-700: #ad3309;
+  --accent-contrast: #ffffff;
+
+  /* ---- neutrals, warm-tinted so they sit with the accent ---- */
+  --n-0: #ffffff;
+  --n-25: #fcfbfa;
+  --n-50: #f7f6f4;
+  --n-100: #f1efec;
+  --n-200: #e5e2dd;
+  --n-300: #d2cdc6;
+  --n-400: #a8a29a;
+  --n-500: #7a746c;
+  --n-600: #57524b;
+  --n-700: #3b3731;
+  --n-800: #262320;
+  --n-900: #17150f;
+  --n-950: #0d0c09;
+
+  /* ---- semantic ---- */
+  --ok-bg: #e7f6ec;
+  --ok-fg: #1c7a42;
+  --warn-bg: #fdf0da;
+  --warn-fg: #9a6708;
+  --bad-bg: #fdeaea;
+  --bad-fg: #b4322d;
+  --info-bg: #e8effd;
+  --info-fg: #2a56c6;
+
+  /* ---- surfaces (light) ---- */
+  --bg: var(--n-50);
+  --surface: var(--n-0);
+  --surface-2: var(--n-100);
+  --surface-3: var(--n-200);
+  --ink: var(--n-900);
+  --ink-2: var(--n-600);
+  --ink-3: var(--n-400);
+  --line: var(--n-200);
+  --line-soft: var(--n-100);
+  --invert-bg: var(--n-900);
+  --invert-ink: var(--n-0);
+
+  /* ---- elevation ---- */
+  --sh-1: 0 1px 2px rgba(23, 21, 15, 0.05);
+  --sh-2: 0 2px 4px rgba(23, 21, 15, 0.04), 0 6px 14px rgba(23, 21, 15, 0.05);
+  --sh-3: 0 4px 10px rgba(23, 21, 15, 0.05), 0 16px 34px rgba(23, 21, 15, 0.07);
+  --sh-4: 0 8px 20px rgba(23, 21, 15, 0.07), 0 30px 60px rgba(23, 21, 15, 0.1);
+  --sh-accent: 0 8px 24px rgba(242, 87, 27, 0.28);
+  --ring: 0 0 0 3px rgba(242, 87, 27, 0.18);
+
+  /* ---- radius ---- */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 999px;
+
+  /* ---- motion ----
+     out    : settles quickly, for entrances and layout shifts
+     spring : slight overshoot, for controls that should feel physical
+     smooth : symmetric, for colour and opacity                       */
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --e-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 140ms;
+  --t-base: 240ms;
+  --t-slow: 520ms;
+  --t-draw: 900ms;
+
+  /* ---- type ---- */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* ---- surfaces (dark) ----
+   Keyed off the frame's own data-theme, which SectionFrame writes from
+   its `theme` prop, so one screen can be dark on an otherwise light page. */
+:where(.frame[data-theme="dark"]) {
+  --bg: #0e0d0b;
+  --surface: #191714;
+  --surface-2: #211e1a;
+  --surface-3: #2c2823;
+  --ink: #f6f4f1;
+  --ink-2: #a8a29a;
+  --ink-3: #6f6960;
+  --line: #2e2a25;
+  --line-soft: #241f1b;
+  --invert-bg: #f6f4f1;
+  --invert-ink: #17150f;
+
+  --ok-bg: #12301f;
+  --ok-fg: #5ed48c;
+  --warn-bg: #33270e;
+  --warn-fg: #e9b75c;
+  --bad-bg: #351917;
+  --bad-fg: #ef857f;
+  --info-bg: #14203f;
+  --info-fg: #7ea2f5;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sh-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 6px 14px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 4px 10px rgba(0, 0, 0, 0.45), 0 16px 34px rgba(0, 0, 0, 0.5);
+  --sh-4: 0 8px 20px rgba(0, 0, 0, 0.5), 0 30px 60px rgba(0, 0, 0, 0.6);
+  --ring: 0 0 0 3px rgba(242, 87, 27, 0.3);
+}
+
+/* Motion is decoration. If the reader has asked for less of it, the
+   components still arrive - they just arrive already finished. */
+@media (prefers-reduced-motion: reduce) {
+  :where(.frame) {
+    --t-fast: 1ms;
+    --t-base: 1ms;
+    --t-slow: 1ms;
+    --t-draw: 1ms;
+  }
+
+  :where(.frame),
+  :where(.frame) *,
+  :where(.frame) *::before,
+  :where(.frame) *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

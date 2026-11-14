@@ -1,0 +1,66 @@
+.market-mark {
+  --market-mark-size: 36px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--market-mark-size);
+  width: var(--market-mark-size);
+  height: var(--market-mark-size);
+  overflow: hidden;
+  border: 1px solid #cecdcd;
+  border-radius: 50%;
+  background: #e9e8e8;
+  box-shadow: inset 0 1px 0 #fff;
+  color: #242425;
+  vertical-align: middle;
+}
+
+.market-mark[data-tone='coral'] {
+  background: #f6d8d3;
+  border-color: #e5b9b2;
+  color: #ad3932;
+}
+
+.market-mark[data-tone='dark'] {
+  background: #272729;
+  border-color: #454547;
+  box-shadow: inset 0 1px 0 #545456;
+  color: #f3f1ef;
+}
+
+.market-mark__shape {
+  display: block;
+  width: 56%;
+  height: 56%;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: var(--market-mark-src) center / contain no-repeat;
+  -webkit-mask: var(--market-mark-src) center / contain no-repeat;
+}
+
+.market-mark[data-symbol='NVDA'] .market-mark__shape,
+.market-mark[data-symbol='META'] .market-mark__shape,
+.market-mark[data-symbol='SPY'] .market-mark__shape,
+.market-mark[data-symbol='QQQ'] .market-mark__shape { width: 65%; }
+
+.market-mark[data-symbol='MSTR'] .market-mark__shape,
+.market-mark[data-symbol='ETH'] .market-mark__shape { height: 64%; }
+
+.market-mark__unknown { width: 56%; height: 56%; }
+
+.market-mark-pair {
+  --market-mark-size: 36px;
+  display: inline-flex;
+  position: relative;
+  width: calc(var(--market-mark-size) * 1.15);
+  height: var(--market-mark-size);
+  align-items: flex-start;
+  flex: 0 0 calc(var(--market-mark-size) * 1.15);
+  vertical-align: middle;
+}
+
+.market-mark-pair > .market-mark + .market-mark {
+  margin-left: calc(var(--market-mark-size) * -.45);
+  align-self: flex-end;
+}

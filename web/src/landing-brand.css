@@ -1,0 +1,34 @@
+/* Tarn's composition, photographs and motion are retained. Palette changes only. */
+:root {
+  --color-fog: #f1f1f3;
+  --color-mist: #e6e6e9;
+  --color-haze: #bcbcc2;
+  --color-stone: #737379;
+  --color-slate: #535359;
+  --color-ink: #18181b;
+  --color-night: #101013;
+  --color-line: #d9d9de;
+  --color-lichen: #d8473d;
+  --color-ember: #b83b33;
+  --color-umber: #8b3533;
+  --color-moss: #665b62;
+  --color-sprout: #bc7c78;
+  --color-cream: #f5d4d0;
+  --color-water: #a5a5ad;
+}
+.tarn-landing img[src^='/media/'],
+.tarn-landing .pill-img { filter: grayscale(1); }
+.tarn-landing .socials { justify-content:flex-start; }
+.tarn-landing section[id] {scroll-margin-top:64px;}
+@media(max-width:640px) {
+  .tarn-landing #details .glass-dark p {font-size:10px;}
+  .tarn-landing #details .glass-dark {padding-left:10px;}
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .tarn-landing #gears {height:100svh; min-height:620px;}
+}
+/* Bare surfaces stay silver; the WebGL growth layer supplies coral foliage. */
+.grow-reveal>img{filter:grayscale(1)}
+#top [class*="origin-bottom"]{filter:none}
+

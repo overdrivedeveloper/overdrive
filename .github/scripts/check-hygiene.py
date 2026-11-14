@@ -44,6 +44,10 @@ for pkg_dir in PACKAGES:
         if script in ("postinstall", "preinstall", "install", "prepare") and "bun install" in cmd and "--frozen-lockfile" not in cmd:
             bad(f"{pkg_dir}/package.json: {script} runs a non-frozen bun install")
     has_deps = any(pkg.get(s) for s in ("dependencies", "devDependencies", "optionalDependencies"))
+    if pkg_dir == "web":  # web is the one npm package (the team's Vite toolchain): lockfile = package-lock.json, CI uses npm ci
+        if has_deps and not (d / "package-lock.json").exists():
+            bad("web/package-lock.json is missing (commit the lockfile)")
+        continue
     if has_deps and not (d / "bun.lock").exists():
         bad(f"{pkg_dir}/bun.lock is missing (commit the lockfile)")
     bunfig = d / "bunfig.toml"
