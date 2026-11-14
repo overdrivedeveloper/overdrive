@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# pre-push hook: refuse to push a commit whose exact tree has no all-green ci-local stamp.
+# GitHub Actions is skipped on the private repo, so scripts/ci-local.sh is the CI; it writes
+# .ci-local/green/<sha>.json (commit, tree, jobs, time, tool versions) on an all-green run on a clean tree.
+# A stamp counts when its tree hash equals the pushed commit's tree (so a fast-forward or a rebase onto the same
+# content is fine) and its jobs include every required job. Stamps are searched in this checkout and every worktree.
+# Emergency override: OD_SKIP_CI_GATE="<reason>" git push ...   (the reason is mandatory and appended to
+# .ci-local/overrides.log). Required jobs: OD_REQUIRED_JOBS (default below).
+# bash 3.2 safe.
+set -uo pipefail
+required="${OD_REQUIRED_JOBS:-hygiene semgrep app guard scripts python web sdk}"
+top="$(git rev-parse --show-toplevel)"
+zero="0000000000000000000000000000000000000000"
+
+dirs="$top/.ci-local/green"
+for wt in $(git worktree list --porcelain | sed -n 's/^worktree //p' | tr ' ' '#'); do
+  dirs="$dirs $(echo "$wt" | tr '#' ' ' | sed 's/ /\\ /g')/.ci-local/green"
+done
+
+stamped() { # $1 = tree hash
+  local d f ok j
+  for d in $dirs; do
+    d="$(echo "$d" | sed 's/\\ / /g')"
+    [ -d "$d" ] || continue
+    for f in "$d"/*.json; do
+      [ -f "$f" ] || continue
+      grep -q "\"tree\": \"$1\"" "$f" || continue
+      ok=1
+      for j in $required; do grep -q "\"$j\"" "$f" || ok=0; done
+      [ "$ok" -eq 1 ] && return 0
+    done
+  done
+  return 1
+}
+
+bad=0
+while read -r lref lsha rref rsha; do
+  [ -n "${lsha:-}" ] || continue
+  [ "$lsha" = "$zero" ] && continue   # deleting a ref pushes no code
+  tree="$(git rev-parse "$lsha^{tree}" 2>/dev/null)" || continue
+  if ! stamped "$tree"; then
+    echo "pre-push: refusing $lref ($lsha): no all-green ci-local stamp for tree $tree" >&2
+    bad=1
+  fi
+done
+
+if [ "$bad" -eq 1 ]; then
+  if [ -n "${OD_SKIP_CI_GATE:-}" ]; then
+    mkdir -p "$top/.ci-local"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) override: $OD_SKIP_CI_GATE" >> "$top/.ci-local/overrides.log"
+    echo "pre-push: OD_SKIP_CI_GATE set, push allowed and logged to .ci-local/overrides.log" >&2
+    exit 0
+  fi
+  echo "pre-push: commit the work, then run: bash scripts/ci-local.sh --only $(echo $required | tr ' ' ',')" >&2
+  echo "pre-push: emergency only: OD_SKIP_CI_GATE=\"<reason>\" git push (the reason is logged)" >&2
+  exit 1
+fi
+exit 0

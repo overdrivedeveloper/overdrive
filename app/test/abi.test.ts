@@ -21,4 +21,7 @@ test("abisAreCurrent", () => {
       readFileSync(join(tmp, f), "utf8"),
     );
   }
-}, 120_000);
+// The export runs `forge build`, which is a no-op while contracts/out is current (the warm build is reused, nothing is
+// forced). Under load (several lanes compiling at once) a cold or partial rebuild alone takes minutes, so 120 s failed
+// without any stale ABI. 600 s only widens the wait; the byte comparison above is unchanged.
+}, 600_000);

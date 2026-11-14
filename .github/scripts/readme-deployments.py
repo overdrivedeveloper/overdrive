@@ -4,8 +4,8 @@
     python3 .github/scripts/readme-deployments.py           # rewrite the section body in README.md
     python3 .github/scripts/readme-deployments.py --check   # CI: exit 1 if README.md differs from the files
 
-The section is the text between the `### Deployment` heading and the next heading. Only numeric chain files count
-(4663.json for mainnet, 46630.json for testnet); anvil.json is the local record and is never published. A chain is
+The section is the text between the `### Deployment` heading and the next heading. Only chain files count
+(mainnet.json or 4663.json, testnet.json or 46630.json); anvil.json is the local record and is never published. A chain is
 listed once its file names at least one contract address. With none, the section reads "Not deployed yet". After a
 deploy, run it without --check and commit README.md together with the deployment file.
 """
@@ -20,6 +20,8 @@ README = ROOT / "README.md"
 HEADING = "### Deployment\n"
 NOT_DEPLOYED = ("Not deployed yet. No addresses are published. This section will list them from "
                 "`app/deployments/<chain>.json` once the contracts are live.")
+# The deploy scripts write mainnet.json and testnet.json (app/scripts/deploy-*.sh); a numeric name works too.
+FILE_CHAIN = {"mainnet": 4663, "testnet": 46630}
 NAMES = {4663: "Robinhood Chain mainnet", 46630: "Robinhood Chain testnet"}
 EXPLORERS = {4663: "https://robinhoodchain.blockscout.com", 46630: "https://explorer.testnet.chain.robinhood.com"}
 ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
@@ -28,13 +30,14 @@ ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
 def chains():
     out = []
     for path in sorted(DEPLOY.glob("*.json")):
-        if not re.fullmatch(r"\d+", path.stem):
+        stem = str(FILE_CHAIN.get(path.stem, path.stem))
+        if not re.fullmatch(r"\d+", stem):
             continue
         d = json.loads(path.read_text())
-        if int(d.get("chainId", -1)) != int(path.stem):
+        if int(d.get("chainId", -1)) != int(stem):
             sys.exit(f"{path.relative_to(ROOT)}: chainId {d.get('chainId')} does not match the file name")
         if any(isinstance(a, str) and a for a in (d.get("contracts") or {}).values()):
-            out.append((int(path.stem), path, d))
+            out.append((int(stem), path, d))
     return out
 
 

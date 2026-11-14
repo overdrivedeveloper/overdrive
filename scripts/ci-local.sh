@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Local CI: runs the same jobs, with the same commands, as .github/workflows/ci.yml.
 # The workflow skips itself on a private repository, so this script is the CI for the private repo.
-# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts python web slither
+# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts python web sdk slither
+# On an all-green run on a clean tree it writes .ci-local/green/<sha>.json; .githooks/pre-push refuses a push without it.
 # Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,7 +14,7 @@ if [ -z "${RHC_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then s
 # slither runs last: it does a forge clean, and the app ABI test would then rebuild everything inside its 120 s limit.
 # One shared RPC (Alchemy free tier or public) answers 429 in bursts: throttle forge (retry flags need --rpc-url, so none).
 FORK_FLAGS="--compute-units-per-second 100"
-JOBS="hygiene semgrep contracts app guard scripts python web slither"
+JOBS="hygiene semgrep contracts app guard scripts python web sdk slither"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -57,15 +58,35 @@ job_semgrep() { bash .github/scripts/semgrep.sh; }
 job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
 job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
-job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
+job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh && bash scripts/pre-push.test.sh; }
 job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
 job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build && bun test); }
+job_sdk() { (cd sdk && bun install --frozen-lockfile && bun run generate:check && bun test && bunx tsc --noEmit -p tsconfig.json); }
 job_python() { bash scripts/check-python-locks.sh; }
 
 failed=0
+ran=""
 for j in $JOBS; do
   if [ -n "$only" ]; then case ",$only," in *",$j,"*) ;; *) continue ;; esac; fi
+  ran="$ran $j"
   if "job_$j" >"$logdir/$j.log" 2>&1; then echo "ci-local: $j ok"; else echo "ci-local: $j FAILED (see $logdir/$j.log)"; tail -15 "$logdir/$j.log"; failed=1; fi
 done
-if [ "$failed" -eq 0 ]; then echo "ci-local: all jobs green"; fi
+if [ "$failed" -eq 0 ]; then
+  echo "ci-local: all jobs green"
+  # Stamp: proof that these jobs passed on this exact tree. Only a clean tracked tree can be stamped (else the
+  # run tested something the commit does not contain). The pre-push hook matches on the tree hash.
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    echo "ci-local: tracked files are modified, no stamp written (commit first, then rerun)"
+  elif [ -n "$ran" ]; then
+    sha="$(git rev-parse HEAD)"; tree="$(git rev-parse 'HEAD^{tree}')"
+    mkdir -p "$root/.ci-local/green"
+    jobs_json="$(printf '%s\n' $ran | sed 's/.*/"&"/' | paste -sd, -)"
+    {
+      printf '{\n  "commit": "%s",\n  "tree": "%s",\n  "jobs": [%s],\n  "utc": "%s",\n' "$sha" "$tree" "$jobs_json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      printf '  "tools": {"bun": "%s", "node": "%s", "forge": "%s", "python": "%s"}\n}\n' \
+        "$(bun --version 2>/dev/null)" "$(node --version 2>/dev/null)" "$(forge --version 2>/dev/null | head -1)" "$(python3 --version 2>/dev/null)"
+    } > "$root/.ci-local/green/$sha.json"
+    echo "ci-local: stamp .ci-local/green/$sha.json"
+  fi
+fi
 exit "$failed"
