@@ -1,0 +1,43 @@
+{
+  "description": "One ODVolOracle post signed with the first well-known anvil dev account (the private key is not stored here). A signer implementation must reproduce typeHash, domainSeparator, structHash, digest and signature exactly (RFC 6979 deterministic ECDSA, low-s, v in {27,28}).",
+  "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "blockTimestamp": 1790000000,
+  "typedData": {
+    "types": {
+      "EIP712Domain": [
+        {"name": "name", "type": "string"},
+        {"name": "version", "type": "string"},
+        {"name": "chainId", "type": "uint256"},
+        {"name": "verifyingContract", "type": "address"}
+      ],
+      "VolPost": [
+        {"name": "market", "type": "bytes32"},
+        {"name": "sigmaBps", "type": "uint64"},
+        {"name": "buyBlockFrom", "type": "uint64"},
+        {"name": "buyBlockTo", "type": "uint64"},
+        {"name": "validUntil", "type": "uint64"},
+        {"name": "nonce", "type": "uint64"}
+      ]
+    },
+    "primaryType": "VolPost",
+    "domain": {
+      "name": "Overdrive Vol",
+      "version": "1",
+      "chainId": 31337,
+      "verifyingContract": "0x00000000000000000000000000000000000f0d01"
+    },
+    "message": {
+      "market": "0xbeef79c37c77e6ceb4ac9ee8bdef7fa899d415eecd4282c9c559ebdcd4d41266", "marketNote": "// not-a-key: keccak256 of market:TEST",
+      "sigmaBps": 5200,
+      "buyBlockFrom": 1790600000,
+      "buyBlockTo": 1790686400,
+      "validUntil": 1790003600,
+      "nonce": 7
+    }
+  },
+  "typeHash": "0x15f677cd6b40e6d14e3f47f4cca1eb7a0513505add0a1866ca3c638c5ca3a741", "typeHashNote": "// not-a-key",
+  "domainSeparator": "0x41bcfd285622a62f837589fcfc6a51fe971d0b001925fc40143be4a43bf8327f", "domainSeparatorNote": "// not-a-key",
+  "structHash": "0x5ca72583d3b748427cef74c9632eda43444e88ebebd83b988d4f52785fd611cb", "structHashNote": "// not-a-key",
+  "digest": "0x97f20e62c26b45bdb777ecb1584a1e6a4b17dc02a6e229d8c2523752251fdcf1", "digestNote": "// not-a-key",
+  "signature": "0x3a37d330aa3b90174425af9cb72361074234849c198b438bf66680e82a66c12d01956d381617efe0caf837521f338f593a28a113f721624e111c2503d84dfc401c", "signatureNote": "// not-a-key: r || s || v"
+}

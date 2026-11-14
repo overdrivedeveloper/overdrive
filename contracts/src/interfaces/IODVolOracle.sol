@@ -36,4 +36,15 @@ interface IODVolOracle {
     function read(bytes32 market) external view returns (VolReading memory);
     function signer() external view returns (address);
     function domainSeparator() external view returns (bytes32);
+
+    // Signer, bounds and digest details.
+    event SignerRevoked(address indexed signer);
+    event BoundsSet(bytes32 indexed market, uint64 floorBps, uint64 ceilingBps);
+    error InvalidAdmin();
+    error InvalidSigner();
+    error InvalidBounds(uint64 floorBps, uint64 ceilingBps);
+    error BadBuyBlockWindow(uint64 from, uint64 to);
+    function lastNonce(bytes32 market) external view returns (uint64);
+    function bounds(bytes32 market) external view returns (uint64 floorBps, uint64 ceilingBps);
+    function hashPost(VolPost calldata p) external view returns (bytes32);
 }
