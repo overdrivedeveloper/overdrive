@@ -21,5 +21,9 @@ interface IODPaymaster {
     function setSigner(address signer) external;
     function setLimits(uint256 maxCostPerOp, uint256 accountDailyCap, uint256 globalDailyCap) external;
     function setPaused(bool paused) external; // guardian pauses, owner (timelock) unpauses
-    function getHash(bytes calldata packedUserOp, uint48 validUntil, uint48 validAfter) external view returns (bytes32);
+    // The hash the sponsoring signer signs as an EIP-191 personal message (todo 10 R7, vector in paymaster-hash.json).
+    function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
+        external
+        view
+        returns (bytes32);
 }

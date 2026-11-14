@@ -19,6 +19,7 @@ interface IODBacker {
         uint256 badDebtUsdg
     );
     event BatchVoided(uint256 indexed batchId, bytes32 reason);
+    event OperatorSet(address indexed owner, address indexed operator, bool allowed);
     error NotVaultOwner(uint256 vaultId);
     error BelowMinimumCollateral();
     error Undercollateralized(uint256 ratioBps, uint256 requiredBps);
@@ -28,12 +29,20 @@ interface IODBacker {
     error Healthy(uint256 vaultId);
     error BatchNotReady(uint64 readyAt);
     error BatchExpired();
+    error NotOperator(address owner, address operator);
     function openVault(bytes32 gearId, uint256 collateralUsdg) external returns (uint256 vaultId); // min 50 USDG
+    // Opens a vault OWNED BY `owner`, collateral pulled from msg.sender (the agent router uses it; a gift otherwise).
+    function openVaultFor(address owner, bytes32 gearId, uint256 collateralUsdg) external returns (uint256 vaultId);
     function deposit(uint256 vaultId, uint256 usdg) external; // anyone may top up, never blocked
     function withdraw(uint256 vaultId, uint256 usdg, address to) external;
     function mint(uint256 vaultId, uint256 tokens, bool sellToGovernor, uint256 minProceedsUsdg)
         external
         returns (uint256 proceeds);
+    // Operator mint (todo 10): msg.sender must be an operator of the vault owner; always sells to the Governor, so
+    // the proceeds stay as vault collateral and nothing reaches the operator.
+    function mintFor(uint256 vaultId, uint256 tokens, uint256 minProceedsUsdg) external returns (uint256 proceeds);
+    function setOperator(address operator, bool allowed) external; // msg.sender is the owner
+    function isOperator(address owner, address operator) external view returns (bool);
     function repay(uint256 vaultId, uint256 tokens) external; // burns tokens from msg.sender, never blocked
     function repayWithUsdg(uint256 vaultId, uint256 tokens, uint256 maxCostUsdg) external returns (uint256 cost);
     function sealBatch(bytes32 gearId, uint256[] calldata vaultIds) external returns (uint256 batchId); // anyone

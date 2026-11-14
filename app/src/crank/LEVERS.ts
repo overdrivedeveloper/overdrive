@@ -34,5 +34,6 @@ export const NOT_LEVERS: { match: RegExp; reason: string }[] = [
   { match: /^IODMarketHours\.(setHolidays|setFallbackEnabled)$/, reason: "admin (timelock) calendar settings" },
   { match: /^IODFees\.notify$/, reason: "called by the minter and hook as fees arise" },
   { match: /^IODBacker\.(openVault|deposit|withdraw|mint|repay|repayWithUsdg)$/, reason: "backer vault owner actions" },
+  { match: /^IODBacker\.(openVaultFor|mintFor|setOperator)$/, reason: "owner-approved operator actions (the agent router, todo 10) and the owner's operator switch" },
   { match: /^IODVolOracle\.(post|setBounds|setSigner|revokeSigner)$/, reason: "the vol engine posts sigma (15); admin sets bounds and signer" },
 ];
