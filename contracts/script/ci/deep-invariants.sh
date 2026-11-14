@@ -7,6 +7,7 @@
 #  2. The per-area suites (backer, liquidation, governor, stake): every invariant at DEEP_AREA_RUNS x DEEP_AREA_DEPTH
 #     (default 100 x 100 = 10,000 calls per invariant) instead of the profile's 500 x 200, to keep the whole script
 #     under about 15 minutes. Override with DEEP_AREA_RUNS / DEEP_AREA_DEPTH.
+#  3. The fund-holding suites (FeesInvariant, InsuranceInvariant, SellQueueInvariant) at their inline 100 x 100.
 # Prints the handler call count of the system campaign and the elapsed time.
 # Usage: bash contracts/script/ci/deep-invariants.sh
 set -euo pipefail
@@ -30,5 +31,8 @@ fi
 FOUNDRY_INVARIANT_RUNS="${DEEP_AREA_RUNS:-100}" FOUNDRY_INVARIANT_DEPTH="${DEEP_AREA_DEPTH:-100}" \
   forge test --match-test 'invariant_' --match-path 'test/{backer,governor,stake}/*Invariant.t.sol' >"$log.area" 2>&1 || status=1
 grep -E '^\[(PASS|FAIL|SKIP)|Suite result|Ran [0-9]+ test suites' "$log.area" || true
-echo "deep-invariants: $([ "$status" -eq 0 ] && echo ok || echo FAILED) in $(( $(date +%s) - start )) s (logs: $log, $log.area)"
+# 3. The fund-holding module suites (ODFees, ODInsurance, minter sell queue): 100 x 100 each from their inline config.
+forge test --match-test 'invariant_' --match-path 'test/invariant/{Fees,Insurance,SellQueue}Invariant.t.sol' >"$log.funds" 2>&1 || status=1
+grep -E '^\[(PASS|FAIL|SKIP)|invariants \(runs|Suite result|Ran [0-9]+ test suites' "$log.funds" || true
+echo "deep-invariants: $([ "$status" -eq 0 ] && echo ok || echo FAILED) in $(( $(date +%s) - start )) s (logs: $log, $log.area, $log.funds)"
 exit "$status"

@@ -104,9 +104,30 @@ to S13 in one long campaign; the deep run is `bash contracts/script/ci/deep-inva
 | S15 | A low-gas executeBatch reverts and leaves the batch executable (reads the public MIN_VAULT_GAS) | `invariant/SystemInvariant.t.sol : test_ExecuteBatchGasRule_afterFixAudit2` |
 | S16 | ODFees.distribute never books more USDG than it holds when the Governor settles owed fees inside its own payout (F12-1) | `invariant/SystemInvariant.t.sol : test_Repro_FeeDoubleBookOnDistribute` |
 
+## Fund-holding module properties (per-module invariant suites)
+
+Three handlers, one per module that holds funds, each at 100 runs x depth 100 (10,000 handler calls per campaign) in
+both the default and deep profiles (inline forge-config). ODFees and ODInsurance run the real contract against mock
+USDG (with pause and blocklist) and mock recipients; the sell queue runs on the real protocol from `SystemFixture`.
+
+| # | Invariant | Checked by (file : function) |
+| --- | --- | --- |
+| F1 | ODFees USDG balance >= pending + totalHeld, and the gap equals exactly the unsynced donations | `invariant/FeesInvariant.t.sol : invariant_F1_BooksCoveredAndExact` |
+| F2 | notify, sync, distribute and release never mint or destroy value: books = notified + synced - paid out, USDG in - out = balance, notify never books USDG that has not arrived; covers the F12-1 path (the Governor settling owed fees back with notify inside fundCash), pulls of half, reverts, unnotified hand-backs, a stake that reverts and blocked pots | `invariant/FeesInvariant.t.sol : invariant_F2_NoValueMinted` |
+| F3 | totalHeld = sum of the seven buckets; both splits sum to 10,000 bps; fee params stay at or under MAX_FEE_PARAM_BPS | `invariant/FeesInvariant.t.sol : invariant_F3_HeldSumAndSplits` |
+| F4 | Only the admin sets splits, recipients, fee params and notifiers; only notifiers notify; distribute runs at most once per PERIOD | `invariant/FeesInvariant.t.sol : invariant_F4_AuthAndCadence` |
+| F5 | (Informational, bug present) a callback recipient that calls release on another bucket inside its own payout has that payout counted as its own: its bucket's books drop though it received nothing. Coverage holds and sync recovers it; needs an admin-set recipient that re-enters | `poc/FeeReentrantRelease.t.sol : test_Repro_ReentrantReleaseDropsGovernorBooks` |
+| I1 | ODInsurance holds exactly funded + donated - paid; payouts never exceed what came in | `invariant/InsuranceInvariant.t.sol : invariant_I1_BalanceConserved` |
+| I2 | Every cover pays exactly min(asked, balance) to its caller and to nobody else, once; funds and coverer draws never fail with the token live | `invariant/InsuranceInvariant.t.sol : invariant_I2_PayoutsBounded` |
+| I3 | Only the Governor and the backer draw (the admin, funders and strangers are refused); coverers are set once and never replaced | `invariant/InsuranceInvariant.t.sol : invariant_I3_OnlyCoverers` |
+| Q1 | For every gear the minter holds exactly the tokens of the open tickets (escrow conservation), each open ticket matches what was queued, and the minter holds no USDG | `invariant/SellQueueInvariant.t.sol : invariant_Q1_EscrowEqualsOpenTickets` |
+| Q2 | Every queued sell settles (fill pays the recipient exactly its result, at least minUsdgOut, and burns exactly the escrow) or refunds (owner cancel returns exactly the tokens), exactly once; a refused fill or cancel changes nothing; non-owners never cancel | `invariant/SellQueueInvariant.t.sol : invariant_Q2_SettleOrRefundExactly` |
+| Q3 | Queue order: ticket ids are sequential from 1 and never reused; ticketCount = tickets ever opened | `invariant/SellQueueInvariant.t.sol : invariant_Q3_TicketOrder` |
+| Q4 | Exits never gated: queueSell and an owner cancel succeed under every session, dropped reference, Governor, market or gear pause, price move and cash drain | `invariant/SellQueueInvariant.t.sol : invariant_Q4_ExitsNeverGated` |
+
 ## Known gaps
 
-- ODFees, ODInsurance and the minter sell queue hold funds but have no stateful invariant suite yet (fuzz and example tests only).
+- The sell queue suite does not drive `settleGear` (the 30 day halt settlement); its fill-at-settled-value path is example-based (`minter/Settle.t.sol`).
 - Several rows are example-based rather than fuzzed or stateful; they pin the behaviour but do not search for counter-examples.
 - The Halmos checks are not run in CI and have not been confirmed to finish on a loaded machine.
 - There is no one-to-one table from every external function to its refusal test.
