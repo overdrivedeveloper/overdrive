@@ -17,7 +17,9 @@ const FIXTURE = join(APP, "src", "testing", "fixtures", "deployment.fork.json");
 const ACCESS = parseAbi(["function hasRole(bytes32 role, address account) view returns (bool)"]);
 const TSLA = keccak256(stringToHex("TSLA"));
 const HEAD = 500;
-const NOW_S = () => Math.floor(Date.now() / 1000);
+// two seconds behind: the hedger reads its clock before the reply is built, and a floor() across a second boundary must not
+// put the block or the mark ahead of it (a negative age reads as stale)
+const NOW_S = () => Math.floor(Date.now() / 1000) - 2;
 
 function encrypt(key: Hex, password: string): string {
   const salt = randomBytes(32), iv = randomBytes(16);
@@ -117,7 +119,10 @@ suite("hedger boot", () => {
     }
     const stderr = child.exitCode !== null ? await new Response(child.stderr).text() : "";
     child.kill("SIGTERM");
+    // never wait on the child forever: a stop that is ignored must fail this test fast, not hang it
+    const killer = setTimeout(() => child.kill("SIGKILL"), 10_000);
     const code = await child.exited;
+    clearTimeout(killer);
     node.server.stop(true);
     const failure = (await db.sql`SELECT last_error FROM service_status WHERE job = 'hedger'`)[0]?.last_error ?? null;
     expect({ stderr, failure }).toEqual({ stderr: "", failure: null });

@@ -150,6 +150,9 @@ while (!abort.signal.aborted) {
     }
   }
   await new Promise<void>((resolve) => {
+    // A stop signal that arrived during the cycle has already fired: addEventListener would never see it and the loop
+    // would sleep a full cycle with the stop lost.
+    if (abort.signal.aborted) return resolve();
     const t = setTimeout(resolve, settings.cycleSeconds * 1000);
     abort.signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
   });
