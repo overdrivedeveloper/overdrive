@@ -2,6 +2,25 @@
 export const IODOracleGuardAbi = [
   {
     "type": "function",
+    "name": "buysPausedReason",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "config",
     "inputs": [
       {
@@ -92,6 +111,25 @@ export const IODOracleGuardAbi = [
             "internalType": "bool"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "haltedSince",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"
@@ -308,6 +346,30 @@ export const IODOracleGuardAbi = [
   },
   {
     "type": "function",
+    "name": "refPrice",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "refP",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "fromPyth",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "setBuysPaused",
     "inputs": [
       {
@@ -440,6 +502,31 @@ export const IODOracleGuardAbi = [
         "type": "bytes32",
         "indexed": false,
         "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ContinuityConfirmed",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "confirmations",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "p",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -599,5 +686,10 @@ export const IODOracleGuardAbi = [
         "internalType": "bytes32"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
   }
 ] as const;

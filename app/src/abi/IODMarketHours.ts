@@ -2,6 +2,44 @@
 export const IODMarketHoursAbi = [
   {
     "type": "function",
+    "name": "fallbackEnabled",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "holidays",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct Holiday[]",
+        "components": [
+          {
+            "name": "day",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "closeMinute",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "kindAt",
     "inputs": [
       {
@@ -44,6 +82,19 @@ export const IODMarketHoursAbi = [
         "name": "reopenAt",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sessionKinds",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8[]",
+        "internalType": "enum Session[]"
       }
     ],
     "stateMutability": "view"
@@ -205,7 +256,29 @@ export const IODMarketHoursAbi = [
   },
   {
     "type": "error",
+    "name": "InvalidHoliday",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InvalidSession",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidSessionKind",
     "inputs": [
       {
         "name": "index",
@@ -225,6 +298,28 @@ export const IODMarketHoursAbi = [
       },
       {
         "name": "kinds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SessionTooFar",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SessionTooLong",
+    "inputs": [
+      {
+        "name": "index",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -273,5 +368,10 @@ export const IODMarketHoursAbi = [
         "internalType": "uint256"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
   }
 ] as const;
