@@ -76,6 +76,7 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | --- | --- | --- |
 | 37 | With an independent move per leg (each inside the lag band, any signs, any band from 1 to 300 bps), a round trip never profits, for single and pair gears, on the minter, the backer and the hook | `audit/TwoLegLagRoundTrip.t.sol : testFuzz_TwoLeg_MinterNeverProfits`, `testFuzz_TwoLeg_BackerNeverProfits`, `testFuzz_TwoLeg_HookNeverProfits`; examples: `test_TwoLeg_PairCorners`, `test_TwoLeg_BackerPairCorners`, `test_TwoLeg_HookPairCorners`, `poc/Rescore2PairLag.t.sol : test_PoC_PairBothLegsInsideBandLoses` |
 | 38 | Unabsorbed transit up to `TRANSIT_DUST` (1 USDG) never makes `hedgeStale()` true and never passes its age to a later send; transit above it still ages | `poc/Rescore2Transit.t.sol : test_PoC_TransitDustDoesNotStaleFreshHedge`, `test_L8_LaterSendAgesFromItsOwnTime`, `test_L8_AboveDustStillAges`, `test_L8_SubDustSendsAddUp` (example-based) |
+| 39 | After `ODFees.distribute`, the fee contract's USDG balance covers pending plus held, including when the Governor settles owed fees back during its own payout | `poc/FeeDoubleBook.t.sol : test_F12_1_DistributeNeverBooksMoreThanHeld` (example-based) |
 
 ## Known gaps
 
