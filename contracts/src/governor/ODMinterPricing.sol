@@ -238,13 +238,18 @@ library ODMinterPricing {
         // Lag floor (M-4): neither the feed nor the reference may show a move of up to lagBandBps yet. A round trip
         // across such a move gains at most the gear's value ratio R; paying f per side costs (1+f)/(1-f) >= R when
         // f >= |power| x band / 2 x (1 + |power| x band). Applied last, so no discount, cap or session lowers it.
-        uint256 f = lagFloorBps(c.cfg.gear, tp.lagBandBps);
+        // A pair is priced on pA / pB and each leg may hide its own band, so its floor uses both bands (rescore 2).
+        uint256 f = lagFloorBps(c.cfg.gear, tp.lagBandBps, c.cfg.marketB != bytes32(0));
         return uint16(s > f ? s : f);
     }
 
     /// @notice Per-side spread floor, in bps, that makes a buy-then-sell round trip across a price move of up to
     /// `bandBps` (which neither price source shows yet) unprofitable for `gear` (M-4). Rounds up.
-    function lagFloorBps(Gear gear, uint16 bandBps) internal pure returns (uint256) {
+    /// `pair`: the gear is priced on the ratio of two markets, each of which may lag by `bandBps` in opposite
+    /// directions, so the ratio can hide (1 + b) / (1 - b). The floor is sized on the sum of both legs' bands (2b),
+    /// which covers that ratio for every gear and every band from 1 to 300 bps (M-4 pair leg, rescore 2).
+    function lagFloorBps(Gear gear, uint256 bandBps, bool pair) internal pure returns (uint256) {
+        if (pair) bandBps *= 2;
         uint256 pw = gear == Gear.CRUISE
             ? 15_000
             : gear == Gear.SPORT ? 20_000 : gear == Gear.RACE ? 30_000 : gear == Gear.ECO ? 5_000 : 10_000;

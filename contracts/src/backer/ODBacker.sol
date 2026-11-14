@@ -619,12 +619,12 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     }
 
     /// Same lag floor as the minter (M-4, rescore 1): a mint-and-sell then repayWithUsdg (or the reverse) across a move
-    /// of up to lagBandBps that neither source shows yet never pays. Applied last.
+    /// of up to lagBandBps that neither source shows yet never pays (both legs' bands for a pair). Applied last.
     function _spreadBps(GearConfig memory cfg, PriceReading memory r) private view returns (uint256 s) {
         IODMinter.TradeParams memory tp = minter.tradeParams();
         s = cfg.spreadBps;
         if (r.session == Session.EXTENDED) s = s * tp.extendedSpreadMultBps / BPS;
-        uint256 f = ODMinterPricing.lagFloorBps(cfg.gear, tp.lagBandBps);
+        uint256 f = ODMinterPricing.lagFloorBps(cfg.gear, tp.lagBandBps, cfg.marketB != bytes32(0));
         if (s < f) s = f;
         if (s > BPS) s = BPS;
     }
