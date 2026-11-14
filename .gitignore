@@ -18,3 +18,4 @@ vol-engine/*.egg-info/
 vol-engine/.pytest_cache/
 vol-engine/tests/fixtures/test.*
 sdk/dist/
+mcp/dist/

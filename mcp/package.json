@@ -1,0 +1,27 @@
+{
+  "name": "overdrive-mcp-placeholder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server for Overdrive geared tokens on Robinhood Chain: quote, read and prepare agent trades. Placeholder name until the owner decides; never published from here.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "overdrive-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "check": "bun scripts/build.ts --check",
+    "typecheck": "../app/node_modules/.bin/tsc -p tsconfig.json",
+    "test": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "typescript": "5.9.3"
+  }
+}

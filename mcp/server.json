@@ -1,0 +1,13 @@
+{
+  "name": "overdrive-mcp-placeholder",
+  "description": "Overdrive geared tokens on Robinhood Chain: quote, read and prepare agent trades inside the owner's on-chain policy.",
+  "version": "0.1.0",
+  "status": "unpublished",
+  "tools": ["od_gears", "od_quote", "od_buy_gear", "od_sell_gear", "od_back", "od_positions", "od_governor", "od_exit"],
+  "environment": [
+    { "name": "OD_API_URL", "required": true, "secret": false },
+    { "name": "AGENT_OWNER", "required": false, "secret": false },
+    { "name": "AGENT_KEYSTORE", "required": false, "secret": false, "description": "Path to the agent's encrypted keystore file." },
+    { "name": "AGENT_KEYSTORE_PASSWORD_FILE", "required": false, "secret": false, "description": "Path to a file holding the keystore password." }
+  ]
+}
