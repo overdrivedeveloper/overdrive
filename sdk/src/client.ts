@@ -1,4 +1,7 @@
 import type { Operations } from "./generated.js";
+import { OverdriveIntentMismatch } from "./errors.js";
+import { verifyIntent } from "./helpers.js";
+export { OverdriveIntentMismatch };
 
 type Response200<K extends keyof Operations> = Operations[K]["responses"] extends { 200: infer R } ? R : never;
 
@@ -40,16 +43,13 @@ export interface ClientOptions {
    * Without them the client checks against the API's own /v1/config.
    */
   readonly expectedContracts?: Readonly<Record<string, string>>;
+  /**
+   * Chain id whose committed deployment file (shipped inside this package) is the only address source for intent checks.
+   * The check then runs offline and never trusts the API. Takes precedence over `expectedContracts`.
+   */
+  readonly chainId?: number;
   /** Check intent targets and spenders. Default true; turn off only in tests. */
   readonly checkIntents?: boolean;
-}
-
-/** An intent whose target or approval spender is not an Overdrive contract. Nothing was signed or sent. */
-export class OverdriveIntentMismatch extends Error {
-  constructor(message: string, readonly field: string, readonly address: string) {
-    super(message);
-    this.name = "OverdriveIntentMismatch";
-  }
 }
 
 export type Range = "1d" | "7d" | "30d" | "90d";
@@ -112,6 +112,7 @@ export class Overdrive {
 
   /** Throws unless the intent's target and every approval spender is a known Overdrive contract. */
   private async checkIntent(intent: { tx?: { to?: string }; approvals?: Array<{ spender?: string }> }): Promise<void> {
+    if (this.options.chainId !== undefined) { verifyIntent(intent, this.options.chainId); return; }
     const known = this.options.expectedContracts ?? (await this.config()).contracts;
     const allowed = new Set(Object.values(known ?? {}).filter((v): v is string => typeof v === "string" && v !== "").map((v) => v.toLowerCase()));
     const check = (field: string, address: unknown) => {

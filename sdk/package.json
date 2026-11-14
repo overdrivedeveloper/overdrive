@@ -1,13 +1,12 @@
 {
-  "name": "overdrive-sdk-placeholder",
-  "private": true,
+  "name": "ovrd",
   "version": "0.1.0",
-  "description": "Typed TypeScript client for the Overdrive API (read-only data, exact quotes and unsigned transaction intents).",
+  "description": "Typed client for the Overdrive API on Robinhood Chain: read gears and tolls, exact quotes, and unsigned transaction intents checked against a committed deployment file. Holds no key and sends nothing.",
   "type": "module",
   "packageManager": "bun@1.4.4",
   "engines": {
     "bun": "1.4.4",
-    "node": "26.13.0"
+    "node": ">=20"
   },
   "license": "MIT",
   "sideEffects": false,
@@ -21,19 +20,42 @@
   },
   "files": [
     "dist",
-    "src",
-    "openapi.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "generate": "bun run scripts/generate-types.ts && bun run scripts/gen-deployments.ts",
     "generate:check": "bun run scripts/generate-types.ts --check && bun run scripts/gen-deployments.ts --check",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json",
-    "test": "bun test"
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "bun test",
+    "prepack": "bun run build",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@types/bun": "1.4.2",
     "typescript": "5.9.3"
+  },
+  "keywords": [
+    "overdrive",
+    "ovrd",
+    "robinhood-chain",
+    "defi",
+    "sdk",
+    "typescript",
+    "erc-20"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ovrddev/overdrive.git",
+    "directory": "sdk"
+  },
+  "homepage": "https://github.com/ovrddev/overdrive/tree/main/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/ovrddev/overdrive/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

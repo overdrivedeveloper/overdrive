@@ -118,10 +118,10 @@ for pkg_dir in ("app", "sdk", "mcp"):
     eng = pkg.get("engines", {})
     if eng.get("bun") != pins["bun"]:
         bad(f"{pkg_dir}/package.json: engines.bun must be {pins['bun']}")
-    if pkg_dir != "mcp" and eng.get("node") != pins["nodejs"]:  # mcp is a published CLI: its node range is for consumers
+    if pkg_dir not in ("mcp", "sdk") and eng.get("node") != pins["nodejs"]:  # mcp and sdk are published: their node range is for consumers
         bad(f"{pkg_dir}/package.json: engines.node must be {pins['nodejs']}")
-    if pkg_dir == "mcp" and "node" not in eng:
-        bad("mcp/package.json: engines.node is missing")
+    if pkg_dir in ("mcp", "sdk") and "node" not in eng:
+        bad(f"{pkg_dir}/package.json: engines.node is missing")
 
 for p in problems:
     print(f"FAIL {p}")
