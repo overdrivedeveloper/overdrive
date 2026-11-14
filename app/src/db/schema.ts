@@ -188,3 +188,23 @@ export const volAlerts = pgTable("vol_alerts", {
   id: bigserial("id", { mode: "bigint" }).primaryKey(), market: text("market").notNull(), kind: text("kind").notNull(),
   detail: jsonb("detail").notNull().default({}), createdAt: at("created_at").notNull().defaultNow(), repeatedAt: at("repeated_at"),
 }, (t) => [index("vol_alerts_market_kind_idx").on(t.market, t.kind, t.id.desc())]);
+
+// drizzle/0004_hedger.sql
+export const hedges = pgTable("hedges", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), ts: at("ts").notNull().defaultNow(), venue: text("venue").notNull(), underlying: text("underlying").notNull(),
+  side: text("side", { enum: ["buy", "sell"] }).notNull(), usd: int78("usd").notNull(), px: int78("px").notNull(), feesUsd: int78("fees_usd").notNull().default("0"),
+  ref: text("ref"), reason: text("reason").notNull(), dry: boolean("dry").notNull(), clientId: text("client_id").notNull().unique(),
+}, (t) => [index("hedges_underlying_ts_idx").on(t.underlying, t.ts.desc())]);
+
+export const hedgeCycles = pgTable("hedge_cycles", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), ts: at("ts").notNull(), underlying: text("underlying").notNull(),
+  deltaUsd: int78("delta_usd").notNull(), gammaUsd: int78("gamma_usd").notNull(), positionUsd: int78("position_usd").notNull(),
+  residualUsd: int78("residual_usd").notNull(), bandUsd: int78("band_usd").notNull(),
+  action: text("action", { enum: ["traded", "would_trade", "hold", "failed"] }).notNull(), reason: text("reason").notNull(), inputAgeS: integer("input_age_s"),
+}, (t) => [index("hedge_cycles_underlying_ts_idx").on(t.underlying, t.ts.desc())]);
+
+export const hedgerSignals = pgTable("hedger_signals", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), ts: at("ts").notNull().defaultNow(),
+  kind: text("kind", { enum: ["gamma_over_budget", "unhedged", "venue_down", "proxy_basis", "disagree_with_chain", "stale_inputs", "hedge_post_missed"] }).notNull(),
+  underlying: text("underlying").notNull().default(""), detail: jsonb("detail").notNull().default({}), clearedAt: at("cleared_at"),
+}, (t) => [index("hedger_signals_open_idx").on(t.kind, t.underlying).where(sql`cleared_at IS NULL`)]);

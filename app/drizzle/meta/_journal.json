@@ -22,6 +22,13 @@
       "when": 1794700100001,
       "tag": "0002_vol_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794700100004,
+      "tag": "0004_hedger",
+      "breakpoints": true
     }
   ]
 }

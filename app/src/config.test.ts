@@ -9,7 +9,9 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...base, NETWORK: "fork", CHAIN_ID: "4663" })).toThrow(ConfigurationError);
     expect(() => loadConfig({ ...base, NETWORK: "mainnet", CHAIN_ID: "4663", RPC_URL_OVERRIDE: "http://127.0.0.1:8545" })).toThrow("RPC_URL_OVERRIDE");
     expect(() => loadConfig({ ...base, CRANK_ENABLED_JOBS: "toll,prices" })).toThrow("Unknown job: prices");
-    expect(() => loadConfig({ ...base, HEDGER_DISABLED_JOBS: "hedge,,equity" })).toThrow("Unknown job: ");
+    expect(() => loadConfig({ ...base, HEDGER_DISABLED_JOBS: "cycle,,post" })).toThrow("Unknown job: ");
+    expect(() => loadConfig({ ...base, HEDGER_ENABLED_JOBS: "hedge" })).toThrow("Unknown job: hedge");
+    expect(() => loadConfig({ ...base, CRANK_ENABLED_JOBS: "risk-monitor,heartbeat", HEDGER_ENABLED_JOBS: "cycle,post,reconcile" })).not.toThrow();
     expect(() => loadConfig({ ...base, LIQUIDATOR_ENABLED_JOBS: "scan, nope" })).toThrow("Unknown job: nope");
   });
   test("defaults per network", () => {
@@ -25,9 +27,9 @@ describe("loadConfig", () => {
     expect(loadConfig({ ...base, NETWORK: "testnet" }).CHAIN_ID).toBe(46630);
   });
   test("an empty job list is allowed and disabled names are removed", () => {
-    const config = loadConfig({ ...base, CRANK_ENABLED_JOBS: "", HEDGER_DISABLED_JOBS: "funding" });
+    const config = loadConfig({ ...base, CRANK_ENABLED_JOBS: "", HEDGER_DISABLED_JOBS: "reconcile" });
     expect(config.CRANK_ENABLED_JOBS).toEqual([]);
-    expect(activeJobs(config.HEDGER_ENABLED_JOBS, config.HEDGER_DISABLED_JOBS)).toEqual(["hedge", "equity"]);
+    expect(activeJobs(config.HEDGER_ENABLED_JOBS, config.HEDGER_DISABLED_JOBS)).toEqual(["cycle", "post"]);
   });
   test("a missing database url is refused", () => {
     expect(() => loadConfig({})).toThrow("DATABASE_URL");
