@@ -209,6 +209,42 @@ contract MockAgentMinter is IODMinter, Unused {
         revert UnusedInMock();
     }
 
+    function setHook(address) external pure {
+        revert UnusedInMock();
+    }
+
+    function setStake(address) external pure {
+        revert UnusedInMock();
+    }
+
+    function setTradeParams(TradeParams calldata) external pure {
+        revert UnusedInMock();
+    }
+
+    function tradeParams() external pure returns (TradeParams memory) {
+        revert UnusedInMock();
+    }
+
+    function settledValue(bytes32) external pure returns (uint256) {
+        revert UnusedInMock();
+    }
+
+    function ticketCount() external pure returns (uint256) {
+        revert UnusedInMock();
+    }
+
+    function hook() external pure returns (address) {
+        revert UnusedInMock();
+    }
+
+    function poolManager() external pure returns (address) {
+        revert UnusedInMock();
+    }
+
+    function stake() external pure returns (address) {
+        revert UnusedInMock();
+    }
+
     function accrue(bytes32) external returns (uint256) {
         _accrue();
         return 1e18;

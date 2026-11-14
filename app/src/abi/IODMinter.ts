@@ -144,6 +144,19 @@ export const IODMinterAbi = [
   },
   {
     "type": "function",
+    "name": "hook",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "hookSwap",
     "inputs": [
       {
@@ -223,6 +236,19 @@ export const IODMinterAbi = [
             "internalType": "uint256"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "poolManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -461,6 +487,87 @@ export const IODMinterAbi = [
   },
   {
     "type": "function",
+    "name": "setHook",
+    "inputs": [
+      {
+        "name": "hook",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setStake",
+    "inputs": [
+      {
+        "name": "stake",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setTradeParams",
+    "inputs": [
+      {
+        "name": "p",
+        "type": "tuple",
+        "internalType": "struct IODMinter.TradeParams",
+        "components": [
+          {
+            "name": "extendedSpreadMultBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "closedSellExtraBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "inventorySlopeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxSkewBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxTotalSpreadBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "minTradeUsdg",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "usageMaxWad",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "settleAfterHalt",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "settleGear",
     "inputs": [
       {
@@ -471,6 +578,51 @@ export const IODMinterAbi = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settledValue",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "stake",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ticketCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -487,6 +639,61 @@ export const IODMinterAbi = [
         "name": "tollWad",
         "type": "int256",
         "internalType": "int256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "tradeParams",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IODMinter.TradeParams",
+        "components": [
+          {
+            "name": "extendedSpreadMultBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "closedSellExtraBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "inventorySlopeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxSkewBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxTotalSpreadBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "minTradeUsdg",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "usageMaxWad",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "settleAfterHalt",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
       }
     ],
     "stateMutability": "view"
@@ -628,6 +835,25 @@ export const IODMinterAbi = [
   },
   {
     "type": "event",
+    "name": "HookSet",
+    "inputs": [
+      {
+        "name": "hook",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "poolManager",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "QueueCancelled",
     "inputs": [
       {
@@ -763,6 +989,79 @@ export const IODMinterAbi = [
     "anonymous": false
   },
   {
+    "type": "event",
+    "name": "StakeSet",
+    "inputs": [
+      {
+        "name": "stake",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TradeParamsSet",
+    "inputs": [
+      {
+        "name": "p",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IODMinter.TradeParams",
+        "components": [
+          {
+            "name": "extendedSpreadMultBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "closedSellExtraBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "inventorySlopeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxSkewBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxTotalSpreadBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "minTradeUsdg",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "usageMaxWad",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "settleAfterHalt",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AlreadySet",
+    "inputs": []
+  },
+  {
     "type": "error",
     "name": "BelowMinimum",
     "inputs": []
@@ -790,6 +1089,11 @@ export const IODMinterAbi = [
   },
   {
     "type": "error",
+    "name": "InvalidParams",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotFillable",
     "inputs": [
       {
@@ -803,6 +1107,17 @@ export const IODMinterAbi = [
     "type": "error",
     "name": "NotHook",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotSettleable",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
   },
   {
     "type": "error",
@@ -833,7 +1148,23 @@ export const IODMinterAbi = [
   },
   {
     "type": "error",
+    "name": "UnknownGear",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UseQueue",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
     "inputs": []
   }
 ] as const;

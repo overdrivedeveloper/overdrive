@@ -28,6 +28,7 @@ export const LEVERS: Record<string, LeverCaller> = {
 export const NOT_LEVERS: { match: RegExp; reason: string }[] = [
   { match: /^IODMinter\.(buy|buyExactTokens|sell|sellForExactUsdg|queueSell|cancelQueued)$/, reason: "user trade entry points" },
   { match: /^IODMinter\.(hookSwap|settleGear)$/, reason: "hook callback / admin settlement of a delisted gear" },
+  { match: /^IODMinter\.(setHook|setStake|setTradeParams)$/, reason: "admin (timelock) wiring of the hook and stake, and trade parameters" },
   { match: /^IODGovernor\.(deposit|mint|withdraw|redeem|requestWithdraw|claim|transfer|transferFrom|approve)$/, reason: "backer and holder actions on the vault" },
   { match: /^IODGovernor\.(on[A-Z]\w*|absorbLiquidation|pay|fundCash|fundExitReserve|sendToHedger|postHedge|setDepositor)$/, reason: "module callbacks and role-gated cash moves (minter, backer, hedger, admin)" },
   { match: /^IODGovernor\.(returnFromHedger)$/, reason: "hedger returns USDG it holds; sized by the hedger (todo 16), never scheduled" },

@@ -4,6 +4,18 @@ pragma solidity 0.8.26;
 import "./ODTypes.sol";
 
 interface IODMinter {
+    /// Trade parameters (admin, timelock). Bounds are checked by `setTradeParams`.
+    struct TradeParams {
+        uint16 extendedSpreadMultBps; // 15000: x1.5 in EXTENDED
+        uint16 closedSellExtraBps; // 50: added on CLOSED, UNKNOWN and HALTED sells
+        uint16 inventorySlopeBps; // skew = slope x |net value after| / cap, only when the trade grows |net|
+        uint16 maxSkewBps; // 150
+        uint16 maxTotalSpreadBps; // 500
+        uint64 minTradeUsdg; // 1e6
+        uint128 usageMaxWad; // usage term at full cap per year, default 0.05e18, <= 0.2e18
+        uint32 settleAfterHalt; // 30 days
+    }
+
     event Bought(
         bytes32 indexed gearId,
         address indexed payer,
@@ -40,6 +52,15 @@ interface IODMinter {
     error NotHook();
     error NotTicketOwner(uint256 ticket);
     error NotFillable(uint256 ticket);
+    // 05b additions
+    event HookSet(address hook, address poolManager);
+    event StakeSet(address stake);
+    event TradeParamsSet(TradeParams p);
+    error UnknownGear(bytes32 gearId);
+    error NotSettleable(bytes32 gearId);
+    error ZeroAddress();
+    error InvalidParams();
+    error AlreadySet();
     function buy(bytes32 gearId, uint256 usdgIn, uint256 minTokensOut, address recipient, uint64 deadline)
         external
         returns (uint256 tokensOut);
@@ -72,4 +93,14 @@ interface IODMinter {
         external
         view
         returns (bytes32 gearId, address owner, address recipient, uint256 tokens, uint256 minUsdgOut);
+    // 05b additions
+    function setHook(address hook) external; // admin, once; the PoolManager is read from hook.poolManager()
+    function setStake(address stake) external; // admin: spread discount source (gas-capped read, 0 on failure)
+    function setTradeParams(TradeParams calldata p) external; // admin (timelock), bounds checked
+    function tradeParams() external view returns (TradeParams memory);
+    function settledValue(bytes32 gearId) external view returns (uint256); // 0 = not settled
+    function ticketCount() external view returns (uint256);
+    function hook() external view returns (address);
+    function poolManager() external view returns (address);
+    function stake() external view returns (address);
 }
