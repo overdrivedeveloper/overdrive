@@ -1,0 +1,3348 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Overdrive API",
+    "version": "0.0.0",
+    "description": "Gear prices, the daily toll, exact quotes, unsigned transaction intents, the Governor page and the exit reserve. Read only: it reads Postgres and the chain, holds no key and sends nothing."
+  },
+  "tags": [
+    {
+      "name": "system",
+      "description": "Configuration, status and liveness"
+    },
+    {
+      "name": "gears",
+      "description": "Gears, their price history and the daily toll"
+    },
+    {
+      "name": "quotes",
+      "description": "Exact quotes and unsigned transaction intents"
+    },
+    {
+      "name": "governor",
+      "description": "The Governor, the exit reserve, fees, risk and hedges"
+    },
+    {
+      "name": "accounts",
+      "description": "Balances, vaults and queued sells for an address"
+    },
+    {
+      "name": "docs",
+      "description": "This document and its viewer"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "indexer": {
+            "type": "object",
+            "properties": {
+              "lagBlocks": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lastOk": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time."
+              },
+              "lastError": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "snapshotStale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "lagBlocks",
+              "lastOk",
+              "lastError",
+              "snapshotStale"
+            ]
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "job": {
+                  "type": "string"
+                },
+                "lastRun": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "ISO 8601 time."
+                },
+                "lastOk": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "ISO 8601 time."
+                },
+                "lastError": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "job",
+                "lastRun",
+                "lastOk",
+                "lastError"
+              ]
+            }
+          },
+          "pauses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "since": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pausedBy": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "whoCanUnpause": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "scope",
+                "ref",
+                "since",
+                "reason",
+                "pausedBy",
+                "whoCanUnpause"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "indexer",
+          "services",
+          "pauses"
+        ]
+      },
+      "Config": {
+        "type": "object",
+        "properties": {
+          "chainId": {
+            "type": "number"
+          },
+          "network": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "startBlock": {
+            "type": "number"
+          },
+          "admin": {
+            "type": "object",
+            "properties": {
+              "ownerSafe": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              },
+              "timelock": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              },
+              "guardianSafe": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              },
+              "minDelaySec": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "ownerSafe",
+              "timelock",
+              "guardianSafe",
+              "minDelaySec"
+            ]
+          },
+          "external": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            }
+          },
+          "contracts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "markets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{64}$"
+                },
+                "symbol": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "alwaysOpen": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "symbol",
+                "kind",
+                "alwaysOpen"
+              ]
+            }
+          },
+          "gears": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{64}$"
+                },
+                "symbol": {
+                  "type": "string"
+                },
+                "gear": {
+                  "type": "string"
+                },
+                "power": {
+                  "type": "string"
+                },
+                "marketA": {
+                  "type": "string"
+                },
+                "marketB": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "token": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{40}$"
+                },
+                "poolId": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{64}$"
+                },
+                "capUsd": {
+                  "type": "string"
+                },
+                "spreadBps": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "symbol",
+                "gear",
+                "power",
+                "marketA",
+                "marketB",
+                "token",
+                "poolId",
+                "capUsd",
+                "spreadBps"
+              ]
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "network",
+          "commit",
+          "startBlock",
+          "admin",
+          "external",
+          "contracts",
+          "markets",
+          "gears"
+        ]
+      },
+      "GearList": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "gears": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Gear"
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "gears"
+        ]
+      },
+      "Gear": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{64}$"
+          },
+          "underlying": {
+            "type": "string"
+          },
+          "underlyingB": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "power": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "gear": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Underlying price, WAD (last indexed)."
+          },
+          "valuePerToken": {
+            "type": "string"
+          },
+          "valueSource": {
+            "type": "string",
+            "enum": [
+              "trade",
+              "listing"
+            ]
+          },
+          "nf": {
+            "type": "string"
+          },
+          "tollPerDayBps": {
+            "type": "string",
+            "description": "Daily toll in basis points; negative means holders receive."
+          },
+          "tollPer30DaysBps": {
+            "type": "string"
+          },
+          "holdersReceive": {
+            "type": "boolean"
+          },
+          "tollFormulaBps": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sigmaBps": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sigmaAgeSec": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sigmaWarning": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "floor",
+              null
+            ]
+          },
+          "spreadBps": {
+            "type": "number"
+          },
+          "cap": {
+            "type": "string"
+          },
+          "openValue": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "session": {
+            "type": "string"
+          },
+          "buyable": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sellMode": {
+            "type": "string",
+            "enum": [
+              "instant",
+              "instant_min"
+            ]
+          },
+          "pausedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "symbol",
+          "id",
+          "underlying",
+          "underlyingB",
+          "power",
+          "token",
+          "gear",
+          "price",
+          "valuePerToken",
+          "valueSource",
+          "nf",
+          "tollPerDayBps",
+          "tollPer30DaysBps",
+          "holdersReceive",
+          "tollFormulaBps",
+          "sigmaBps",
+          "sigmaAgeSec",
+          "sigmaWarning",
+          "spreadBps",
+          "cap",
+          "openValue",
+          "status",
+          "session",
+          "buyable",
+          "reason",
+          "sellMode",
+          "pausedBy"
+        ]
+      },
+      "GearOne": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "gear": {
+            "$ref": "#/components/schemas/Gear"
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "gear"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "BAD_REQUEST",
+              "NOT_FOUND",
+              "RATE_LIMITED",
+              "STALE",
+              "PAUSED",
+              "CLOSED",
+              "CAP_REACHED",
+              "BELOW_MIN",
+              "RESERVE_FLOOR",
+              "UPSTREAM"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ]
+      },
+      "GearHistory": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ts": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                },
+                "nf": {
+                  "type": "string"
+                },
+                "tollPerSecWad": {
+                  "type": "string"
+                },
+                "valuePerTokenWad": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "priceWad": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "ts",
+                "nf",
+                "tollPerSecWad",
+                "valuePerTokenWad",
+                "priceWad"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "symbol",
+          "range",
+          "points"
+        ]
+      },
+      "Tolls": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "tolls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "symbol": {
+                  "type": "string"
+                },
+                "power": {
+                  "type": "string"
+                },
+                "tollPerDayBps": {
+                  "type": "string"
+                },
+                "tollPer30DaysBps": {
+                  "type": "string"
+                },
+                "holdersReceive": {
+                  "type": "boolean"
+                },
+                "tollFormulaBps": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The published formula evaluated at the latest posted sigma."
+                },
+                "sigmaBps": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sigmaAgeSec": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "sigmaWarning": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "floor",
+                    null
+                  ]
+                }
+              },
+              "required": [
+                "symbol",
+                "power",
+                "tollPerDayBps",
+                "tollPer30DaysBps",
+                "holdersReceive",
+                "tollFormulaBps",
+                "sigmaBps",
+                "sigmaAgeSec",
+                "sigmaWarning"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "tolls"
+        ]
+      },
+      "TollFormula": {
+        "type": "object",
+        "properties": {
+          "formula": {
+            "type": "string"
+          },
+          "constants": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "document": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "formula",
+          "constants",
+          "document"
+        ]
+      },
+      "Quote": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "gear": {
+            "type": "string"
+          },
+          "gearId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{64}$"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "v4_quoter"
+            ]
+          },
+          "blockNumber": {
+            "type": "string"
+          },
+          "quoteId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "buyable": {
+            "type": "boolean",
+            "description": "True only when the same trade executes now with these amounts. A sell that can only be queued is false with sellMode queued."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sellMode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "instant",
+              "instant_min",
+              "queued",
+              null
+            ]
+          },
+          "priceRule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "amountIn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "amountOut": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tokensOut": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usdgOut": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valuePerToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spreadBps": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tollPerDayBps": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "holdersReceive": {
+            "type": "boolean"
+          },
+          "breakevenDays": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minOutSuggested": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "minterQuote": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "amountIn": {
+                "type": "string"
+              },
+              "amountOut": {
+                "type": "string"
+              },
+              "valuePerTokenWad": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pricePerTokenWad": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "spreadBps": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "protocolFeeUsdg": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tollPerDayWad": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "session": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "queued": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "amountIn",
+              "amountOut",
+              "valuePerTokenWad",
+              "pricePerTokenWad",
+              "spreadBps",
+              "protocolFeeUsdg",
+              "tollPerDayWad",
+              "session",
+              "queued"
+            ]
+          },
+          "parity": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "queue": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "rule": {
+                "type": "string"
+              },
+              "minUsdgOutSuggested": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "rule",
+              "minUsdgOutSuggested"
+            ]
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "gear",
+          "gearId",
+          "side",
+          "source",
+          "blockNumber",
+          "quoteId",
+          "expiresAt",
+          "buyable",
+          "reason",
+          "code",
+          "message",
+          "sellMode",
+          "priceRule",
+          "amountIn",
+          "amountOut",
+          "tokensOut",
+          "usdgOut",
+          "valuePerToken",
+          "spreadBps",
+          "tollPerDayBps",
+          "holdersReceive",
+          "breakevenDays",
+          "minOutSuggested",
+          "minterQuote",
+          "parity",
+          "queue"
+        ]
+      },
+      "Intent": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell",
+              "queue_sell"
+            ]
+          },
+          "quoteId": {
+            "type": "string"
+          },
+          "blockNumber": {
+            "type": "string"
+          },
+          "tx": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              },
+              "data": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string",
+                "enum": [
+                  "0"
+                ]
+              }
+            },
+            "required": [
+              "to",
+              "data",
+              "value"
+            ]
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{40}$"
+                },
+                "spender": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{40}$"
+                },
+                "amount": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "token",
+                "spender",
+                "amount"
+              ]
+            }
+          },
+          "permit2": {
+            "type": "null",
+            "description": "Permit2 payload; null while Permit2 is not enabled for this deployment."
+          },
+          "expectedOut": {
+            "type": "string"
+          },
+          "minOut": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "kind",
+          "quoteId",
+          "blockNumber",
+          "tx",
+          "approvals",
+          "permit2",
+          "expectedOut",
+          "minOut",
+          "note"
+        ]
+      },
+      "Governor": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "live": {
+            "type": "boolean",
+            "description": "False when the snapshot is older than 30 minutes: numbers are shown for reference, never as live."
+          },
+          "equityWad": {
+            "type": "string"
+          },
+          "freeCashUsdg": {
+            "type": "string"
+          },
+          "stressLoss": {
+            "type": "object",
+            "properties": {
+              "lossWad": {
+                "type": "string"
+              },
+              "budgetWad": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "lossWad",
+              "budgetWad"
+            ]
+          },
+          "hedgeStale": {
+            "type": "boolean"
+          },
+          "buysPaused": {
+            "type": "boolean"
+          },
+          "buysPausedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hedgeEquity": {
+            "type": "object",
+            "properties": {
+              "offChain": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "usdg": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "offChain",
+              "usdg"
+            ]
+          },
+          "exitReserve": {
+            "type": "object",
+            "properties": {
+              "balanceUsdg": {
+                "type": "string"
+              },
+              "floorUsdg": {
+                "type": "string"
+              },
+              "chainReadAt": {
+                "type": "string",
+                "description": "ISO 8601 time."
+              }
+            },
+            "required": [
+              "balanceUsdg",
+              "floorUsdg",
+              "chainReadAt"
+            ]
+          },
+          "underlyings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "underlying": {
+                  "type": "string"
+                },
+                "delta": {
+                  "type": "string"
+                },
+                "gamma": {
+                  "type": "string"
+                },
+                "hedgeDelta": {
+                  "type": "string"
+                },
+                "residual": {
+                  "type": "string"
+                },
+                "chainDelta": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "chainGamma": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "openValue": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "matchesChain": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "unhedgedSince": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "ISO 8601 time."
+                },
+                "ledgerAt": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                }
+              },
+              "required": [
+                "underlying",
+                "delta",
+                "gamma",
+                "hedgeDelta",
+                "residual",
+                "chainDelta",
+                "chainGamma",
+                "openValue",
+                "matchesChain",
+                "unhedgedSince",
+                "ledgerAt"
+              ]
+            }
+          },
+          "capsUsed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "symbol": {
+                  "type": "string"
+                },
+                "capUsdg": {
+                  "type": "string"
+                },
+                "openUsdg": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "symbol",
+                "capUsdg",
+                "openUsdg"
+              ]
+            }
+          },
+          "lastRiskRun": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time."
+              },
+              "ageSec": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              },
+              "summary": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "at",
+              "ageSec",
+              "stale",
+              "summary"
+            ]
+          },
+          "pauses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "since": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "scope",
+                "ref",
+                "since",
+                "reason"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "live",
+          "equityWad",
+          "freeCashUsdg",
+          "stressLoss",
+          "hedgeStale",
+          "buysPaused",
+          "buysPausedReason",
+          "hedgeEquity",
+          "exitReserve",
+          "underlyings",
+          "capsUsed",
+          "lastRiskRun",
+          "pauses"
+        ]
+      },
+      "GovernorHistory": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "range": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ts": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                },
+                "underlying": {
+                  "type": "string"
+                },
+                "delta": {
+                  "type": "string"
+                },
+                "gamma": {
+                  "type": "string"
+                },
+                "hedgeDelta": {
+                  "type": "string"
+                },
+                "equity": {
+                  "type": "string"
+                },
+                "exitReserve": {
+                  "type": "string"
+                },
+                "block": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ts",
+                "underlying",
+                "delta",
+                "gamma",
+                "hedgeDelta",
+                "equity",
+                "exitReserve",
+                "block"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "range",
+          "rows"
+        ]
+      },
+      "Exit": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "live": {
+            "type": "boolean"
+          },
+          "reserveUsdg": {
+            "type": "string"
+          },
+          "floorUsdg": {
+            "type": "string"
+          },
+          "ringFenced": {
+            "type": "boolean"
+          },
+          "aboveFloor": {
+            "type": "boolean"
+          },
+          "coverageRatioBps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Exit reserve over the open value of all gears, in basis points."
+          },
+          "queue": {
+            "type": "object",
+            "properties": {
+              "depth": {
+                "type": "number"
+              },
+              "oldestAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time."
+              },
+              "oldestAgeSec": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "depth",
+              "oldestAt",
+              "oldestAgeSec"
+            ]
+          },
+          "gears": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "symbol": {
+                  "type": "string"
+                },
+                "canExitNow": {
+                  "type": "boolean"
+                },
+                "sellMode": {
+                  "type": "string",
+                  "enum": [
+                    "instant",
+                    "instant_min"
+                  ]
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "symbol",
+                "canExitNow",
+                "sellMode",
+                "rule"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "live",
+          "reserveUsdg",
+          "floorUsdg",
+          "ringFenced",
+          "aboveFloor",
+          "coverageRatioBps",
+          "queue",
+          "gears"
+        ]
+      },
+      "Backer": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "vaults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vault"
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "vaults"
+        ]
+      },
+      "Vault": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          },
+          "gear": {
+            "type": "string"
+          },
+          "gearId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "collateralUsdg": {
+            "type": "string"
+          },
+          "debtTokens": {
+            "type": "string"
+          },
+          "debtValueWad": {
+            "type": "string"
+          },
+          "healthRatioBps": {
+            "type": "string"
+          },
+          "computedRatioBps": {
+            "type": "string"
+          },
+          "requiredBps": {
+            "type": "string"
+          },
+          "maintenanceBps": {
+            "type": "string"
+          },
+          "belowMaintenance": {
+            "type": "boolean"
+          },
+          "weekendUplift": {
+            "type": "object",
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "upliftBps": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "active",
+              "upliftBps"
+            ]
+          },
+          "liquidationPrice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "gear",
+          "gearId",
+          "status",
+          "collateralUsdg",
+          "debtTokens",
+          "debtValueWad",
+          "healthRatioBps",
+          "computedRatioBps",
+          "requiredBps",
+          "maintenanceBps",
+          "belowMaintenance",
+          "weekendUplift",
+          "liquidationPrice"
+        ]
+      },
+      "VaultOne": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "vault": {
+            "$ref": "#/components/schemas/Vault"
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "vault"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          },
+          "balances": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "gear": {
+                  "type": "string"
+                },
+                "token": {
+                  "type": "string"
+                },
+                "balance": {
+                  "type": "string"
+                },
+                "valueUsdg": {
+                  "type": "string"
+                },
+                "costBasisUsdg": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tollPaidUsdg": {
+                  "type": "string"
+                },
+                "sellMode": {
+                  "type": "string",
+                  "enum": [
+                    "instant",
+                    "instant_min"
+                  ]
+                }
+              },
+              "required": [
+                "gear",
+                "token",
+                "balance",
+                "valueUsdg",
+                "costBasisUsdg",
+                "tollPaidUsdg",
+                "sellMode"
+              ]
+            }
+          },
+          "queuedSells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ticket": {
+                  "type": "string"
+                },
+                "gear": {
+                  "type": "string"
+                },
+                "tokens": {
+                  "type": "string"
+                },
+                "minProceedsUsdg": {
+                  "type": "string"
+                },
+                "queuedAt": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                }
+              },
+              "required": [
+                "ticket",
+                "gear",
+                "tokens",
+                "minProceedsUsdg",
+                "queuedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "account",
+          "balances",
+          "queuedSells"
+        ]
+      },
+      "Fees": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "protocolSpreadShareBps": {
+            "type": "number"
+          },
+          "tollFeeBps": {
+            "type": "number"
+          },
+          "distributableUsdg": {
+            "type": "string"
+          },
+          "nextDistributionAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 8601 time."
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "totalUsdg": {
+                  "type": "string"
+                },
+                "lastAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "ISO 8601 time."
+                }
+              },
+              "required": [
+                "kind",
+                "totalUsdg",
+                "lastAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "protocolSpreadShareBps",
+          "tollFeeBps",
+          "distributableUsdg",
+          "nextDistributionAt",
+          "totals"
+        ]
+      },
+      "Risk": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "run": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time."
+              },
+              "ageSec": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              },
+              "summary": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "at",
+              "ageSec",
+              "stale",
+              "summary"
+            ]
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "run"
+        ]
+      },
+      "Hedges": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "hedges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ts": {
+                  "type": "string",
+                  "description": "ISO 8601 time."
+                },
+                "underlying": {
+                  "type": "string"
+                },
+                "delta": {
+                  "type": "string"
+                },
+                "hedgeDelta": {
+                  "type": "string"
+                },
+                "block": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ts",
+                "underlying",
+                "delta",
+                "hedgeDelta",
+                "block"
+              ]
+            }
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "hedges"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Liveness",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "summary": "Indexer lag, service heartbeats and pauses",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/config": {
+      "get": {
+        "summary": "Addresses and gears from the deployment file",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/gears": {
+      "get": {
+        "summary": "All gears with price, daily toll, spread, cap and sell mode",
+        "tags": [
+          "gears"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GearList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/gears/{id}": {
+      "get": {
+        "summary": "One gear by symbol or id",
+        "tags": [
+          "gears"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GearOne"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/gears/{id}/history": {
+      "get": {
+        "summary": "NF, value per token and toll series",
+        "tags": [
+          "gears"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "default": "7d",
+              "description": "Window ending now."
+            },
+            "required": false,
+            "description": "Window ending now.",
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GearHistory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tolls": {
+      "get": {
+        "summary": "The daily toll of every gear, now",
+        "tags": [
+          "gears"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tolls"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tolls/formula": {
+      "get": {
+        "summary": "The published toll formula and its constants",
+        "tags": [
+          "gears"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TollFormula"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quote": {
+      "get": {
+        "summary": "Exact quote: what executes is what is quoted",
+        "description": "Asks V4Quoter through the hook (the executable path) and IODMinter.quote at the same block; the two must agree field by field.",
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "required": true,
+            "name": "gear",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "buy",
+                "sell"
+              ]
+            },
+            "required": true,
+            "name": "side",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,40}$",
+              "description": "Buy: USDG in, raw 6 dp integer."
+            },
+            "required": false,
+            "description": "Buy: USDG in, raw 6 dp integer.",
+            "name": "usdg",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,40}$",
+              "description": "Sell: gear tokens in, raw 18 dp integer."
+            },
+            "required": false,
+            "description": "Sell: gear tokens in, raw 18 dp integer.",
+            "name": "tokens",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "required": false,
+            "name": "account",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intent/buy": {
+      "post": {
+        "summary": "Unsigned buy transaction from a fresh quote",
+        "tags": [
+          "quotes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "gear": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "account": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{40}$"
+                  },
+                  "usdg": {
+                    "type": "string",
+                    "pattern": "^\\d{1,40}$"
+                  },
+                  "tokens": {
+                    "type": "string",
+                    "pattern": "^\\d{1,40}$"
+                  },
+                  "minOut": {
+                    "type": "string",
+                    "pattern": "^\\d{1,40}$",
+                    "description": "Smallest output you accept. Default: the quote less 50 bps."
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{40}$"
+                  },
+                  "deadlineSec": {
+                    "type": "integer",
+                    "minimum": 30,
+                    "maximum": 3600,
+                    "default": 300
+                  }
+                },
+                "required": [
+                  "gear",
+                  "account"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Intent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intent/sell": {
+      "post": {
+        "summary": "Unsigned sell transaction from a fresh quote",
+        "tags": [
+          "quotes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "gear": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "account": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{40}$"
+                  },
+                  "usdg": {
+                    "type": "string",
+                    "pattern": "^\\d{1,40}$"
+                  },
+                  "tokens": {
+                    "type": "string",
+                    "pattern": "^\\d{1,40}$"
+                  },
+                  "minOut": {
+                    "type": "string",
+                    "pattern": "^\\d{1,40}$",
+                    "description": "Smallest output you accept. Default: the quote less 50 bps."
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{40}$"
+                  },
+                  "deadlineSec": {
+                    "type": "integer",
+                    "minimum": 30,
+                    "maximum": 3600,
+                    "default": 300
+                  }
+                },
+                "required": [
+                  "gear",
+                  "account"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Intent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/governor": {
+      "get": {
+        "summary": "The Governor: equity, exposure per underlying, hedge residual, exit reserve, stress",
+        "tags": [
+          "governor"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Governor"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/governor/history": {
+      "get": {
+        "summary": "Rows of the Governor ledger",
+        "tags": [
+          "governor"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1d",
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "default": "7d",
+              "description": "Window ending now."
+            },
+            "required": false,
+            "description": "Window ending now.",
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GovernorHistory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exit": {
+      "get": {
+        "summary": "Exit reserve, floor, coverage and queue",
+        "tags": [
+          "governor"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exit"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/backers/{address}": {
+      "get": {
+        "summary": "A backer's vaults with health against maintenance",
+        "tags": [
+          "accounts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "required": true,
+            "name": "address",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/vaults/{id}": {
+      "get": {
+        "summary": "One vault",
+        "tags": [
+          "accounts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,30}$"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultOne"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/account/{address}": {
+      "get": {
+        "summary": "Balances per gear with value, cost basis from trades, toll paid and queued sells",
+        "tags": [
+          "accounts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "required": true,
+            "name": "address",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fees": {
+      "get": {
+        "summary": "Fee splits as read from chain and fee totals",
+        "tags": [
+          "governor"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fees"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/risk": {
+      "get": {
+        "summary": "Latest risk-sim run and cap plan, with its age",
+        "tags": [
+          "governor"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Risk"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/hedges": {
+      "get": {
+        "summary": "Recent hedge positions from the Governor ledger",
+        "tags": [
+          "governor"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hedges"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

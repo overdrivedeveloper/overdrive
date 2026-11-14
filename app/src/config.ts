@@ -68,6 +68,18 @@ const envSchema = z.object({
   LIQUIDATOR_DISABLED_JOBS: jobList(LIQUIDATOR_JOBS, ""),
   LOG_LEVEL: z.string().default("info"),
   EXPECT_ADDRESS: addressOrEmpty,
+  // API (todo 19a). The API reads Postgres through a SELECT-only role and holds no key.
+  API_PORT: z.coerce.number().int().min(1).max(65535).default(3101),
+  CORS_ORIGINS: z.string().default("").transform((value) => value.split(",").map((item) => item.trim()).filter(Boolean)),
+  API_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(300),
+  API_WRITE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(30),
+  API_CLIENT_IP_HEADER: z.string().default("cf-connecting-ip"),
+  API_QUOTE_CACHE_MS: z.coerce.number().int().min(0).default(2000),
+  API_QUOTE_MAX_RPC_PER_REQUEST: z.coerce.number().int().min(1).default(2),
+  API_DB_READONLY_URL: z.union([z.literal(""), z.string().url()]).default(""),
+  QUOTER_ADDRESS: addressOrEmpty,
+  /** "chain" = V4Quoter through the hook; "mock" = the in-process mock hook (fork network only, refused elsewhere). */
+  API_QUOTER: z.enum(["chain", "mock"]).default("chain"),
 });
 
 type ParsedConfig = z.infer<typeof envSchema>;

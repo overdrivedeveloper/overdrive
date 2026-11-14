@@ -10,9 +10,14 @@
     "indexer": "bun run src/bin/indexer.ts",
     "gen-abi": "bun run scripts/gen-abi-ts.ts",
     "gen-abi:check": "bun run scripts/gen-abi-ts.ts --check",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "api": "bun run src/bin/api.ts",
+    "dump-openapi": "bun run scripts/dump-openapi.ts",
+    "lint-copy": "bun run scripts/lint-copy.ts",
+    "gen-formula": "bun run scripts/gen-formula.ts"
   },
   "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
     "ajv": "8.17.1",
     "drizzle-orm": "0.45.3",
     "hono": "4.13.11",

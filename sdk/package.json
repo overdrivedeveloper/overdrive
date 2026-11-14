@@ -1,0 +1,26 @@
+{
+  "name": "overdrive-sdk-placeholder",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Typed TypeScript client for the Overdrive API (read-only data, exact quotes and unsigned transaction intents).",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist", "src", "openapi.json", "README.md"],
+  "scripts": {
+    "generate": "bun run scripts/generate-types.ts && bun run scripts/gen-deployments.ts",
+    "generate:check": "bun run scripts/generate-types.ts --check && bun run scripts/gen-deployments.ts --check",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "typescript": "5.9.3"
+  }
+}

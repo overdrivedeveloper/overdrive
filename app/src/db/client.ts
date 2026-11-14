@@ -22,3 +22,9 @@ export function createDbClient(config: Pick<RuntimeConfig, "DATABASE_URL">, opti
 }
 
 export type OverdriveDbClient = ReturnType<typeof createDbClient>;
+
+/** The API's plain postgres.js client: SELECT-only role expected, sessions read only, and no drizzle on top (drizzle turns the
+ * driver's date parsers off, and the API reads timestamps as Date). */
+export function createApiSql(url: string) {
+  return postgres(url, { max: 10, idle_timeout: 20, connect_timeout: 10, transform: { undefined: null }, onnotice: () => undefined, connection: { default_transaction_read_only: true } });
+}
