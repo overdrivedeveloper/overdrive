@@ -52,7 +52,11 @@ contract MockAgentRegistry is IODGearRegistry, Unused {
         if (g.token == address(0)) revert GearUnknown(id);
     }
 
-    function listGear(bytes32, bytes32, Gear, uint128, uint128, uint16, string calldata) external pure returns (bytes32) {
+    function listGear(bytes32, bytes32, Gear, uint128, uint128, uint16, string calldata)
+        external
+        pure
+        returns (bytes32)
+    {
         revert UnusedInMock();
     }
 

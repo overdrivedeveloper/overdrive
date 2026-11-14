@@ -105,12 +105,16 @@ contract MockKernelAccount {
             address target = address(bytes20(execCalldata[0:20]));
             uint256 value = uint256(bytes32(execCalldata[20:52]));
             (bool ok, bytes memory ret) = target.call{value: value}(execCalldata[52:]);
-            if (!ok) assembly { revert(add(ret, 32), mload(ret)) }
+            if (!ok) {
+                assembly { revert(add(ret, 32), mload(ret)) }
+            }
         } else if (callType == 0x01) {
             Execution[] memory calls = abi.decode(execCalldata, (Execution[]));
             for (uint256 i; i < calls.length; ++i) {
                 (bool ok, bytes memory ret) = calls[i].target.call{value: calls[i].value}(calls[i].callData);
-                if (!ok) assembly { revert(add(ret, 32), mload(ret)) }
+                if (!ok) {
+                    assembly { revert(add(ret, 32), mload(ret)) }
+                }
             }
         } else {
             revert("unsupported call type");

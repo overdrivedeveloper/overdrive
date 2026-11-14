@@ -187,9 +187,7 @@ contract ODPaymaster is Ownable2Step, IODPaymaster {
     /// @notice Returns the unused part of the reserved cost to the caps once the real cost is known. The cost booked is
     /// `actualGasCost` plus the most the EntryPoint can add after it (postOp gas and the unused-gas penalty) at the
     /// op's fee, never more than the reservation, so the caps never under-count what the deposit pays.
-    function postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
-        external
-    {
+    function postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas) external {
         if (msg.sender != address(ENTRY_POINT)) revert NotEntryPoint();
         (address account, uint64 day, uint256 reserved, uint256 extraGas) =
             abi.decode(context, (address, uint64, uint256, uint256));

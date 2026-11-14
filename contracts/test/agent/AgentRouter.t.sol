@@ -60,7 +60,10 @@ contract AgentRouterTest is ODTest {
         minter = new MockAgentMinter(IERC20(address(usdg)), registry);
         backer = new MockAgentBacker(IERC20(address(usdg)));
         router = new ODAgentRouter(
-            IERC20(address(usdg)), IODMinter(address(minter)), IODBacker(address(backer)), IODGearRegistry(address(registry))
+            IERC20(address(usdg)),
+            IODMinter(address(minter)),
+            IODBacker(address(backer)),
+            IODGearRegistry(address(registry))
         );
         tAapl = new MockGearToken("AAPLx2", address(minter), address(backer));
         tPair = new MockGearToken("AAPLMSFTx2", address(minter), address(backer));
@@ -259,7 +262,10 @@ contract AgentRouterTest is ODTest {
     function test_Reentrancy() public {
         ReenteringMinter evil = new ReenteringMinter();
         ODAgentRouter r = new ODAgentRouter(
-            IERC20(address(usdg)), IODMinter(address(evil)), IODBacker(address(backer)), IODGearRegistry(address(registry))
+            IERC20(address(usdg)),
+            IODMinter(address(evil)),
+            IODBacker(address(backer)),
+            IODGearRegistry(address(registry))
         );
         evil.arm(r, owner);
         vm.startPrank(owner);

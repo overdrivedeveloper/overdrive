@@ -147,8 +147,8 @@ contract ODGearRegistry is AccessControl, IODGearRegistry {
         if (status == GearStatus.NONE) revert InvalidParams();
         if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
             _checkRole(GUARDIAN_ROLE);
-            bool lowersRisk = (status == GearStatus.BUYS_PAUSED || status == GearStatus.SELL_ONLY)
-                && uint8(status) > uint8(cur);
+            bool lowersRisk =
+                (status == GearStatus.BUYS_PAUSED || status == GearStatus.SELL_ONLY) && uint8(status) > uint8(cur);
             if (!lowersRisk) revert NotAllowed();
         }
         g.status = status;

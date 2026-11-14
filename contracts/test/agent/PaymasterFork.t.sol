@@ -17,8 +17,15 @@ contract PaymasterForkTest is ODTest {
         t[0] = makeAddr("minter");
         address owner = makeAddr("timelock");
         ODPaymaster pm = new ODPaymaster(
-            IEntryPoint(ENTRY_POINT_V07), owner, makeAddr("guardian"), makeAddr("signer"), t, makeAddr("usdg"),
-            0.01 ether, 0.01 ether, 0.03 ether
+            IEntryPoint(ENTRY_POINT_V07),
+            owner,
+            makeAddr("guardian"),
+            makeAddr("signer"),
+            t,
+            makeAddr("usdg"),
+            0.01 ether,
+            0.01 ether,
+            0.03 ether
         );
         assertGt(pm.KERNEL_FACTORY().code.length, 0, "kernel factory");
         assertGt(pm.ECDSA_VALIDATOR().code.length, 0, "ecdsa validator");

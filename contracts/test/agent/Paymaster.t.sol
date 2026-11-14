@@ -78,7 +78,15 @@ contract PaymasterTest is ODTest {
 
     function _deploy(address signer_) internal returns (ODPaymaster) {
         return new ODPaymaster(
-            IEntryPoint(address(ep)), owner, guardian, signer_, _targets(), address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP
+            IEntryPoint(address(ep)),
+            owner,
+            guardian,
+            signer_,
+            _targets(),
+            address(usdg),
+            PER_OP,
+            ACCOUNT_CAP,
+            GLOBAL_CAP
         );
     }
 
@@ -136,7 +144,8 @@ contract PaymasterTest is ODTest {
         view
         returns (PackedUserOperation memory)
     {
-        return _sign(_op(sender, nonce, callData), uint48(block.timestamp + 300), uint48(block.timestamp - 10), signerKey);
+        return
+            _sign(_op(sender, nonce, callData), uint48(block.timestamp + 300), uint48(block.timestamp - 10), signerKey);
     }
 
     function _validate(PackedUserOperation memory op) internal returns (uint256 vd) {
@@ -156,10 +165,12 @@ contract PaymasterTest is ODTest {
     function test_OnlyProtocolTargets() public {
         address[] memory t = _targets();
         for (uint256 i; i < t.length; ++i) {
-            PackedUserOperation memory ok = _signed(address(acct), 0, _single(t[i], 0, abi.encodeCall(MockPaymasterTarget.ping, ())));
+            PackedUserOperation memory ok =
+                _signed(address(acct), 0, _single(t[i], 0, abi.encodeCall(MockPaymasterTarget.ping, ())));
             assertEq(_validate(ok) & 1, 0);
         }
-        PackedUserOperation memory op = _signed(address(acct), 0, _single(address(other), 0, abi.encodeCall(other.poke, ())));
+        PackedUserOperation memory op =
+            _signed(address(acct), 0, _single(address(other), 0, abi.encodeCall(other.poke, ())));
         vm.expectRevert(abi.encodeWithSelector(ODPaymaster.TargetNotAllowed.selector, address(other)));
         _validate(op);
         // One bad call poisons a batch.
@@ -188,7 +199,9 @@ contract PaymasterTest is ODTest {
         op = _signed(
             address(acct),
             0,
-            abi.encodeWithSelector(bytes4(0xe9ae5c53), bytes32(bytes1(0xff)), abi.encodePacked(address(minter), hex"11223344"))
+            abi.encodeWithSelector(
+                bytes4(0xe9ae5c53), bytes32(bytes1(0xff)), abi.encodePacked(address(minter), hex"11223344")
+            )
         );
         vm.expectRevert(ODPaymaster.UnsupportedCallData.selector);
         _validate(op);
@@ -302,7 +315,9 @@ contract PaymasterTest is ODTest {
         vm.expectRevert(ODPaymaster.NotEntryPoint.selector);
         pm.validatePaymasterUserOp(op, bytes32(0), MAX_COST);
         vm.expectRevert(ODPaymaster.NotEntryPoint.selector);
-        pm.postOp(IODPaymaster.PostOpMode.opSucceeded, abi.encode(address(acct), uint64(1), uint256(1), uint256(0)), 0, 0);
+        pm.postOp(
+            IODPaymaster.PostOpMode.opSucceeded, abi.encode(address(acct), uint64(1), uint256(1), uint256(0)), 0, 0
+        );
     }
 
     function test_HashVector() public {
@@ -319,9 +334,8 @@ contract PaymasterTest is ODTest {
         op.paymasterAndData = abi.encodePacked(at, j.readBytes32(".paymasterGasLimits"), new bytes(77));
         vm.etch(at, address(pm).code);
         vm.chainId(j.readUint(".chainId"));
-        bytes32 got = ODPaymaster(payable(at)).getHash(
-            op, uint48(j.readUint(".validUntil")), uint48(j.readUint(".validAfter"))
-        );
+        bytes32 got =
+            ODPaymaster(payable(at)).getHash(op, uint48(j.readUint(".validUntil")), uint48(j.readUint(".validAfter")));
         assertEq(got, j.readBytes32(".hash"));
     }
 
@@ -400,7 +414,9 @@ contract PaymasterTest is ODTest {
         }
         PackedUserOperation memory op = _signed(address(acct), 5, cd);
         vm.expectRevert(
-            abi.encodeWithSelector(ODPaymaster.AccountDailyCapExceeded.selector, address(acct), ACCOUNT_CAP + MAX_COST, ACCOUNT_CAP)
+            abi.encodeWithSelector(
+                ODPaymaster.AccountDailyCapExceeded.selector, address(acct), ACCOUNT_CAP + MAX_COST, ACCOUNT_CAP
+            )
         );
         _validate(op);
         // The next day (by the signed validUntil) starts afresh.
@@ -490,7 +506,10 @@ contract PaymasterTest is ODTest {
         ep.handleOp(address(pm), op, MAX_COST, 0);
         // The user's own non-sponsored transaction still works: the pause only stops sponsorship.
         vm.prank(address(0xCAFE));
-        acct.execute(bytes32(0), abi.encodePacked(address(usdg), uint256(0), abi.encodeCall(usdg.approve, (address(minter), 5e6))));
+        acct.execute(
+            bytes32(0),
+            abi.encodePacked(address(usdg), uint256(0), abi.encodeCall(usdg.approve, (address(minter), 5e6)))
+        );
         vm.prank(address(acct));
         minter.buy(bytes32(uint256(1)), 5e6, address(acct));
         assertEq(minter.bought(address(acct)), 5e6);
@@ -575,17 +594,31 @@ contract PaymasterTest is ODTest {
     function test_ConstructorRejectsBadInputs() public {
         address[] memory t = _targets();
         vm.expectRevert(ODPaymaster.ZeroAddress.selector);
-        new ODPaymaster(IEntryPoint(address(0)), owner, guardian, signer, t, address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP);
+        new ODPaymaster(
+            IEntryPoint(address(0)), owner, guardian, signer, t, address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP
+        );
         vm.expectRevert(ODPaymaster.ZeroAddress.selector);
-        new ODPaymaster(IEntryPoint(address(ep)), owner, address(0), signer, t, address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP);
+        new ODPaymaster(
+            IEntryPoint(address(ep)), owner, address(0), signer, t, address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP
+        );
         vm.expectRevert(ODPaymaster.BadTargets.selector);
         new ODPaymaster(
-            IEntryPoint(address(ep)), owner, guardian, signer, new address[](0), address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP
+            IEntryPoint(address(ep)),
+            owner,
+            guardian,
+            signer,
+            new address[](0),
+            address(usdg),
+            PER_OP,
+            ACCOUNT_CAP,
+            GLOBAL_CAP
         );
         address[] memory withUsdg = new address[](1);
         withUsdg[0] = address(usdg);
         vm.expectRevert(ODPaymaster.BadTargets.selector);
-        new ODPaymaster(IEntryPoint(address(ep)), owner, guardian, signer, withUsdg, address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP);
+        new ODPaymaster(
+            IEntryPoint(address(ep)), owner, guardian, signer, withUsdg, address(usdg), PER_OP, ACCOUNT_CAP, GLOBAL_CAP
+        );
         assertEq(pm.protocolTargets().length, 3);
     }
 }
