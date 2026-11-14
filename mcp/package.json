@@ -5,15 +5,17 @@
   "description": "MCP server for Overdrive geared tokens on Robinhood Chain: quote, read and prepare agent trades. Placeholder name until the owner decides; never published from here.",
   "license": "MIT",
   "type": "module",
+  "packageManager": "bun@1.4.4",
+  "engines": {
+    "node": ">=20",
+    "bun": "1.4.4"
+  },
   "bin": {
     "overdrive-mcp": "dist/cli.js"
   },
   "files": [
     "dist"
   ],
-  "engines": {
-    "node": ">=20"
-  },
   "scripts": {
     "build": "bun scripts/build.ts",
     "check": "bun scripts/build.ts --check",

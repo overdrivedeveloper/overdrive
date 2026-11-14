@@ -107,6 +107,9 @@ const envSchema = z.object({
   API_QUOTER: z.enum(["chain", "mock"]).default("chain"),
 });
 
+/** Every variable this file reads. app/.env.example must list exactly these (app/test/env-example.test.ts). */
+export const CONFIG_ENV_KEYS: readonly string[] = Object.freeze(Object.keys(envSchema.shape));
+
 type ParsedConfig = z.infer<typeof envSchema>;
 
 export type RuntimeConfig = Omit<ParsedConfig, "ALCHEMY_API_KEYS" | "RPC_BACKUP_URL" | "CHAIN_ID" | "INDEXER_CONFIRMATIONS"> & {

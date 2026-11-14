@@ -164,6 +164,54 @@ Generated from `contracts/src` at the reviewed commit. The holder column is the 
 
 All other state-changing functions (trade, queue fill and cancel, accrue, poke, claim, liquidation seal and execute, stake, unstake, `ODFees.sync`) are permissionless and act on the caller's own funds or on public state. `ODFees.sync()` books USDG that reached the fee contract without a notify into the next split; it can only move unbooked USDG into the buckets (post-deploy check: `isNotifier` is true for the Governor, the minter and the backer). `ODBacker.sealBatch` and `executeBatch` take at most `MAX_BATCH` = 50 vaults.
 
+## Pause and unpause runbook
+
+Who acts, in order, when something looks wrong. Names and phone numbers of the signers are kept in the private ops
+file (never in this repository); this table names the roles. Fill the private file before the first deploy.
+
+| Role | Does | Time |
+| --- | --- | --- |
+| On-call operator | Receives the alert (Telegram), checks the facts below, calls the guardian signers | Within 15 minutes of an alert |
+| Guardian Safe, 2 of 5 | Pauses. Acts at once, no timelock | Within 1 hour of the operator's call |
+| Admin Safe, 3 of 5 | Unpauses, and every other repair, through the 48 hour timelock | Schedule after a written cause; earliest execution 48 hours later |
+
+### Alerts that start it (crank jobs, all read only)
+
+| Alert | Job | What it means |
+| --- | --- | --- |
+| Timelock scheduled, executed or cancelled a call; code changed at the owner or guardian Safe | `admin-watch` | A role change or setter is coming or has happened |
+| Buys paused or unpaused (scope, actor, reason) | `admin-watch` | A pause action was seen on chain |
+| Hedge equity share, jump window net, stress and outflow limits | `risk-monitor` | Risk is outside its bounds |
+| Oracle or volatility post stale | `vol-watch` | Prices cannot be trusted; the guard halts a market by itself |
+| Keeper, hedger, liquidator or signer balance low | `gas-watch` | A bot will stop sending transactions |
+| No heartbeat | `heartbeat` | The crank itself is down |
+
+### To pause (guardian, immediate)
+
+1. Confirm from chain, not from the alert text: read `pauseReason` on the Governor and the market status on `ODOracleGuard`.
+2. Choose the narrowest switch that stops the harm. One market: `ODOracleGuard.setBuysPaused(market, true)`. All buys: `ODGovernor.setBuysPaused(true)`. Vault mints: `ODBacker.setMintPaused(true)`. New stakes: `ODStake.setDepositsPaused(true)`. Sponsorship: `ODPaymaster.setPaused(true)`. Bad vol posts: `ODVolOracle.revokeSigner`. A gear: `ODGearRegistry.setStatus` (buys paused, then sell only).
+3. Post the transaction hash and the reason in the private ops channel and to the public status page.
+4. Check that `admin-watch` raised the pause alert. If it did not, the alerting is broken: tell the operator.
+
+### What stays open while paused
+
+Exits never close. Sells and LP claims are not gated by any pause above (the Governor pause covers buys only, and stake unstake and claim are unaffected; the pause tests assert it). A pause stops new risk, it never traps funds. If an exit is blocked by a pause, that is a bug: pause nothing further and treat it as an incident.
+
+### To unpause (admin, 48 hour timelock)
+
+The guardian cannot unpause. Only the admin Safe can, through the timelock, so every unpause is visible for 48 hours first.
+
+1. Write the cause and the fix (or the reason none is needed) in the incident note.
+2. Admin Safe schedules the unpause call on the timelock. `admin-watch` alerts on the schedule.
+3. Wait the full delay (48 hours). Anyone can watch the pending call; the guardian can pause again at once if the cause returns.
+4. Execute. For `ODOracleGuard.setBuysPaused(market, false)` note that it clears the continuity latch and accepts the jumped price as the new last good price: check the price against two independent sources first.
+5. Verify: the pause alert shows "unpaused", `pauseReason` reads clear, a small buy and a small sell quote succeed.
+6. Close the incident note with the transaction hashes.
+
+### Drills
+
+Run the whole sequence on a fork before launch and after any role change: pause with the guardian, confirm the alert, confirm a sell still works, schedule and execute the unpause on a fast-forwarded timelock.
+
 ## Accepted risks
 
 Known and accepted for the first release, stated generically:
@@ -190,5 +238,5 @@ Known and accepted for the first release, stated generically:
 ## Follow-ups
 
 - NatSpec on every external function is not complete; the contracts are frozen, so it is a follow-up.
-- Static analysis (Slither) and a secret scanner are not yet in CI.
+- Slither runs in CI with a triaged config (`contracts/SLITHER.md`); the 140 triaged results were read by class, not one by one. gitleaks also runs in CI.
 - Mutation testing has not been measured.

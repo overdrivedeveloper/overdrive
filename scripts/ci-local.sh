@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Local CI: runs the same jobs, with the same commands, as .github/workflows/ci.yml.
 # The workflow skips itself on a private repository, so this script is the CI for the private repo.
-# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts python
+# Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts slither app guard scripts python
 # Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:-} --no-experimental-webstorage"
-JOBS="hygiene semgrep contracts app guard scripts python"
+JOBS="hygiene semgrep contracts slither app guard scripts python"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -50,6 +50,7 @@ job_hygiene() {
 }
 job_semgrep() { bash .github/scripts/semgrep.sh; }
 job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test); }
+job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh; }
 job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }

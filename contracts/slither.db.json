@@ -1,0 +1,1122 @@
+[
+ {
+  "id": "461d0a030fe9e13b23c1bbc90a6494387ad723f44ff1463290d15e0d4c05945f",
+  "check": "weak-prng",
+  "impact": "High",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L858-L870",
+  "triage": "false positive or accepted by design: Not randomness: day % RING is the index of a fixed ring buffer of daily snapshots."
+ },
+ {
+  "id": "0e6e377b77defe29ce68ef929171ba93483d781b359372db7d0bbf6bda1897d0",
+  "check": "reentrancy-balance",
+  "impact": "High",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L537-L571",
+  "triage": "false positive or accepted by design: ODBuyBurn.execute and ODBacker._mint are nonReentrant; the stale balance is only compared against a floor that reverts the whole call, so a reentrant top-up can only make the call revert."
+ },
+ {
+  "id": "3acc1cd0134717f1c5f36dd9eacc3337661d7193f941fb85192b9cc02a327b0e",
+  "check": "reentrancy-balance",
+  "impact": "High",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODBuyBurn.sol#L58-L84",
+  "triage": "false positive or accepted by design: ODBuyBurn.execute and ODBacker._mint are nonReentrant; the stale balance is only compared against a floor that reverts the whole call, so a reentrant top-up can only make the call revert."
+ },
+ {
+  "id": "0f00e63a9b94f7630c178cf9f3cc41da8887edff58957e0b8d007678df5e6819",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L111-L135",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "2a89cbe2bc508a9d854ccda61c941d06e6cff52596480e9f316884bdc56be0e5",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/math/ODFixed.sol#L75-L96",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "3650ca25ab5959e6457237e15357e590d87f06794f325b8f5301d0387dae7bb1",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/math/ODToll.sol#L57-L60",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "520eef510e887dcaee02f62656b2e960a45cb69f09a06d1ea623e46e4a1f29c4",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/math/ODNorm.sol#L29-L46",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "65a691cd986ca0fc3bc469935c76a2078461e7c8195581b4936cc85c7153df28",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L111-L135",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "6c60ba0022aa4366d44ce5bf229cae67b8cfc9b17131cf92fb3aaba5cfb4effe",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODCalendar.sol#L102-L118",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "76f1fce9436dd2579072c32e3a8de1e78111345013358159f0c9372cea4ff82d",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/stake/ODStake.sol#L188-L197",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "9e28dd7565e17df60cdb8ae4f37e69e7760d4f9631bce2e2a49c08e992926511",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L154-L172",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "b1d1f5ef49f2af6efc103f8984f06312afe95b5e9e1a35235a1b4ea3c6432b63",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L111-L135",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "d9d618e1b6e3ead40d4b3097377ba51acdeed01fd31f843e810d945b01444016",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L111-L135",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "e48875d9dc9c3248988d8eaa6c8942b9496bc732d07a873e186b403654572d09",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/math/ODFixed.sol#L75-L96",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "edf753076158298f9e742683f81fedf57a07b99b13bef6340cbfa0092b80a77c",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/math/ODFixed.sol#L75-L96",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "f143cd412fbfb7c5c52200939a85ee3830a898efa27bbc565c3bb57aa02de975",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/math/ODFixed.sol#L99-L110",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "06ba2bc0154aa00b554810edc4330ff80cab96ccc70bb8182a65ab4c82843dde",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/stake/ODStake.sol#L202-L235",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "09f22d71e8124975f9e98eac2888e2367a055ea7d6aa33497c782fa3eef47c88",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODMinter.sol#L346-L355",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "15f58e67bdaa4a76e549ee5348c22698c8e91ce055a1a6bf33caab9026ad857b",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L76-L121",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "1951062e1a6cbbf26ee170ddf7cfdea15037e3a94c5e13a173f32d4269016046",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/backer/ODBacker.sol#L653-L666",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "2afc00de13cbacbc6b0cf9d6ee4a89c6ebe03dbfbcd3823ccad04a9120111179",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/stake/ODStake.sol#L178-L185",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "33de806eefbe322f70c7b087cad92b8199f8a33146a8e1036375a515dfe6a20b",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L182-L192",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "348adf7f14baf9e4559b0f8d869e65a8275e86f4503c0186bfcca3454ac99bdb",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L443-L452",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "39bde10dd065dd839fede22be5a4eb860f8ce642a513613c9a3f93748d53362c",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODVolOracle.sol#L154-L170",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "4257dc28f6e11dab96ecce96cf6cf34781dcaebd5b137478ad2f7ab0a852b1be",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L443-L452",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "62e523605540c42f9eb32a6f9acab35ae6b1d63c2b271d2d9e7f56094ea1b9c7",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L306-L400",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "6f927f21bc3c3bf4249544b586d17b18b0f261b81e43a49686aa03fdcbadc373",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L76-L121",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "71b3f74a9ec85a9ca7a453a1884b5177e24165dc1719cd8b23db60dadace0581",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L151-L162",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "7e96ac6fc2c75d732b5e5134e4f6b5744e00dad33cf41f25b48c358f43f664e8",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/backer/ODBacker.sol#L653-L666",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "833fe510011a0a71297ba18265f9ff0dd96016db57d2690706dad0d3d20a5c48",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/stake/ODStake.sol#L202-L235",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "8a48ca86dfd045caad2da3a712e52235cc3090ed53fea287b73ca64a7a22c2c7",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L771-L777",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "8d8b9c1539dc615b51b1d9bf0ef5f6531a41f6326d2dba5ecd4d521756e4f09c",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L124-L134",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "91a84898b5e342e6fbd106d3a41b02f9b99ae688f36de8a64a8c1883122109dc",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L510-L524",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "91ab4ad11aced46822ced6aaca159566802ef0be3311b3e8d5ae650ab6a083f0",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/fees/ODFees.sol#L192-L205",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "9be219980d39010cf3d21dede458ec8b5a26f318ec00992a1812db0283f70765",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/backer/ODBacker.sol#L514-L518",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "9e114c06feffd3d9fe17480bf7d92424a47eb6494c66f200c5c5d141b0936650",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L455-L470",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "a938525caec32f9035d76ee45d3a200d559dbd8cc8cacb2fbd7208ee9ed18167",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L182-L192",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "b3ed83064b8a4d7d609473dd7509d8fe92463a25b59001867510dc6bc2464d8d",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/stake/ODStake.sol#L352-L361",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "b545f89091acaf693834485c5060e001d22b0ca720c51a5dcd969116bbeeb925",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/backer/ODBacker.sol#L292-L322",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "b876243e3d1b7dc9e3d0582ed6de63041a188d7bd42fbbc1ca694db71d402172",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L306-L400",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "bef3a6c5ee3537530e9125a606f6ebddd310e4eea21ee04e5c8c0f1fdc2f1e37",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L306-L400",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "bfe224eedf748c3d57cd0879c0dd78cc17c3a15c4bdfeece15c2e55506ec5a7c",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L577-L605",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "c3f570aefc4580b9b45bac1a1b94c560d3313af5e7d6b0a84872f698aa0159ba",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L624-L632",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "c8a0c3709aa368d6286045caa88e72c988c3a75122eb88be241b1c06b7d97324",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L237-L287",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "d717b925691b0c536855193ee6b08d1f7aea32dd2e592cfc550fbc8ef3a306aa",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L151-L162",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "d95969632cdc0fc6ae3e0b44b3efc0dfa135737627fed5ad22dbe983f9d4f736",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L306-L400",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "dc54c586140c59ab128edb84042b4a06355b69a71e69f45b635ba1751c41e930",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/stake/ODStake.sol#L125-L140",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "f4036d4eb9b344f971f13a49efe7e5dd82bf440c98f5d8dd1b0b3d1a7befb3d3",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L448-L476",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "f6131aa030e2734385c2ad8b463162e4cfd2cf41d8ac3e098b72050e17ec72dd",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L237-L287",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "02600663c7848a1dbda651d4ec2c9225740a566cb7e27544fd856fd27b035316",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L537-L571",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "08354849c799121f69d5de0a58db5f0956ae33471324cfd6df9ad8d0f4505ed6",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L331-L372",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "1221adfd5d6d17eec6723108eab447259be9c26a329f2237ad50e4711fc3dbec",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODMinter.sol#L273-L283",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "20614611389b8eb59a22ac3cd332ca5060fda8a98fc68b1601c785c92756fe25",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L171-L178",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "43a08cdebd5c75a96b5aea6ddf7d58713598a6363b6af617de402d02af417e3a",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L243-L275",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "4f5c9da527b2f4f94c6d09c3a514e8708c6c9df84d7fe77aea28a6e7b59d8435",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L905-L908",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "589db530630d5e516ef5348cdfc848762fbe6ba4dcdca19b088aecb39a7ba51a",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/stake/ODStake.sol#L202-L235",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "5dca2ae48888323af87a9dd1825980248dd67969a64085ad5e14ea4d2eb6dde0",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L183-L199",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "7960be182ad76d6d10da4efb602b21e97c08fdbf44831229328ce24cf882dbe4",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L386-L416",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "8f200ccb423134a8e24f661cb67fb6cb253e0286286c8b6969a41caa32ea86b6",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L227-L237",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "946bead26bd9159568cf9290b5df183bf1f3bd86857207bf29b007ba960caed3",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L176-L200",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "ab484847439508a9be5cc5d3b46af5b5a5f8503eaff8211b15a2f970c31c40cc",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L386-L416",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "b4a4a1375d8ab21d2d1f706361c4c73fa156c0938feaa4fe63d6ee6e814a4f3c",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L192-L205",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "c2552b61a2ca2d869189cdf980feee8866c92da33121c7efb127e2eb4c3ea5de",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L537-L571",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn) or follow checks-effects-interactions (ODFees zeroes pending before paying); the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "086a5f55838ba1bf8337922f809c8777aa703fb89cc97a6467afe597d349b9a3",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/hook/ODHook.sol#L251-L261",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "0b7045466a843987f9c33977abb395dd5c9379f3375258652c8dc1c167012709",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L564-L572",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "121a4b34ae1a0c206d68870b113119cad902326d49901e7765940c5efdae70f6",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/agent/ODAgentRouter.sol#L147-L179",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "21c7ea581f57196cae9ebcf8e347602d4a20b6e079ed0ac6f6dff2bbfece3926",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/hook/ODHook.sol#L92-L99",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "28a90c2f3cf9587c971671d0af15523f53464071254f824d8f729f77c902b70a",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L444-L453",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "28db8777047c9262935111a0168b7c01010f97e9f394eece6d431caf1eb1c720",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/gear/ODGearRegistry.sol#L81-L144",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "2a886a60849ef231a73577a02f499fc59a10e952a28e1c82ab19ee05828d9a73",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L537-L571",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "36ee846453a7ec2bd7aea2845c4d63e67043591cbcfc812a842965ac50d0c3ef",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/hook/ODHook.sol#L148-L188",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "3cc588a4b09496e0a4a937d6c095357c705706ba026fef7ebdcb23c36500b718",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/stake/ODStake.sol#L341-L343",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "442810d0fe42a47179b3d7c1df60fb5fc1e3c7ada81c7806d4b500f940604d5d",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "5f706c08613e28e9d10b8f5db2f71182d95da47335a7985b780a1744a3ad23a9",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L243-L275",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "6775fe7f2d799eb4dfc42b262d0f1db380784f479356c76db90425a5a0792aac",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L537-L571",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "6f87ab408bd6ed2d71dd0e15e5a55f01d57f262bac10dd6f87b3ba7316a0a7d5",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L227-L237",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "71d394bfc0d9e5c960a2a9e053f2ef3051e64f07b1f3425c80c232405e45dbc7",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/gear/ODGearRegistry.sol#L81-L144",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "741471acbe0e6b01a4af8c1701fcb65140c331e8d3fcbac7a27de28bd849fd05",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L752-L769",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "8c3cc28f6d7a9d5ae7ab487dd70e76921ae60df15a6427c119a59c0dca3cb408",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L331-L372",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "9084ebc8d74e27c24a15db86eb84ae9c77f403357fff58b6744b2c1b932a7a77",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L653-L666",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "91835ad318420ccaebb6722b297c640546821e7c28a97553bd51efbb2fede428",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L292-L322",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "932a2e2ef24658fd938b693b229006ddc446a9bfd5a2fee309036012a4b92927",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/stake/ODStake.sol#L202-L235",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "a36afeeeb1cb0b629141d6cfff52c4d60ab039d930a68c6ef12d1e021a1a0e1f",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L419-L440",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "b6ba654852ef35e0f83bd9f2f31bdd8e12c0a3a95eb9cc607f9f2914cd982269",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODBuyBurn.sol#L58-L84",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "bfa203e3ff75cdc068fff1ceb15f04c6da6e75f217d756446c84a03c1fac22b8",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/agent/ODPaymaster.sol#L140-L185",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "bfe1d36f173bdb423b7650e49fa316ca187296eaf297c823da6cf68e14743204",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L653-L666",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "c532df4f0d4c79268d0a98dfdbad996e4690c7a538dc9c230a256cb9cff93b76",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODVolOracle.sol#L104-L149",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "d1d0d5ba7b81fe49abd95f12936236ebb63866e14de43e89f10955222db03a7e",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L419-L440",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "d941cb14372c8df7f4738705d1d5403fdc6e50c0ae151a6504a2254ddb2367cf",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L923-L931",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "dd63d24c669617e4a100f05d6c75558b2120ac818333e8b3fda5f4367a385f98",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L641-L645",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "447adfedb734c8ba87baf31d9d043396d7e5f14a93a465763ab3680925ee2498",
+  "check": "write-after-write",
+  "impact": "Medium",
+  "confidence": "High",
+  "first_markdown_element": "src/fees/ODFees.sol#L60",
+  "triage": "false positive or accepted by design: pending is reset to zero then set to the rounding remainder in the same function; the first write is the intended clear."
+ },
+ {
+  "id": "058a2b08fabe7ca590e174e0e8687ce821960e8cc800724ba52b59367e05c509",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODInsurance.sol#L26",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "0a1e08ad8766a88acb7e61677657b4ab404e51c9fd06fdaf7703243528815843",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODInsurance.sol#L26",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "442fea101cd18b9d0178ffff1a7c0cd9198fa9214b9c66929fd495ba19a8511b",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L111",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "8bddbf7f8660f64547b6ec435374f12dde89a4c7b0c7cccedcc3141559bc7750",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L138",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "a43bba37539cfd8e9d59b2ac7f29142fb3a2bff60a5ad9c39f0f431a76b2b945",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODMinter.sol#L114",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "ab0ec1a8a56d9bd27b1b00cad2e8aa6f8c069c53e1ee47494b064011b900e6d9",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L111",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "03e3352741f7e31cef998e5fa25a13fcd64be1d775a45a7d7616b9f95a3cb05d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "075b7612b65373d61b5c124a919c3b959ec477aa7716371fddc211a87edd3f12",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODMinter.sol#L449-L462",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "1f6ffa5d420e0d0b3246c65b4cb07ba080e878f618698455f2de3fa74938465d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "3245946d12e9a16f6a5683fed339bd1326b0192d17f47bd6f7b9e25451d13e5e",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "35b6ca6d62e6fcc9fe586548d2332597f3556e295bb79f77f6cc16080b54a1b3",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L272-L279",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "3acc6c2427442f035c6454bc2dd7435fea186f6c91b55af0c08485b0351c2cea",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L272-L279",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "3d7e3e18478da3afbf699c2254ae2e75d179a6d7426c44d2c9ce5324d5116315",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "51fc29f093b2850fbf8fd03acedb3b00ac5d79aca0f9564dd0d1fa237d84b4d9",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L208-L226",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "5855c2b0de106ed629ae17891dfcf2fb256ceab8ae715d055695baddc6b9104d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L673-L675",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "5a23587bb39abb6633dcf0bb777162bb8087684d712f4e5d03ebf1808f6e223c",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L118-L134",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "60e4eb40a9516ee15dd8b2b710df39b84f8323b3bfe12d0692246039b5eb918d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "65b2e450d80721c1ae6ca3c31766e7f5eef9078caa014c5cd62d36ac92e30665",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L208-L226",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "8497f556ba29dac926ef781db09d0145d8699e42eb5cd47b8c69b0a5a00a16cc",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L179-L217",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "8f22f201f368378379564ab4e98088a78e629257502d4681f495726fc9583512",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L208-L226",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "91d3750220ee1ffbe0538bdbc07ea07515e759d7bda479215056d4f3e9078cd5",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L179-L217",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "91e4d8bd8ce364d2d63dfd807b14daafe88ab37b60dd8e1b858f135303ac7cb7",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L118-L134",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "93197b8fb64f4b8049fe8e7be99201852439cc73c00782b87de23b968b59f3ff",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L624-L632",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "9995941496aeb8dbf7fee72d6ad54ab51b457f580b84e2dc32d2a9d536891d21",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "a666fa8cdd4b7361b5d8e2f63a1b3fe10ed11d2d04db81ce4375f558b84b62bb",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L118-L134",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "a82038799a77d58d3bd7c0416492faa3b3d9adfff391a2a3a28cefd1c769543b",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "b546f7d6909226601036c472bc9e621bad945933311b431ef88b2ed730713ebf",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L154-L172",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "b56d969ea672c0d2df6f20916a1f196536b8b0cf17a008662151068ec8bf7da8",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "ca3152ed6a2cd6019ec21fd3a0e56a03e71362feec82af42a02e98df4c5d98b3",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L154-L172",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "d71f6aa92df278db30fecfc15d5ca46c7a1431f11fe022208d99f678110d8300",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L272-L279",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "d85a01cba2d8b09e8f8a2e981257b2d05f67f5bd08aeb5024046194358a7f152",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L677-L682",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "e8725d840efbfc6c63db94c46ab91aa473cbaaa61582ccdeb628a3bee5bcb101",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L331-L372",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "e93e234476c2e5b7f56d0b3645765738cebd20e473b4e29fdb80295b417d8f9c",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L251-L270",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "fae61892525de426813f5a5f089fc8b5262352e386ebba72cd910c5295a7ea90",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L208-L226",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "046b4dbf261c8c4e16e25b7d81564370dfe6126840619f41d6696e344fd5441a",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L292-L322",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "060483e1e2006cd5621c0ebc99fb9f6b70a91e50995ab405785b6b6be12f5969",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODMinter.sol#L178-L199",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "605ba66aceb768f8216c86cde9eea1d0dffb131ed9694509d5b333fa12ca7422",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L395-L413",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "87cef968b6a638907f19dfcaa069f79f09966b3ac116b96be1cd293f9d1f87ee",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L192-L205",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "d2e7a5ba6e0decff0ef577514090840495c608ff4e974eb564b8ad06bb05bf56",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODBuyBurn.sol#L58-L84",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "05fbe03bb0d0e7d61898f562f608cbff5ba87e356cdfc322fb3cce2504182541",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/hook/ODHook.sol#L92-L99",
+  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
+ },
+ {
+  "id": "0625e9b2cda5480abca5ffa06afcff9cbc81c437b2c4a951ce9820da61a1a712",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L386-L416",
+  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
+ },
+ {
+  "id": "8605fb797dd439a81c00c4c2cdfeda4742511655ac056e2a506f743f6fd5af96",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/backer/ODBacker.sol#L386-L416",
+  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
+ },
+ {
+  "id": "a879115b32c7eff0c5843a37d4e5b73a1f054c64f34383b0b2fdd7841453e513",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L192-L205",
+  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
+ },
+ {
+  "id": "bc37de148aee4df8fc3ae4d336b4152a0a1b217ff5f907777e33b526fc30bea8",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/fees/ODFees.sol#L111-L135",
+  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
+ },
+ {
+  "id": "066c038e026827bf940337d20b9b7e818c5e47eb8530fb767fdfee36005dee35",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L529-L554",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "27abd625d23f9d869b3a559a79b6904ab53f0e51b374489a9519ecbc08e1eda6",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L608-L622",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "72c93ac8d0eebdb15b1521b5ad5ca9234c2417f59a4f42cae5618602e5aee2f5",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L624-L632",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "81fed1ad8a2e3ec1ee961134e61cab6e4b17f98e3fbb37ca118531b52a3930c3",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/governor/ODMinter.sol#L492-L500",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "8b855b4a2ced054bbc85fac537b70617580cdf91271d62677aa9128ae80dca4d",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L577-L605",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ }
+]

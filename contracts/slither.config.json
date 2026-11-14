@@ -1,0 +1,6 @@
+{
+  "filter_paths": "(lib/|test/|script/)",
+  "detectors_to_exclude": "naming-convention,timestamp,assembly,low-level-calls,cyclomatic-complexity,shadowing-local,unindexed-event-address,costly-loop,cache-array-length,var-read-using-this,redundant-statements,missing-inheritance,unused-state,events-maths,uninitialized-local",
+  "fail_pedantic": true,
+  "exclude_dependencies": true
+}

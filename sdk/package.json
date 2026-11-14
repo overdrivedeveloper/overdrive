@@ -4,14 +4,27 @@
   "version": "0.1.0",
   "description": "Typed TypeScript client for the Overdrive API (read-only data, exact quotes and unsigned transaction intents).",
   "type": "module",
+  "packageManager": "bun@1.4.4",
+  "engines": {
+    "bun": "1.4.4",
+    "node": "26.13.0"
+  },
   "license": "MIT",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
-  "files": ["dist", "src", "openapi.json", "README.md"],
+  "files": [
+    "dist",
+    "src",
+    "openapi.json",
+    "README.md"
+  ],
   "scripts": {
     "generate": "bun run scripts/generate-types.ts && bun run scripts/gen-deployments.ts",
     "generate:check": "bun run scripts/generate-types.ts --check && bun run scripts/gen-deployments.ts --check",

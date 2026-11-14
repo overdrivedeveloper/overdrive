@@ -6,6 +6,8 @@
     install hooks that run `bun install` use --frozen-lockfile;
   - Solidity: deployable contracts in contracts/src use a fixed pragma (`pragma solidity 0.8.x;`); interfaces and
     shared libraries may keep a range;
+  - runtimes: bun, node, python and foundry are pinned exactly in CI (workflow env), `.tool-versions`, `.python-version`
+    and the `packageManager` / `engines` fields of app, sdk and mcp, and all of them agree;
   - CI: every `uses:` in .github/workflows is pinned to a full commit SHA, and every workflow sets `permissions:`.
 """
 import json
@@ -71,8 +73,54 @@ for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
         if m and not m.group(1).startswith("./") and not re.search(r"@[0-9a-f]{40}$", m.group(1)):
             bad(f"{rel}:{line_no}: action '{m.group(1)}' is not pinned to a commit SHA")
 
+# ---- runtime pins agree everywhere
+ci_text = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+
+
+def ci_env(name):
+    m = re.search(rf'^\s*{name}:\s*"?v?([0-9][^"\s]*)"?\s*$', ci_text, re.M)
+    if not m:
+        bad(f"ci.yml: env {name} is missing or not an exact version")
+        return None
+    return m.group(1)
+
+
+pins = {"bun": ci_env("BUN_VERSION"), "nodejs": ci_env("NODE_VERSION"), "python": ci_env("PYTHON_VERSION"), "foundry": ci_env("FOUNDRY_VERSION")}
+for tool, ver in pins.items():
+    if ver and not re.fullmatch(r"\d+\.\d+\.\d+", ver):
+        bad(f"ci.yml: {tool} '{ver}' is not an exact x.y.z version")
+tv = {}
+tv_file = ROOT / ".tool-versions"
+if tv_file.exists():
+    for line in tv_file.read_text().split("\n"):
+        parts = line.split()
+        if len(parts) == 2:
+            tv[parts[0]] = parts[1]
+else:
+    bad(".tool-versions is missing")
+for tool, ver in pins.items():
+    if ver and tv.get(tool) != ver:
+        bad(f".tool-versions: {tool} is '{tv.get(tool)}', ci.yml says '{ver}'")
+py_file = ROOT / ".python-version"
+if not py_file.exists() or py_file.read_text().strip() != pins["python"]:
+    bad(f".python-version must be {pins['python']} (as in ci.yml)")
+for pkg_dir in ("app", "sdk", "mcp"):
+    pj = ROOT / pkg_dir / "package.json"
+    if not pj.exists():
+        continue
+    pkg = json.loads(pj.read_text())
+    if pkg.get("packageManager") != f"bun@{pins['bun']}":
+        bad(f"{pkg_dir}/package.json: packageManager must be bun@{pins['bun']}")
+    eng = pkg.get("engines", {})
+    if eng.get("bun") != pins["bun"]:
+        bad(f"{pkg_dir}/package.json: engines.bun must be {pins['bun']}")
+    if pkg_dir != "mcp" and eng.get("node") != pins["nodejs"]:  # mcp is a published CLI: its node range is for consumers
+        bad(f"{pkg_dir}/package.json: engines.node must be {pins['nodejs']}")
+    if pkg_dir == "mcp" and "node" not in eng:
+        bad("mcp/package.json: engines.node is missing")
+
 for p in problems:
     print(f"FAIL {p}")
 if problems:
     sys.exit(f"{len(problems)} hygiene problem(s)")
-print("hygiene: dependencies pinned and frozen, pragmas fixed, actions pinned")
+print("hygiene: dependencies pinned and frozen, pragmas fixed, actions pinned, runtimes pinned")
