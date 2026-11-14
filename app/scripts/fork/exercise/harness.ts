@@ -41,6 +41,11 @@ for (const sig of ["PoolManagerShort(address,uint256,uint256)", "QuoteMismatch(u
   ERROR_SELECTORS.push({ selector: toFunctionSelector(sig).slice(2), name: sig.slice(0, sig.indexOf("(")) });
 }
 
+/** Registers extra error signatures (for example the timelock's) so `revertNames` and `expectRevert` decode them. */
+export function registerErrors(sigs: string[]): void {
+  for (const sig of sigs) ERROR_SELECTORS.push({ selector: toFunctionSelector(sig).slice(2), name: sig.slice(0, sig.indexOf("(")) });
+}
+
 /** Every contract error named anywhere in the revert data of `e`. A hook revert reaches the swapper wrapped by the
  * PoolManager (WrappedError), so the inner error is found by its selector. */
 export function revertNames(e: unknown): string[] {
@@ -119,7 +124,7 @@ export async function readAt<A extends Abi>(ctx: Ctx, t: bigint, address: Addres
 
 // ------------------------------------------------------------------------------------------------ the row
 
-export interface SendReq { address: Address; abi: Abi; functionName: string; args?: readonly unknown[]; value?: bigint }
+export interface SendReq { address: Address; abi: Abi; functionName: string; args?: readonly unknown[]; value?: bigint; gas?: bigint }
 
 export class Row {
   txs: TxRecord[] = [];
@@ -450,7 +455,11 @@ export const U = (n: number | string) => BigInt(Math.round(Number(n) * 1e6));
 /** Gives `role` USDG and ETH (impersonated real holder, R3) and approves the minter. */
 export async function fundRole(ctx: Ctx, role: Role, usdgAmt: number): Promise<Address> {
   const who = addressOf(role);
-  await fund([who], usdgAmt, 10);
+  // top up only the deficit: the real USDG holder is finite and the rows rerun on the same fork
+  const have = await usdgOf(ctx, who);
+  const want = BigInt(Math.round(usdgAmt * 1e6));
+  if (have < want) await fund([who], Number(want - have) / 1e6, 10);
+  else await ctx.test.setBalance({ address: who, value: 10n * 10n ** 18n });
   return who;
 }
 

@@ -9,6 +9,10 @@ import { RESULTS_FILE, loadResults, saveResults, shouldRun, summary, toMarkdown 
 export interface Area { flows: Flow[]; /** Lists the gears and fixtures the flows need, before the first flow runs. */ prepare?: (ctx: Ctx) => Promise<void> }
 export const AREAS: Record<string, () => Promise<Area>> = {
   holders: async () => import("./holders"),
+  admin: async () => import("./admin"),
+  agents: async () => import("./agents"),
+  parity: async () => import("./api-parity"),
+  web: async () => import("./web"),
   // 22c: backers, governor, hedger, crank, liquidation, first-money go here.
 };
 
