@@ -3,22 +3,41 @@
 import { mulWad, wadToUsdgUp } from "../lib/fixed";
 import type { HealthView } from "./types";
 
-/** The 5% bonus of spec section 5. IODBacker exposes no getter, so this is an estimate only; recorded bonuses come from events. */
-export const BONUS_BPS = 500n;
+/** Liquidation terms read from ODBacker (BONUS_BPS, MIN_REWARD_USDG), never typed here. */
+export interface LiquidationTerms { bonusBps: bigint; minRewardUsdg: bigint }
+
 const BPS = 10_000n;
-
 const ceilDiv = (a: bigint, b: bigint): bigint => (a + b - 1n) / b;
+const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
 
-/** Expected collateral seized: enough to cover the debt value after the bonus, capped by the vault's collateral. */
-export function expectedSeizedUsdg(h: Pick<HealthView, "collateralUsdg" | "debtValueWad">): bigint {
+/** The contract's split of one vault (ODLiquidation), from the vault's own collateral only (no insurance, no stake):
+ * D = debt value in USDG rounded up, bonus due B = floor(bonusBps of D), the Governor receives min(collateral - B, D),
+ * what is left of D + B stays in the vault. */
+export function expectedSplit(h: Pick<HealthView, "collateralUsdg" | "debtValueWad">, t: LiquidationTerms) {
   const debtUsdg = wadToUsdgUp(h.debtValueWad);
-  const want = ceilDiv(debtUsdg * BPS, BPS - BONUS_BPS);
-  return want < h.collateralUsdg ? want : h.collateralUsdg;
+  const bonusDue = (debtUsdg * t.bonusBps) / BPS;
+  const fromCollateral = min(bonusDue, h.collateralUsdg);
+  const floor = min(bonusDue, t.minRewardUsdg);
+  const toGovernor = min(h.collateralUsdg - fromCollateral, debtUsdg);
+  return {
+    debtUsdg,
+    bonusDue,
+    /** What the executor can count on: the bonus paid from collateral, never below the floor min(B, MIN_REWARD_USDG). */
+    bonusUsdg: fromCollateral > floor ? fromCollateral : floor,
+    toGovernorUsdg: toGovernor,
+    seizedUsdg: min(h.collateralUsdg, debtUsdg + bonusDue),
+    shortfallUsdg: debtUsdg + bonusDue > h.collateralUsdg ? debtUsdg + bonusDue - h.collateralUsdg : 0n,
+  };
 }
 
-/** Expected bonus: 5% of the seized collateral, rounded down. */
-export function expectedBonusUsdg(h: Pick<HealthView, "collateralUsdg" | "debtValueWad">): bigint {
-  return (expectedSeizedUsdg(h) * BONUS_BPS) / BPS;
+/** Expected collateral seized: D + B, capped by the vault's collateral. */
+export function expectedSeizedUsdg(h: Pick<HealthView, "collateralUsdg" | "debtValueWad">, t: LiquidationTerms): bigint {
+  return expectedSplit(h, t).seizedUsdg;
+}
+
+/** Expected bonus: bonusBps of the debt value (rounded down), from collateral, at least the contract's minimum reward floor. */
+export function expectedBonusUsdg(h: Pick<HealthView, "collateralUsdg" | "debtValueWad">, t: LiquidationTerms): bigint {
+  return expectedSplit(h, t).bonusUsdg;
 }
 
 /** Gas cost in USDG (6 dp, rounded up): gas units times wei per gas is ETH in WAD, times the ETH price in WAD. */

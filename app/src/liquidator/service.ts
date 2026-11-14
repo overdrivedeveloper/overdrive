@@ -13,7 +13,7 @@ import { closeRun, insertAttempts, insertRun, type AttemptRow } from "../db/quer
 import { safeErrorSummary } from "../log";
 import { usdgDecimal } from "../lib/fixed";
 import { IODOracleGuardAbi } from "../abi";
-import { assertLiquidatorCall, buildPlans, encodeExecute, encodeSeal, liquidatorAddresses, verifyOnChain, type LiquidatorAddresses } from "./batch";
+import { assertLiquidatorCall, buildPlans, encodeExecute, encodeSeal, liquidatorAddresses, readBackerTerms, readBatchWindow, verifyOnChain, type BackerTerms, type LiquidatorAddresses } from "./batch";
 import { decideEconomics, expectedBonusUsdg, gasCostUsdg } from "./economics";
 import { scanWithReport } from "./scan";
 import type { LiquidatorSettings } from "./settings";
@@ -56,7 +56,7 @@ export interface PassResult {
   skipped?: string;
 }
 
-interface Ctx extends PassDeps { addresses: LiquidatorAddresses; insurance?: Address; result: PassResult; chainNow: bigint }
+interface Ctx extends PassDeps { addresses: LiquidatorAddresses; insurance?: Address; result: PassResult; chainNow: bigint; terms?: BackerTerms }
 
 const alertCtx = (d: PassDeps) => ({ logger: d.logger, sql: d.sql });
 
@@ -101,6 +101,39 @@ async function recordClosure(c: Ctx, batch: Pick<OpenBatch, "batchId" | "gearId"
 async function executeOne(c: Ctx, batch: OpenBatch): Promise<void> {
   const sleep = c.sleep ?? ((ms: number) => Bun.sleep(ms));
   for (let attempt = 0; attempt < 3; attempt++) {
+    // The window comes from the chain (batchWindow = sealedAt + SEAL_DELAY, sealedAt + BATCH_TTL), never from constants.
+    let window: Awaited<ReturnType<typeof readBatchWindow>>;
+    try {
+      window = await readBatchWindow(c.clients, c.addresses.backer, batch.batchId);
+    } catch (error) {
+      c.logger.warn({ batchId: batch.batchId.toString(), err: safeErrorSummary(error) }, "batchWindow read failed; will retry next pass");
+      return;
+    }
+    if (window) {
+      batch.readyAt = window.readyAt;
+      if (c.chainNow > window.expiresAt) {
+        c.state.open.delete(batch.batchId);
+        await closeRun(c.sql, batch.batchId, batch.gearId, batch.vaultIds, { phase: "voided", error: "expired before execution" });
+        c.result.voided.push(batch.batchId.toString());
+        return;
+      }
+      if (c.chainNow >= window.readyAt && c.chainNow + BigInt(c.settings.executeMarginSeconds) > window.expiresAt) {
+        // LIQUIDATOR_EXECUTE_MARGIN_SECONDS: a tx sent this close to expiry may land after it; let the batch lapse instead.
+        c.logger.warn({ batchId: batch.batchId.toString(), expiresAt: window.expiresAt.toString() }, "batch too close to expiry; not sending executeBatch");
+        return;
+      }
+      if (c.chainNow < window.readyAt) {
+        const wait = window.readyAt - c.chainNow;
+        if (wait <= BigInt(c.settings.passSeconds) && attempt < 2) {
+          await sleep(Number(wait) * 1000 + 250);
+          c.chainNow = await chainNowOf(c.clients);
+          continue;
+        }
+        const ms = Number(wait) * 1000;
+        c.result.retryAfterMs = c.result.retryAfterMs === undefined ? ms : Math.min(c.result.retryAfterMs, ms);
+        return;
+      }
+    }
     let res: TxResult;
     try {
       res = await guardedSubmit(c, encodeExecute(batch.batchId), `execute:${batch.batchId}`);
@@ -177,38 +210,31 @@ async function ethPriceWad(c: Ctx): Promise<bigint | undefined> {
 async function sealBest(c: Ctx, verified: Verified[], attempts: AttemptRow[]): Promise<void> {
   const block = await c.clients.stateClient.getBlock();
   const gasBudget = BigInt((block as { gasLimit?: bigint }).gasLimit ?? 30_000_000n) / 2n;
-  const plans = buildPlans(verified, { maxVaults: c.settings.maxVaultsPerBatch, gasBudget });
+  const terms = c.terms ?? (c.terms = c.state.terms = await readBackerTerms(c.clients, c.addresses.backer));
+  const plans = buildPlans(verified, { maxVaults: c.settings.maxVaultsPerBatch, gasBudget, terms });
   if (!plans.length) return;
   const byId = new Map(verified.map((v) => [v.vaultId, v]));
   const [gasPrice, ethPrice] = await Promise.all([c.clients.txClient.getGasPrice(), ethPriceWad(c)]);
   if (ethPrice === undefined) { c.result.skipped = "gas_unpriced: no fresh ETH price to cost gas"; return; }
   const nowS = Number(c.chainNow);
   for (const plan of plans) { // R10: at most one batch is sealed per pass; later plans only run if earlier ones were uneconomic
-    let ids = [...plan.vaultIds];
+    const ids = [...plan.vaultIds];
     let sealGas: bigint | undefined;
-    for (let tries = 0; tries < 4 && ids.length; tries++) {
-      try {
-        sealGas = await c.clients.txClient.estimateGas({ account: c.account, to: c.addresses.backer, data: encodeSeal(plan.gearId, ids) } as never);
-        break;
-      } catch (error) {
-        const name = revertNameOf(error);
-        const args = error instanceof RevertError ? error.args : decodeRevert(error)?.args ?? [];
-        const bad = args[0] as bigint | undefined;
-        if ((name === "Healthy" || name === "InBatch") && bad !== undefined && ids.includes(BigInt(bad))) {
-          ids = ids.filter((x) => x !== BigInt(bad));
-          attempts.push({ vaultId: BigInt(bad), gear: plan.gearId, verdict: "dropped_by_chain", reason: name });
-          continue;
-        }
-        c.logger.warn({ gear: plan.gearId, err: safeErrorSummary(error) }, "sealBatch estimate failed");
-        sealGas = undefined;
-        break;
-      }
+    // ODBacker.sealBatch never reverts for one vault: it leaves out healthy, foreign or already-batched vaults (the kept set is
+    // in BatchSealed) and reverts SealRefused(reason) only when the reading is not usable or nothing is left to seal.
+    try {
+      sealGas = await c.clients.txClient.estimateGas({ account: c.account, to: c.addresses.backer, data: encodeSeal(plan.gearId, ids) } as never);
+    } catch (error) {
+      const name = revertNameOf(error);
+      const args = error instanceof RevertError ? error.args : decodeRevert(error)?.args ?? [];
+      c.logger.warn({ gear: plan.gearId, revert: name, reason: name === "SealRefused" ? reasonText(args[0] as Hex) : undefined, err: safeErrorSummary(error) }, "sealBatch estimate failed");
+      if (name === "SealRefused") for (const id of ids) attempts.push({ vaultId: id, gear: plan.gearId, verdict: "dropped_by_chain", reason: `SealRefused ${reasonText(args[0] as Hex)}` });
     }
     if (sealGas === undefined || !ids.length) continue;
     // Execute gas is not known before the seal; it is taken equal to the seal estimate (both scale with the vault count).
     const gasEstimate = sealGas * 2n;
     const econ = decideEconomics({
-      vaults: ids.map((id) => ({ vaultId: id, bonusUsdg: expectedBonusUsdg(byId.get(id)!.health!) })),
+      vaults: ids.map((id) => ({ vaultId: id, bonusUsdg: expectedBonusUsdg(byId.get(id)!.health!, terms) })),
       gasEstimate, gasCostUsdg: gasCostUsdg(gasEstimate, BigInt(gasPrice), ethPrice), minBonusUsdg: c.settings.minBonusUsdg, gasMultipleBps: c.settings.gasMultipleBps,
     });
     for (const id of econ.uneconomic) {
@@ -245,6 +271,7 @@ async function sealBest(c: Ctx, verified: Verified[], attempts: AttemptRow[]): P
       await insertRun(c.sql, { gear: plan.gearId, vaultIds: econ.send, phase: "abandoned", sealTx: res.hash ?? null, error: "no BatchSealed event in the receipt" });
       return;
     }
+    for (const id of econ.send) if (!sealed.vaultIds.includes(id)) attempts.push({ vaultId: id, gear: plan.gearId, verdict: "dropped_by_chain", reason: "left out by sealBatch" });
     const runId = await insertRun(c.sql, { batchId: sealed.batchId, gear: sealed.gearId, vaultIds: sealed.vaultIds, phase: "sealed", sealTx: res.hash ?? null });
     const open: OpenBatch = { batchId: sealed.batchId, gearId: sealed.gearId, vaultIds: sealed.vaultIds, sealedAt: sealed.sealedAt, sealedBlock: sealed.block, runId, mine: true };
     c.state.open.set(sealed.batchId, open);
@@ -262,7 +289,7 @@ export async function runLiquidationPass(deps: PassDeps): Promise<PassResult> {
     dryRun: deps.settings.dryRun, scanned: 0, verdicts: {}, liquidatable: 0, uneconomic: [], executed: [], executedByOther: [], voided: [],
     openBatches: 0, bonusUsdg: "0", badDebtUsdg: "0", indexAgeS: null,
   };
-  const c: Ctx = { ...deps, addresses, ...(insuranceRaw ? { insurance: getAddress(insuranceRaw) } : {}), result, chainNow: await chainNowOf(deps.clients) };
+  const c: Ctx = { ...deps, addresses, ...(insuranceRaw ? { insurance: getAddress(insuranceRaw) } : {}), result, chainNow: await chainNowOf(deps.clients), ...(deps.state.terms ? { terms: deps.state.terms } : {}) };
   const jobs = deps.settings.jobs;
 
   // 1. Events (R7): the first pass rebuilds open batches from BatchSealed with no close after it; later passes follow new logs.

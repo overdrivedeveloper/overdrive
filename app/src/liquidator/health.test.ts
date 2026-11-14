@@ -74,6 +74,21 @@ describe("health parity (R1, R2)", () => {
     expect(backer.readCount.get("upliftActive")).toBe(3);
   });
 
+  test("health_uses_collateral_net_of_toll_fee", async () => {
+    // ODBacker.health() reports collateral NET of tollFeeOwed: a vault just above maintenance on raw collateral is
+    // liquidatable once the fee it owes is counted, and the service follows the chain's number
+    const { chain, backer } = liquidationWorld();
+    const id = backer.openVault(GEAR_TSLA, 151n * 10n ** 6n, 100n * WAD); // 151% raw
+    const addresses = liquidatorAddresses(chain.deployment.contracts);
+    const clients = backer.clients(LIQUIDATOR_ACCOUNT);
+    const c = [{ vaultId: id, gearId: GEAR_TSLA, owner: "x", collateralUsdg: 0n, debtTokens: 0n, healthHint: null, indexAgeS: null }];
+    expect((await verifyOnChain(clients, c, addresses))[0]!.verdict).not.toBe("liquidatable");
+    backer.tollFeeOwed.set(id, 2n * 10n ** 6n); // 149% net
+    const v = (await verifyOnChain(clients, c, addresses))[0]!;
+    expect(v.verdict).toBe("liquidatable");
+    expect(v.health!.collateralUsdg).toBe(149n * 10n ** 6n);
+  });
+
   test.skipIf(!optionalEnv("RHC_FORK_RPC"))("matches_contract_health_fork", () => {
     // ODBacker (todo 07) is not deployed on any fork yet; this variant runs once a deployment file names it.
     expect(optionalEnv("RHC_FORK_RPC")).toBeDefined();

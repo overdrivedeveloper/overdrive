@@ -15,9 +15,11 @@ import {IODOracleGuard} from "../interfaces/IODOracleGuard.sol";
 import {IODMarketHours} from "../interfaces/IODMarketHours.sol";
 import {IODInsurance} from "../interfaces/IODInsurance.sol";
 import {IODFees} from "../interfaces/IODFees.sol";
+import {IODStake} from "../interfaces/IODStake.sol";
 import {ODRoles} from "../interfaces/ODRoles.sol";
 import {ODIndex} from "../math/ODIndex.sol";
 import {ODBackerMath as M} from "./ODBackerMath.sol";
+import {ODLiquidation as L} from "./ODLiquidation.sol";
 
 /// @title ODBacker
 /// @notice Backer vaults. A backer posts USDG (from 50), mints gear tokens against it at a collateral ratio of 200%
@@ -41,6 +43,10 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     uint32 public constant SEAL_DELAY = 30 seconds;
     uint32 public constant BATCH_TTL = 15 minutes;
     uint16 public constant BONUS_BPS = 500;
+    uint16 public constant MAX_SEAL_DRIFT_BPS = 100;
+    uint64 public constant MIN_REWARD_USDG = 1e6;
+    uint8 public constant MAX_BATCH = 50;
+    uint32 public constant MAX_ROUND_AGE = 15 minutes;
     bytes32 public constant FEE_KIND = "BACKER_TOLL";
     uint256 internal constant BPS = 10_000;
 
@@ -53,22 +59,11 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         uint256 batchId;
     }
 
-    /// Sealed liquidation batch; written by 07b. Here only its timing frees vaults.
-    struct Batch {
-        bytes32 gearId;
-        uint256 sealedValueWad;
-        uint64 sealedAt;
-        uint64 feedUpdatedAt;
-        uint256[] vaultIds;
-        bool done;
-    }
-
     error ZeroAddress();
     error InvalidParams();
     error NotAllowed();
     error UnknownVault(uint256 vaultId);
     error UsdgNotReceived(uint256 needed, uint256 received);
-    error LiquidationNotLive(); // sealed batches arrive with 07b
 
     IERC20 public immutable usdg;
     IODGearRegistry public immutable registry;
@@ -84,6 +79,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     uint256 public totalCollateral;
     uint256 public pendingFees;
     bool public mintPaused;
+    address public stake; // bad-debt slash target after insurance (todo 09); 0 = none
     uint16 internal _upliftBps = DEFAULT_UPLIFT_BPS;
     uint32 internal _upliftLead = DEFAULT_UPLIFT_LEAD;
 
@@ -132,6 +128,12 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         _upliftBps = upliftBps;
         _upliftLead = lead;
         emit UpliftSet(upliftBps, lead);
+    }
+
+    /// @inheritdoc IODBacker
+    function setStake(address stake_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        stake = stake_;
+        emit StakeSet(stake_);
     }
 
     /// @inheritdoc IODBacker
@@ -280,13 +282,138 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     // ================================================================================================ liquidation
 
     /// @inheritdoc IODBacker
-    function sealBatch(bytes32, uint256[] calldata) external pure returns (uint256) {
-        revert LiquidationNotLive();
+    /// @dev Needs a live reading with refP > 0 on a feed round at most MAX_ROUND_AGE old. The batch keeps only vaults of
+    /// `gearId`, not in a live batch, below maintenance (with uplift) at the sealed value with collateral net of the
+    /// toll fee owed. The sealed value is the high side of value(p) and value(refP), Ceil (debt never under-valued).
+    function sealBatch(bytes32 gearId, uint256[] calldata vaultIds) external nonReentrant returns (uint256 batchId) {
+        uint256 n = vaultIds.length;
+        if (n == 0 || n > MAX_BATCH) revert InvalidParams();
+        GearConfig memory cfg = registry.gear(gearId);
+        if (cfg.token == address(0)) revert NotBackable(gearId);
+        if (minter.settledValue(gearId) != 0) revert SealRefused("SETTLED");
+        try minter.accrue(gearId) {} catch {}
+        PriceReading memory r = _read(cfg);
+        if (!_live(r)) revert SealRefused("NOT_LIVE");
+        if (r.refP == 0) revert SealRefused("REF_UNAVAILABLE");
+        if (uint256(r.updatedAt) + MAX_ROUND_AGE < block.timestamp) revert SealRefused("STALE_ROUND");
+        uint256 value = _perToken(cfg, gearId, r, true);
+        uint256 maint = cfg.maintenanceBps + _upliftOf(cfg);
+        batchId = ++batchCount;
+        Batch storage b = _batches[batchId];
+        b.gearId = gearId;
+        b.sealedValueWad = value;
+        b.sealedAt = uint64(block.timestamp);
+        b.feedUpdatedAt = r.updatedAt;
+        for (uint256 i; i < n; ++i) {
+            uint256 id = vaultIds[i];
+            VaultData storage v = _vaults[id];
+            if (v.gearId != gearId || v.debtTokens == 0 || _liveBatch(v.batchId) != 0) continue;
+            uint256 c = v.collateralUsdg - _feeOwed(v);
+            if (M.ratioBps(c, M.debtValueWad(v.debtTokens, value)) >= maint) continue;
+            v.batchId = batchId;
+            b.vaultIds.push(id);
+        }
+        if (b.vaultIds.length == 0) revert SealRefused("NONE_UNHEALTHY");
+        emit BatchSealed(batchId, gearId, value, b.sealedAt, b.vaultIds);
     }
 
     /// @inheritdoc IODBacker
-    function executeBatch(uint256) external pure returns (uint256) {
-        revert LiquidationNotLive();
+    /// @dev Only in [sealedAt + SEAL_DELAY, sealedAt + BATCH_TTL]. Voids the batch (vaults free) when the reading is not
+    /// live or the current high-side value drifted more than MAX_SEAL_DRIFT_BPS from the sealed value. Each vault is
+    /// liquidated in its own self-call under try/catch, so no vault (or its owner) can make the batch revert. No pause
+    /// stops it: liquidations reduce risk.
+    function executeBatch(uint256 batchId) external nonReentrant returns (uint256 liquidated) {
+        Batch storage b = _batches[batchId];
+        uint256 s = b.sealedAt;
+        if (s == 0) revert UnknownBatch(batchId);
+        if (b.done) revert BatchDone(batchId);
+        if (block.timestamp < s + SEAL_DELAY) revert BatchNotReady(uint64(s + SEAL_DELAY));
+        if (block.timestamp > s + BATCH_TTL) revert BatchExpired();
+        b.done = true;
+        bytes32 g = b.gearId;
+        GearConfig memory cfg = registry.gear(g);
+        try minter.accrue(g) {} catch {}
+        PriceReading memory r = _read(cfg);
+        if (!_live(r) || r.refP == 0 || minter.settledValue(g) != 0) {
+            emit BatchVoided(batchId, "NOT_LIVE");
+            return 0;
+        }
+        uint256 sealedV = b.sealedValueWad;
+        uint256 nowV = _perToken(cfg, g, r, true);
+        uint256 diff = nowV > sealedV ? nowV - sealedV : sealedV - nowV;
+        if (diff * BPS > sealedV * MAX_SEAL_DRIFT_BPS) {
+            emit BatchVoided(batchId, "DRIFT");
+            return 0;
+        }
+        uint256 maint = cfg.maintenanceBps + _upliftOf(cfg);
+        uint256 n = b.vaultIds.length;
+        for (uint256 i; i < n; ++i) {
+            try this.liquidateVault(batchId, b.vaultIds[i], msg.sender, maint) returns (bool ok) {
+                if (ok) ++liquidated;
+            } catch {}
+        }
+    }
+
+    /// One vault of an executing batch. Self-call only (its own revert scope, R6). Returns false when the vault was
+    /// rescued (repaid or topped up above maintenance at the sealed value) and is released instead.
+    /// @dev Split: executor bonus B = 5% of the debt value D (sealed value, Ceil to USDG); the Governor receives
+    /// min(collateral - B, D) and takes over the debt; the rest returns to the vault. A shortfall D + B - collateral is
+    /// asked of insurance first, then the stake; what is still missing is absorbed by Governor equity (bad debt).
+    function liquidateVault(uint256 batchId, uint256 vaultId, address executor, uint256 maintBps)
+        external
+        returns (bool)
+    {
+        if (msg.sender != address(this)) revert NotAllowed();
+        VaultData storage v = _vaults[vaultId];
+        if (v.batchId != batchId || v.debtTokens == 0) return false;
+        _charge(vaultId, v);
+        uint256 dWad = M.debtValueWad(v.debtTokens, _batches[batchId].sealedValueWad);
+        if (M.ratioBps(v.collateralUsdg, dWad) >= maintBps) return false;
+        uint256 tokens = v.debtTokens;
+        uint256 coll = v.collateralUsdg;
+        v.debtTokens = 0;
+        v.collateralUsdg = 0;
+        totalCollateral -= coll;
+        L.Split memory x = L.split(dWad, coll, BONUS_BPS, MIN_REWARD_USDG);
+        uint256 pool = coll;
+        if (x.gap != 0) pool += _recover(x.gap);
+        x = L.settle(x, pool);
+        if (x.floorGap != 0) x.bonus += _governorPays(v.gearId, x.floorGap);
+        if (x.surplus != 0) {
+            v.collateralUsdg = x.surplus;
+            totalCollateral += x.surplus;
+            emit CollateralMoved(vaultId, int256(x.surplus), x.surplus);
+        }
+        if (x.toGovernor != 0) usdg.safeTransfer(address(governor), x.toGovernor);
+        governor.absorbLiquidation(v.gearId, tokens, x.toGovernor);
+        if (x.bonus != 0) usdg.safeTransfer(executor, x.bonus);
+        emit Liquidated(batchId, vaultId, tokens, coll - x.surplus, x.bonus, x.badDebt);
+        return true;
+    }
+
+    /// Shortfall cover: insurance first, then the stake (if set). Amounts are measured by balance, never trusted.
+    function _recover(uint256 gap) private returns (uint256 got) {
+        uint256 before = usdg.balanceOf(address(this));
+        if (address(insurance) != address(0)) {
+            try insurance.cover(gap) {} catch {}
+        }
+        got = usdg.balanceOf(address(this)) - before;
+        if (got >= gap) return got;
+        // the stake is optional (todo 09); its slash never reverts (SlashFailed returns 0), guarded anyway
+        address st = stake;
+        if (st != address(0)) {
+            try IODStake(st).slash(gap - got) {} catch {}
+        }
+        got = usdg.balanceOf(address(this)) - before;
+    }
+
+    /// Last resort for the executor's minimum reward (PERP-5): the Governor's free cash, through the backer sale hook
+    /// with zero tokens (pays `amount` from tracked cash, no debt change). Returns what arrived (0 if refused).
+    function _governorPays(bytes32 g, uint256 amount) private returns (uint256 got) {
+        uint256 before = usdg.balanceOf(address(this));
+        try governor.onBackerMint(g, 0, true, amount) {} catch {}
+        got = usdg.balanceOf(address(this)) - before;
+        if (got > amount) got = amount;
     }
 
     // ================================================================================================ views
@@ -343,6 +470,11 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     }
 
     /// @inheritdoc IODBacker
+    function batch(uint256 batchId) external view returns (Batch memory) {
+        return _batches[batchId];
+    }
+
+    /// @inheritdoc IODBacker
     function batchWindow(uint256 batchId) external view returns (uint64 readyAt, uint64 expiresAt) {
         uint64 s = _batches[batchId].sealedAt;
         if (s == 0) return (0, 0);
@@ -371,6 +503,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         bytes32 g = v.gearId;
         GearConfig memory cfg = registry.gear(g);
         _backable(g, cfg);
+        if (_liveBatch(v.batchId) != 0) revert InBatch(vaultId);
         if (mintPaused) revert MintingClosed("PAUSED");
         if (tokens == 0) revert InvalidParams();
         minter.accrue(g);

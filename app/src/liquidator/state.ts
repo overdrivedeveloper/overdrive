@@ -14,6 +14,8 @@ export class LiquidatorState {
   /** Batches whose execute was already simulated in dry run (recorded once). */
   simulated = new Set<bigint>();
   lastBonusUsdg = 0n;
+  /** ODBacker's liquidation constants, read once from the chain (SEAL_DELAY, BATCH_TTL, BONUS_BPS, MIN_REWARD_USDG, MAX_BATCH). */
+  terms: import("./batch").BackerTerms | undefined;
   lastScanAt: Date | undefined;
   lastScanAgeS: number | null = null;
 }

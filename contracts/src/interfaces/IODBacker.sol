@@ -2,6 +2,16 @@
 pragma solidity 0.8.26;
 
 interface IODBacker {
+    /// A sealed liquidation batch (07b). `sealedValueWad` is the per-token debt value at the high side of p and refP
+    /// when sealed; every vault in it is liquidated at that value, or released if rescued.
+    struct Batch {
+        bytes32 gearId;
+        uint256 sealedValueWad;
+        uint64 sealedAt;
+        uint64 feedUpdatedAt;
+        uint256[] vaultIds;
+        bool done;
+    }
     event VaultOpened(uint256 indexed vaultId, address indexed owner, bytes32 indexed gearId);
     event CollateralMoved(uint256 indexed vaultId, int256 deltaUsdg, uint256 collateralAfter);
     event Minted(uint256 indexed vaultId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg);
@@ -80,4 +90,17 @@ interface IODBacker {
     function BATCH_TTL() external view returns (uint32); // after sealedAt + BATCH_TTL the batch is void, vaults free
     function BONUS_BPS() external view returns (uint16); // executor bonus, of the debt value
     function batchWindow(uint256 batchId) external view returns (uint64 readyAt, uint64 expiresAt); // (0, 0) unknown
+    // 07b additions (sealed-batch liquidation)
+    error SealRefused(bytes32 reason); // NOT_LIVE, REF_UNAVAILABLE, STALE_ROUND, SETTLED, NONE_UNHEALTHY
+    error UnknownBatch(uint256 batchId);
+    error BatchDone(uint256 batchId);
+    function MAX_SEAL_DRIFT_BPS() external view returns (uint16); // execute only within 1% of the sealed value
+    function MIN_REWARD_USDG() external view returns (uint64); // executor floor per vault, min(bonus, this)
+    function MAX_BATCH() external view returns (uint8);
+    function MAX_ROUND_AGE() external view returns (uint32); // the feed round at seal is at most this old
+    function batchCount() external view returns (uint256);
+    function batch(uint256 batchId) external view returns (Batch memory);
+    event StakeSet(address stake);
+    function setStake(address stake) external; // admin (timelock): the bad-debt slash target after insurance, 0 = none
+    function stake() external view returns (address);
 }

@@ -436,6 +436,38 @@ contract MockAgentBacker is IODBacker, Unused {
         revert UnusedInMock();
     }
 
+    function MAX_SEAL_DRIFT_BPS() external pure returns (uint16) {
+        return 100;
+    }
+
+    function MIN_REWARD_USDG() external pure returns (uint64) {
+        return 1e6;
+    }
+
+    function MAX_BATCH() external pure returns (uint8) {
+        return 50;
+    }
+
+    function MAX_ROUND_AGE() external pure returns (uint32) {
+        return 900;
+    }
+
+    function batchCount() external pure returns (uint256) {
+        return 0;
+    }
+
+    function batch(uint256) external pure returns (Batch memory) {
+        revert UnusedInMock();
+    }
+
+    function setStake(address) external pure {
+        revert UnusedInMock();
+    }
+
+    function stake() external pure returns (address) {
+        return address(0);
+    }
+
     function upliftActive(bytes32) external pure returns (bool, uint16) {
         revert UnusedInMock();
     }

@@ -5,7 +5,7 @@ import { decodeFunctionData, encodeFunctionData, getAddress, zeroAddress, type A
 import { IODBackerAbi, IODGearRegistryAbi, IODOracleGuardAbi } from "../abi";
 import type { ServiceClients } from "../chain/clients";
 import { safeErrorSummary } from "../log";
-import { expectedBonusUsdg } from "./economics";
+import { expectedBonusUsdg, type LiquidationTerms } from "./economics";
 import { healthConsistent, healthFromTuple, isLiquidatable } from "./health";
 import { combinedDecision } from "./policy";
 import type { BatchPlan, Candidate, HealthView, PriceReading, VaultView, Verified } from "./types";
@@ -135,8 +135,9 @@ export function isOpenLiquidatable(v: Verified): v is Verified & { vault: VaultV
   return v.verdict === "liquidatable" && !!v.vault && !!v.health && v.vault.debtTokens > 0n && v.vault.batchId === 0n && same(v.vault.gearId, v.gearId) && isLiquidatable(v.health);
 }
 
-/** One plan per gear, worst health first, each bounded by vault count and gas (R10). Plans are ordered by their worst vault. */
-export function buildPlans(v: readonly Verified[], caps: { maxVaults: number; gasBudget: bigint }): BatchPlan[] {
+/** One plan per gear, worst health first, each bounded by vault count (and the contract's MAX_BATCH when known) and gas (R10).
+ * Plans are ordered by their worst vault. The expected bonus needs the chain's terms; without them it is 0 (unknown). */
+export function buildPlans(v: readonly Verified[], caps: { maxVaults: number; gasBudget: bigint; terms?: LiquidationTerms & { maxBatch?: number } }): BatchPlan[] {
   const ok = v.filter(isOpenLiquidatable).sort((a, b) => (a.health.ratioBps < b.health.ratioBps ? -1 : a.health.ratioBps > b.health.ratioBps ? 1 : a.vaultId < b.vaultId ? -1 : 1));
   const byGear = new Map<string, (typeof ok)[number][]>();
   for (const x of ok) {
@@ -148,12 +149,13 @@ export function buildPlans(v: readonly Verified[], caps: { maxVaults: number; ga
   const plans: BatchPlan[] = [];
   for (const list of byGear.values()) {
     const maxByGas = caps.gasBudget <= PLAN_GAS_BASE ? 0 : Number((caps.gasBudget - PLAN_GAS_BASE) / PLAN_GAS_PER_VAULT);
-    const take = list.slice(0, Math.max(0, Math.min(caps.maxVaults, maxByGas)));
+    const maxVaults = caps.terms?.maxBatch ? Math.min(caps.maxVaults, caps.terms.maxBatch) : caps.maxVaults;
+    const take = list.slice(0, Math.max(0, Math.min(maxVaults, maxByGas)));
     if (!take.length) continue;
     plans.push({
       gearId: take[0]!.vault.gearId,
       vaultIds: take.map((x) => x.vaultId),
-      expectedBonusUsdg: take.reduce((s, x) => s + expectedBonusUsdg(x.health), 0n),
+      expectedBonusUsdg: caps.terms ? take.reduce((s, x) => s + expectedBonusUsdg(x.health, caps.terms!), 0n) : 0n,
       gasEstimate: PLAN_GAS_BASE + PLAN_GAS_PER_VAULT * BigInt(take.length),
     });
   }
@@ -170,4 +172,23 @@ export function assertLiquidatorCall(to: Address, data: Hex, backer: Address): {
   const decoded = decodeFunctionData({ abi: IODBackerAbi, data });
   if (decoded.functionName !== "sealBatch" && decoded.functionName !== "executeBatch") throw new Error(`liquidator refuses ${decoded.functionName}`);
   return { name: decoded.functionName, args: decoded.args ?? [] };
+}
+
+/** ODBacker's liquidation constants, read from the chain (never typed in this service). */
+export interface BackerTerms extends LiquidationTerms { sealDelay: bigint; batchTtl: bigint; maxBatch: number }
+
+export async function readBackerTerms(clients: Pick<ServiceClients, "stateClient">, backer: Address): Promise<BackerTerms> {
+  const names = ["SEAL_DELAY", "BATCH_TTL", "BONUS_BPS", "MIN_REWARD_USDG", "MAX_BATCH"] as const;
+  const r = await Promise.all(names.map((functionName) => clients.stateClient.readContract({ address: backer, abi: IODBackerAbi, functionName } as never)));
+  const [sealDelay, batchTtl, bonusBps, minRewardUsdg, maxBatch] = r.map((x) => BigInt(x as bigint | number));
+  if (batchTtl! <= sealDelay! || bonusBps! > 10_000n || maxBatch! === 0n) throw new Error("ODBacker liquidation constants out of range");
+  return { sealDelay: sealDelay!, batchTtl: batchTtl!, bonusBps: bonusBps!, minRewardUsdg: minRewardUsdg!, maxBatch: Number(maxBatch) };
+}
+
+/** A batch's execute window from the chain: (readyAt, expiresAt), or undefined for an unknown batch ((0, 0)). */
+export async function readBatchWindow(clients: Pick<ServiceClients, "stateClient">, backer: Address, batchId: bigint): Promise<{ readyAt: bigint; expiresAt: bigint } | undefined> {
+  const t = (await clients.stateClient.readContract({ address: backer, abi: IODBackerAbi, functionName: "batchWindow", args: [batchId] } as never)) as readonly [bigint | number, bigint | number];
+  const readyAt = BigInt(t[0]);
+  const expiresAt = BigInt(t[1]);
+  return expiresAt === 0n ? undefined : { readyAt, expiresAt };
 }

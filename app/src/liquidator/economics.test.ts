@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { WAD } from "../testing/mock-chain";
-import { BONUS_BPS, decideEconomics, expectedBonusUsdg, expectedSeizedUsdg, gasCostUsdg } from "./economics";
+import { decideEconomics, expectedBonusUsdg, expectedSeizedUsdg, expectedSplit, gasCostUsdg } from "./economics";
+
+const TERMS = { bonusBps: 500n, minRewardUsdg: 1_000_000n }; // as ODBacker reports them
 
 const U = 10n ** 6n;
 
@@ -19,11 +21,21 @@ describe("economics (R8)", () => {
     // the minimum bonus binds when gas is nearly free
     expect(decideEconomics({ ...base, gasCostUsdg: 1n, vaults: [{ vaultId: 1n, bonusUsdg: U - 1n }] }).ok).toBe(false);
     expect(decideEconomics({ ...base, gasCostUsdg: 1n, vaults: [{ vaultId: 1n, bonusUsdg: U }] }).ok).toBe(true);
-    // a 5% bonus on seized collateral
+    // ODBacker's split: bonus 5% of the DEBT VALUE, the Governor gets min(collateral - bonus, debt), the rest stays
     const h = { collateralUsdg: 1000n * U, debtValueWad: 95n * WAD };
-    expect(expectedSeizedUsdg(h)).toBe(100n * U);
-    expect(expectedBonusUsdg(h)).toBe((100n * U * BONUS_BPS) / 10_000n);
-    expect(expectedSeizedUsdg({ collateralUsdg: 10n * U, debtValueWad: 95n * WAD })).toBe(10n * U);
+    expect(expectedBonusUsdg(h, TERMS)).toBe(4_750_000n);
+    expect(expectedSeizedUsdg(h, TERMS)).toBe(99_750_000n);
+    expect(expectedSplit(h, TERMS).toGovernorUsdg).toBe(95n * U);
+    // under water: bonus first from collateral, the Governor takes what is left, the shortfall is the gap
+    const deep = expectedSplit({ collateralUsdg: 10n * U, debtValueWad: 95n * WAD }, TERMS);
+    expect(deep).toMatchObject({ bonusUsdg: 4_750_000n, toGovernorUsdg: 5_250_000n, seizedUsdg: 10n * U, shortfallUsdg: 89_750_000n });
+    // debt value rounds UP to the USDG unit, the bonus DOWN
+    expect(expectedSplit({ collateralUsdg: 1000n * U, debtValueWad: 1n }, TERMS)).toMatchObject({ debtUsdg: 1n, bonusDue: 0n });
+    // the minimum reward floor: min(B, MIN_REWARD_USDG) even when collateral cannot pay it
+    expect(expectedBonusUsdg({ collateralUsdg: 100n, debtValueWad: 1000n * WAD }, TERMS)).toBe(U);
+    expect(expectedBonusUsdg({ collateralUsdg: 0n, debtValueWad: 10n * WAD }, TERMS)).toBe(500_000n);
+    // the terms are the chain's: a different BONUS_BPS changes the number
+    expect(expectedBonusUsdg(h, { ...TERMS, bonusBps: 1000n })).toBe(9_500_000n);
   });
 
   test("dust_vaults_listed_not_sent", () => {

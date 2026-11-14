@@ -43,10 +43,12 @@ suite("liquidation end to end (R14)", () => {
     expect(h.backer.vaults.get(healthy)).toMatchObject({ collateralUsdg: 500n * U, debtTokens: 100n * WAD, batchId: 0n });
     expect(h.backer.vaults.get(justBelow)!.debtTokens).toBe(0n);
     expect(h.backer.vaults.get(deep)!.debtTokens).toBe(0n);
-    // bonus is 5% of seized collateral, per vault, from the chain's events
+    // bonus is 5% of the debt value (250 USDG -> 12.5), per vault, from the chain's events; the just-below vault keeps its surplus
     const events = decodeLiquidationLogs(h.backer.logs, h.backerAddress).liquidated;
     expect(events.map((e) => e.vaultId).sort()).toEqual([justBelow, deep].sort());
-    for (const e of events) expect(e.bonusUsdg).toBe((e.collateralSeized * 500n) / 10_000n);
+    for (const e of events) expect(e.bonusUsdg).toBe(12_500_000n);
+    expect(h.backer.vaults.get(justBelow)!.collateralUsdg).toBe(374n * U - 250n * U - 12_500_000n);
+    expect(events.find((e) => e.vaultId === deep)!.badDebtUsdg).toBe(0n); // insurance covered the gap
     const [run] = await db.sql<{ bonus_usdg: string }[]>`select bonus_usdg::text from liquidation_runs where batch_id = 1`;
     expect(BigInt(run!.bonus_usdg)).toBe(events.reduce((s, e) => s + e.bonusUsdg, 0n));
     // holders: balances unchanged and no call ever targeted anything but the backer
@@ -57,10 +59,14 @@ suite("liquidation end to end (R14)", () => {
 });
 
 const ANVIL = join(process.env.HOME ?? "", ".foundry", "bin", "anvil");
-const ODBACKER = join(import.meta.dir, "..", "..", "..", "contracts", "src", "ODBacker.sol");
+const ODBACKER = join(import.meta.dir, "..", "..", "..", "contracts", "src", "backer", "ODBacker.sol");
+// ODBacker exists (07b), but an anvil run needs the whole system deployed (oracle guard, feeds, registry, Governor, minter,
+// backer) and no deploy script exists yet (todo 11). Until one does, the real contract's liquidation rules are covered by
+// forge (test/backer/Liquidation*.t.sol) and this service runs against a mock that mirrors them (testing/mock-backer.ts).
+const DEPLOY_SCRIPT = join(import.meta.dir, "..", "..", "..", "contracts", "script", "DeploySystem.s.sol");
 describe("liquidation end to end on anvil (R14)", () => {
-  test.skipIf(!existsSync(ANVIL) || !existsSync(ODBACKER))("price_drop_liquidates_only_unhealthy_and_holders_unchanged_anvil", () => {
-    // Runs once todo 07 adds ODBacker.sol: deploy on anvil, open three vaults, move the feed, run one pass.
-    expect(existsSync(ODBACKER)).toBe(true);
+  test.skipIf(!existsSync(ANVIL) || !existsSync(ODBACKER) || !existsSync(DEPLOY_SCRIPT))("price_drop_liquidates_only_unhealthy_and_holders_unchanged_anvil", () => {
+    // Runs once a deploy script exists: deploy on anvil, open three vaults, move the feed, run one pass.
+    expect(existsSync(DEPLOY_SCRIPT)).toBe(true);
   });
 });

@@ -1,8 +1,12 @@
-// A stand-in for ODBacker (todo 07 is not built yet) on top of the shared FakeChain, built to the real IODBacker ABI. Its health()
-// is an INDEPENDENT integer implementation (cross-multiplied, never calling liquidator/health.ts), so the parity test compares two
-// codes. Thresholds per gear group (RACE 250/200, others 200/150) plus the weekend uplift live only here, in the test double.
-// Bonus model (until 07 lands): seized = min(collateral, ceil(debtUsdg * 10000 / 9500)), bonus = floor(5% of seized),
-// bad debt = max(0, debtUsdg - (seized - bonus)), drawn from ODInsurance (Covered event).
+// A stand-in for ODBacker on top of the shared FakeChain, built to the real IODBacker ABI and to the real contract's rules (07b).
+// Its health() is an INDEPENDENT integer implementation (cross-multiplied, never calling liquidator/health.ts), so the parity test
+// compares two codes. Thresholds per gear group (RACE 250/200, others 200/150) plus the weekend uplift live only here.
+// health() reports collateral NET of the toll fee owed, as the contract does.
+// Timing (ODBacker): execute in [sealedAt + SEAL_DELAY (30 s), sealedAt + BATCH_TTL (900 s)]; after that the batch is void.
+// Seal: keeps only unhealthy vaults of the gear that are not in a live batch, reverts SealRefused("NONE_UNHEALTHY") if none.
+// Split (ODLiquidation): D = ceil(debt value at the sealed value), bonus B = floor(5% of D); a shortfall D + B - collateral is
+// asked of ODInsurance (Covered event); bonus = min(B, pool), the Governor gets min(pool - bonus, D), the rest of the vault's own
+// collateral stays in the vault; bad debt = D - Governor share. The executor gets at least min(B, MIN_REWARD_USDG).
 import { encodeAbiParameters, encodeEventTopics, getAddress, keccak256, maxUint256, toHex, zeroAddress, type Abi, type Address, type Hex } from "viem";
 import { IODBackerAbi, IODInsuranceAbi } from "../abi";
 import { RevertError } from "../chain/revert";
@@ -30,8 +34,13 @@ export class MockBacker {
   block = 10n;
   nextBatch = 1n;
   nextVault = 1n;
-  readyDelay = 60n;
-  window = 900n;
+  sealDelay = 30n;
+  batchTtl = 900n;
+  bonusBps = 500n;
+  minRewardUsdg = 1_000_000n;
+  maxBatch = 50n;
+  /** Toll fee owed per vault (charged from collateral at the next vault action, here at liquidation). */
+  tollFeeOwed = new Map<bigint, bigint>();
   insuranceBalance = 1_000_000_000_000n;
   /** Holder balances of gear tokens: nothing in the liquidator may ever change them. */
   holders = new Map<string, bigint>();
@@ -45,6 +54,13 @@ export class MockBacker {
     const count = (name: string) => this.readCount.set(name, (this.readCount.get(name) ?? 0) + 1);
     r.set("ODBacker.vault", ([id]) => { count("vault"); const v = this.vaults.get(id as bigint); return v ? [v.owner, v.gearId, v.collateralUsdg, v.debtTokens, this.liveBatch(v)] : [zeroAddress, ZERO32, 0n, 0n, 0n]; });
     r.set("ODBacker.health", ([id]) => { count("health"); return this.health(id as bigint); });
+    r.set("ODBacker.tollFeeOwed", ([id]) => this.feeOwed(id as bigint));
+    r.set("ODBacker.SEAL_DELAY", () => Number(this.sealDelay));
+    r.set("ODBacker.BATCH_TTL", () => Number(this.batchTtl));
+    r.set("ODBacker.BONUS_BPS", () => Number(this.bonusBps));
+    r.set("ODBacker.MIN_REWARD_USDG", () => this.minRewardUsdg);
+    r.set("ODBacker.MAX_BATCH", () => Number(this.maxBatch));
+    r.set("ODBacker.batchWindow", ([id]) => { count("batchWindow"); const b = this.batches.get(id as bigint); return b ? [b.sealedAt + this.sealDelay, b.sealedAt + this.batchTtl] : [0n, 0n]; });
     r.set("ODBacker.upliftActive", ([m]) => { count("upliftActive"); const bps = this.uplift.get(m as Hex) ?? 0; return [bps > 0, bps]; });
     r.set("ODGearRegistry.gear", ([id]) => {
       const g = this.gears.get(id as Hex);
@@ -70,7 +86,7 @@ export class MockBacker {
   liveBatch(v: MockVault): bigint {
     const b = this.batches.get(v.batchId);
     if (!b || b.status !== "sealed") return 0n;
-    return this.chain.nowSeconds > b.sealedAt + this.readyDelay + this.window ? 0n : v.batchId;
+    return this.chain.nowSeconds > b.sealedAt + this.batchTtl ? 0n : v.batchId;
   }
 
   // ------------------------------------------------------------------------------------------- the independent health()
@@ -80,19 +96,27 @@ export class MockBacker {
     return { required: (g.race ? 25_000n : 20_000n) + uplift, maintenance: (g.race ? 20_000n : 15_000n) + uplift };
   }
   debtValueWad(v: MockVault, valueWad?: bigint): bigint { return (v.debtTokens * (valueWad ?? this.gears.get(v.gearId)!.valueWad)) / WAD; }
+  feeOwed(id: bigint): bigint {
+    const v = this.vaults.get(id);
+    const f = this.tollFeeOwed.get(id) ?? 0n;
+    return v ? (f < v.collateralUsdg ? f : v.collateralUsdg) : 0n;
+  }
+  /** Collateral net of the toll fee owed (what health() and the seal see). */
+  netCollateral(id: bigint): bigint { return this.vaults.get(id)!.collateralUsdg - this.feeOwed(id); }
   health(id: bigint): [bigint, bigint, bigint, bigint, bigint] {
     const v = this.vaults.get(id);
     if (!v) return [0n, 0n, maxUint256, 0n, 0n];
     const debt = this.debtValueWad(v);
     const { required, maintenance } = this.thresholds(v.gearId);
-    const ratio = debt === 0n ? maxUint256 : (v.collateralUsdg * USDG_TO_WAD * 10_000n) / debt;
-    return [v.collateralUsdg, debt, ratio, required, maintenance];
+    const coll = this.netCollateral(id);
+    const ratio = debt === 0n ? maxUint256 : (coll * USDG_TO_WAD * 10_000n) / debt;
+    return [coll, debt, ratio, required, maintenance];
   }
-  /** Cross-multiplied liquidation test: collateral * 1e16 < maintenance * debt. */
+  /** Cross-multiplied liquidation test on net collateral: collateral * 1e16 < maintenance * debt. */
   liquidatableAt(id: bigint, valueWad?: bigint): boolean {
     const v = this.vaults.get(id)!;
     const debt = this.debtValueWad(v, valueWad);
-    return debt > 0n && v.collateralUsdg * USDG_TO_WAD * 10_000n < this.thresholds(v.gearId).maintenance * debt;
+    return debt > 0n && this.netCollateral(id) * USDG_TO_WAD * 10_000n < this.thresholds(v.gearId).maintenance * debt;
   }
 
   // ----------------------------------------------------------------------------------------------------- writes
@@ -109,31 +133,35 @@ export class MockBacker {
   private get insurance(): Address { return this.chain.deployment.contracts.ODInsurance as Address; }
 
   seal(gearId: Hex, ids: readonly bigint[], commit: boolean): bigint {
-    if (!ids.length) rev("EmptyBatch");
+    if (!ids.length || BigInt(ids.length) > this.maxBatch) rev("InvalidParams");
     if (!this.gears.has(gearId)) rev("NotBackable", [gearId]);
+    // like ODBacker.sealBatch: vaults of another gear, in a live batch, without debt or healthy at the sealed value are left out
+    const kept: bigint[] = [];
     for (const id of ids) {
       const v = this.vaults.get(id);
-      if (!v || v.gearId.toLowerCase() !== gearId.toLowerCase()) rev("Healthy", [id]);
-      if (this.liveBatch(v!) !== 0n) rev("InBatch", [id]);
-      if (!this.liquidatableAt(id)) rev("Healthy", [id]);
+      if (!v || v.gearId.toLowerCase() !== gearId.toLowerCase() || v.debtTokens === 0n) continue;
+      if (this.liveBatch(v) !== 0n || kept.includes(id)) continue;
+      if (this.liquidatableAt(id)) kept.push(id);
     }
+    if (!kept.length) rev("SealRefused", [toHex("NONE_UNHEALTHY", { size: 32 })]);
     if (commit) {
       this.block++;
       const batchId = this.nextBatch++;
       const g = this.gears.get(gearId)!;
-      for (const id of ids) this.vaults.get(id)!.batchId = batchId;
-      this.batches.set(batchId, { batchId, gearId, vaultIds: [...ids], sealedValueWad: g.valueWad, sealedAt: this.chain.nowSeconds, status: "sealed" });
-      this.emit(IODBackerAbi as Abi, this.backer, "BatchSealed", { batchId, gearId, sealedValueWad: g.valueWad, sealedAt: this.chain.nowSeconds, vaultIds: [...ids] }, true);
+      for (const id of kept) this.vaults.get(id)!.batchId = batchId;
+      this.batches.set(batchId, { batchId, gearId, vaultIds: [...kept], sealedValueWad: g.valueWad, sealedAt: this.chain.nowSeconds, status: "sealed" });
+      this.emit(IODBackerAbi as Abi, this.backer, "BatchSealed", { batchId, gearId, sealedValueWad: g.valueWad, sealedAt: this.chain.nowSeconds, vaultIds: [...kept] }, true);
     }
-    return 80_000n + 30_000n * BigInt(ids.length);
+    return 80_000n + 30_000n * BigInt(kept.length);
   }
 
   executeBatch(batchId: bigint, commit: boolean, toReceipt: boolean): bigint {
     const b = this.batches.get(batchId);
-    if (!b || b.status !== "sealed") rev("BatchExpired");
-    const readyAt = b!.sealedAt + this.readyDelay;
+    if (!b) rev("UnknownBatch", [batchId]);
+    if (b!.status !== "sealed") rev("BatchDone", [batchId]);
+    const readyAt = b!.sealedAt + this.sealDelay;
     if (this.chain.nowSeconds < readyAt) rev("BatchNotReady", [readyAt]);
-    if (this.chain.nowSeconds > readyAt + this.window) rev("BatchExpired");
+    if (this.chain.nowSeconds > b!.sealedAt + this.batchTtl) rev("BatchExpired");
     if (!commit) return 60_000n + 50_000n * BigInt(b!.vaultIds.length);
     this.block++;
     if (this.voidNext) {
@@ -143,28 +171,36 @@ export class MockBacker {
       this.voidNext = undefined;
       return 60_000n;
     }
-    let badTotal = 0n;
     for (const id of b!.vaultIds) {
       const v = this.vaults.get(id)!;
       v.batchId = 0n;
-      // The seal fixed the price: a later wick (either way) does not change what is liquidated; a topped-up vault is skipped.
+      // The seal fixed the price: a later wick (either way) does not change what is liquidated; a topped-up vault is released.
       if (!this.liquidatableAt(id, b!.sealedValueWad)) continue;
+      const fee = this.feeOwed(id);
+      v.collateralUsdg -= fee;
+      this.tollFeeOwed.delete(id);
+      const coll = v.collateralUsdg;
       const debtUsdg = ceilDiv(this.debtValueWad(v, b!.sealedValueWad), USDG_TO_WAD);
-      const want = ceilDiv(debtUsdg * 10_000n, 9_500n);
-      const seized = want < v.collateralUsdg ? want : v.collateralUsdg;
-      const bonus = (seized * 500n) / 10_000n;
-      const covered = seized - bonus;
-      const bad = debtUsdg > covered ? debtUsdg - covered : 0n;
-      badTotal += bad;
+      const bonusDue = (debtUsdg * this.bonusBps) / 10_000n;
+      const floor = bonusDue < this.minRewardUsdg ? bonusDue : this.minRewardUsdg;
+      const gap = debtUsdg + bonusDue > coll ? debtUsdg + bonusDue - coll : 0n;
+      let pool = coll;
+      if (gap > 0n) {
+        const sent = gap < this.insuranceBalance ? gap : this.insuranceBalance;
+        this.insuranceBalance -= sent;
+        pool += sent;
+        this.emit(IODInsuranceAbi as Abi, this.insurance, "Covered", { to: this.backer, requested: gap, sent }, toReceipt);
+      }
+      let bonus = bonusDue < pool ? bonusDue : pool;
+      const rest = pool - bonus;
+      const toGovernor = rest < debtUsdg ? rest : debtUsdg;
+      const surplus = gap === 0n ? rest - toGovernor : 0n;
+      if (bonus < floor) bonus = floor; // the Governor's free cash tops up the executor's floor
+      const bad = debtUsdg - toGovernor;
       const debtTokens = v.debtTokens;
-      v.collateralUsdg -= seized;
+      v.collateralUsdg = surplus;
       v.debtTokens = 0n;
-      this.emit(IODBackerAbi as Abi, this.backer, "Liquidated", { batchId, vaultId: id, debtTokens, collateralSeized: seized, bonusUsdg: bonus, badDebtUsdg: bad }, toReceipt);
-    }
-    if (badTotal > 0n) {
-      const sent = badTotal < this.insuranceBalance ? badTotal : this.insuranceBalance;
-      this.insuranceBalance -= sent;
-      this.emit(IODInsuranceAbi as Abi, this.insurance, "Covered", { to: this.backer, requested: badTotal, sent }, toReceipt);
+      this.emit(IODBackerAbi as Abi, this.backer, "Liquidated", { batchId, vaultId: id, debtTokens, collateralSeized: coll - surplus, bonusUsdg: bonus, badDebtUsdg: bad }, toReceipt);
     }
     b!.status = "executed";
     return 60_000n + 50_000n * BigInt(b!.vaultIds.length);

@@ -58,6 +58,42 @@ contract ODBackerHarness is ODBacker {
         b.vaultIds.push(vaultId);
         _vaults[vaultId].batchId = id;
     }
+
+    /// Test-only: takes `amount` of a vault's collateral out to `to` (books kept), to reach states such as a vault
+    /// whose collateral cannot even pay the executor's minimum reward.
+    function harnessDrain(uint256 vaultId, uint256 amount, address to) external {
+        _vaults[vaultId].collateralUsdg -= amount;
+        totalCollateral -= amount;
+        usdg.transfer(to, amount);
+    }
+}
+
+/// A stake that pays what it holds on slash (or nothing, emitting SlashFailed, when `fail`).
+contract MockSlashStake {
+    IERC20 internal immutable u;
+    bool public fail;
+    uint256 public asked;
+
+    event SlashFailed(uint256 usdgRequested);
+
+    constructor(IERC20 u_) {
+        u = u_;
+    }
+
+    function setFail(bool f) external {
+        fail = f;
+    }
+
+    function slash(uint256 need) external returns (uint256 sent) {
+        asked += need;
+        if (fail) {
+            emit SlashFailed(need);
+            return 0;
+        }
+        uint256 bal = u.balanceOf(address(this));
+        sent = need < bal ? need : bal;
+        if (sent != 0) u.transfer(msg.sender, sent);
+    }
 }
 
 abstract contract BackerFixture is SystemFixture {
@@ -116,6 +152,18 @@ abstract contract BackerFixture is SystemFixture {
     function _valueAt(bytes32 id, uint256 p, Math.Rounding rnd) internal view returns (uint256 v) {
         GearConfig memory c = reg.gear(id);
         (v,) = ODIndex.value(c.gear, p, c.p0, minter.normState(id).nf, c.unitWad, rnd);
+    }
+
+    /// Sport vault at a 200% ratio: 1000 USDG, 500 tokens (500 USD of debt at 250, one token = 1 USD at p0).
+    function _sportVault(address who) internal returns (uint256 id) {
+        id = _open(who, sport, 1_000e6);
+        _mint(who, id, 500e18, false);
+    }
+
+    function _seal(bytes32 g, uint256 id) internal returns (uint256) {
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = id;
+        return backer.sealBatch(g, ids);
     }
 
     function _uplift(bool on) internal {

@@ -28,6 +28,58 @@ export const IODBackerAbi = [
   },
   {
     "type": "function",
+    "name": "MAX_BATCH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_ROUND_AGE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_SEAL_DRIFT_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MIN_REWARD_USDG",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "SEAL_DELAY",
     "inputs": [],
     "outputs": [
@@ -35,6 +87,70 @@ export const IODBackerAbi = [
         "name": "",
         "type": "uint32",
         "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "batch",
+    "inputs": [
+      {
+        "name": "batchId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IODBacker.Batch",
+        "components": [
+          {
+            "name": "gearId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "sealedValueWad",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "sealedAt",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "feedUpdatedAt",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "vaultIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "done",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "batchCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -422,6 +538,19 @@ export const IODBackerAbi = [
   },
   {
     "type": "function",
+    "name": "setStake",
+    "inputs": [
+      {
+        "name": "stake",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setUplift",
     "inputs": [
       {
@@ -437,6 +566,19 @@ export const IODBackerAbi = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "stake",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -807,6 +949,19 @@ export const IODBackerAbi = [
   },
   {
     "type": "event",
+    "name": "StakeSet",
+    "inputs": [
+      {
+        "name": "stake",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "TollFeeCharged",
     "inputs": [
       {
@@ -867,6 +1022,17 @@ export const IODBackerAbi = [
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "BatchDone",
+    "inputs": [
+      {
+        "name": "batchId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -962,6 +1128,17 @@ export const IODBackerAbi = [
   },
   {
     "type": "error",
+    "name": "SealRefused",
+    "inputs": [
+      {
+        "name": "reason",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "Slippage",
     "inputs": [
       {
@@ -987,6 +1164,17 @@ export const IODBackerAbi = [
       },
       {
         "name": "requiredBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnknownBatch",
+    "inputs": [
+      {
+        "name": "batchId",
         "type": "uint256",
         "internalType": "uint256"
       }

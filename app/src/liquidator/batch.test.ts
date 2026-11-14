@@ -97,12 +97,15 @@ describe("verification and plans (R3, R5, R9, R10)", () => {
     for (let i = 0; i < 30; i++) ids.push(backer.openVault(GEAR_TSLA, BigInt(140 - i) * U, 100n * WAD));
     const race = backer.openVault(GEAR_NVDA_RACE, 10n * U, 100n * WAD); // deepest of all, other gear
     const v = await verify([...ids, race].map((id) => cand(backer, id)));
-    const plans = buildPlans(v, { maxVaults: 20, gasBudget: 100_000_000n });
+    const plans = buildPlans(v, { maxVaults: 20, gasBudget: 100_000_000n, terms: { bonusBps: 500n, minRewardUsdg: 1_000_000n, maxBatch: 50 } });
     expect(plans.map((p) => p.gearId)).toEqual([GEAR_NVDA_RACE, GEAR_TSLA]);
     expect(plans[1]!.vaultIds).toHaveLength(20);
     expect(plans[1]!.vaultIds).toEqual([...ids].reverse().slice(0, 20)); // lowest collateral first
     // the gas budget bounds too
     expect(buildPlans(v, { maxVaults: 20, gasBudget: 600_000n }).find((p) => p.gearId === GEAR_TSLA)!.vaultIds).toHaveLength(3);
     expect(plans[1]!.expectedBonusUsdg).toBeGreaterThan(0n);
+    // the chain's MAX_BATCH caps a plan below the setting, and no terms means no claimed bonus
+    expect(buildPlans(v, { maxVaults: 20, gasBudget: 100_000_000n, terms: { bonusBps: 500n, minRewardUsdg: 1n, maxBatch: 7 } })[1]!.vaultIds).toHaveLength(7);
+    expect(buildPlans(v, { maxVaults: 20, gasBudget: 100_000_000n })[1]!.expectedBonusUsdg).toBe(0n);
   });
 });

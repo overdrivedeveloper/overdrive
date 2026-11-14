@@ -27,16 +27,21 @@ describe("liquidation invariant (fuzz)", () => {
             const [, , ratio, , maintenance] = backer.health(id);
             expect(ratio < maintenance).toBe(true);
           }
-          backer.seal(plan.gearId, plan.vaultIds, true); // throws Healthy(id) if the plan held a healthy vault
-          sealedVaults += plan.vaultIds.length;
+          backer.seal(plan.gearId, plan.vaultIds, true);
           const batchId = backer.nextBatch - 1n;
-          chain.warp(backer.readyDelay);
+          // the chain keeps only unhealthy vaults: every planned vault was kept
+          expect(backer.batches.get(batchId)!.vaultIds).toEqual(plan.vaultIds);
+          sealedVaults += plan.vaultIds.length;
+          const sealedValue = backer.batches.get(batchId)!.sealedValueWad;
+          chain.warp(backer.sealDelay);
           const from = backer.logs.length;
           backer.executeBatch(batchId, true, false);
-          // invariant 2: each bonus is 5% of the collateral seized, within one unit
+          // invariant 2: each bonus is exactly 5% of the debt value (rounded up to USDG), the insurance being large
           for (const e of decodeLiquidationLogs(backer.logs.slice(from), addresses.backer).liquidated) {
-            const exact = (e.collateralSeized * 500n) / 10_000n;
-            expect(e.bonusUsdg - exact <= 1n && exact - e.bonusUsdg <= 1n).toBe(true);
+            const debtUsdg = ((e.debtTokens * sealedValue) / WAD + 10n ** 12n - 1n) / 10n ** 12n;
+            const due = (debtUsdg * 500n) / 10_000n;
+            expect(e.bonusUsdg).toBe(due);
+            expect(e.badDebtUsdg).toBe(0n);
           }
         }
         chain.warp(3600);
