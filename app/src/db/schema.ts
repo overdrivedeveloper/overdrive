@@ -1,7 +1,8 @@
 // Typed view of drizzle/0000_base.sql and 0001_indexer.sql (the SQL files are the source of truth and are hand written; this
 // file is what services import). On-chain addresses are lowercase hex. Amounts are raw integers kept as strings:
 // USDG 6 dp, NF / index / token amounts WAD (1e18).
-import { bigint, bigserial, boolean, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { bigint, bigserial, boolean, date, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
 const int78 = (name: string) => numeric(name, { precision: 78, scale: 0 });
 const at = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -167,3 +168,23 @@ export const reorgLog = pgTable("reorg_log", {
   id: bigserial("id", { mode: "bigint" }).primaryKey(), detectedAt: at("detected_at").notNull().defaultNow(), ancestor: blk("ancestor").notNull(),
   depth: blk("depth").notNull(), rowsRemoved: integer("rows_removed").notNull().default(0),
 });
+
+// drizzle/0002_vol_engine.sql
+export const earningsDates = pgTable("earnings_dates", {
+  symbol: text("symbol").notNull(), reportDate: date("report_date", { mode: "string" }).notNull(), session: text("session").notNull().default("unknown"),
+  source: text("source").notNull(), fetchedAt: at("fetched_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.symbol, t.source, t.reportDate] })]);
+
+export const volPostIntents = pgTable("vol_post_intents", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), market: text("market").notNull(), key: text("key").notNull().default(""),
+  sigmaBps: bigint("sigma_bps", { mode: "bigint" }).notNull(), buyBlockFrom: at("buy_block_from"), buyBlockTo: at("buy_block_to"),
+  validUntil: at("valid_until").notNull(), nonce: bigint("nonce", { mode: "bigint" }).notNull(),
+  status: text("status", { enum: ["planned", "dry_run", "sent", "accepted", "dropped", "rejected"] }).notNull(), txHash: text("tx_hash"),
+  flags: text("flags").array().notNull().default([]), digest: text("digest").notNull().default(""), signature: text("signature").notNull().default(""),
+  createdAt: at("created_at").notNull().defaultNow(),
+}, (t) => [index("vol_post_intents_market_idx").on(t.market, t.createdAt.desc()), index("vol_post_intents_pending_idx").on(t.status).where(sql`status IN ('planned','sent')`)]);
+
+export const volAlerts = pgTable("vol_alerts", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(), market: text("market").notNull(), kind: text("kind").notNull(),
+  detail: jsonb("detail").notNull().default({}), createdAt: at("created_at").notNull().defaultNow(), repeatedAt: at("repeated_at"),
+}, (t) => [index("vol_alerts_market_kind_idx").on(t.market, t.kind, t.id.desc())]);

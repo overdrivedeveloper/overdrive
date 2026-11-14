@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
@@ -6,11 +8,13 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import * as schema from "./schema";
 import { applyMigrations, createTestDatabase, MIGRATIONS_DIR, testDatabaseUrl, type TestDatabase } from "../testing/db";
 
+const JOURNAL_COUNT: number = (JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as { entries: unknown[] }).entries.length;
 const suite = testDatabaseUrl() ? describe : describe.skip;
 
 const SPEC_TABLES = ["gears", "nf_history", "backer_vaults", "governor_ledger", "fees", "trades", "transfers", "balances", "prices", "vol_posts", "queued_sells",
   "liquidation_batches", "liquidations", "pause_log", "stock_events", "exit_reserve_log", "indexer_skipped_events", "cursors", "block_hashes", "reorg_log",
-  "service_status", "jobs", "job_schedule", "stake_events", "agent_policies", "agent_trades", "admin_events", "entity_events"];
+  "service_status", "jobs", "job_schedule", "stake_events", "agent_policies", "agent_trades", "admin_events", "entity_events",
+  "earnings_dates", "vol_post_intents", "vol_alerts"];
 
 async function tables(db: TestDatabase): Promise<Set<string>> {
   const rows = await db.sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`;
@@ -35,10 +39,10 @@ suite("migrations", () => {
     await applyMigrations(db);
     const first = await snapshot(db);
     const ledger = await db.sql`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`;
-    expect(ledger[0]!.n).toBe(2);
+    expect(ledger[0]!.n).toBe(JOURNAL_COUNT);
     await applyMigrations(db); // already migrated: no error, no change
     expect(await snapshot(db)).toBe(first);
-    expect((await db.sql`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`)[0]!.n).toBe(2);
+    expect((await db.sql`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`)[0]!.n).toBe(JOURNAL_COUNT);
     // forward from a half-migrated database
     const partial = (await createTestDatabase("partial"))!;
     try {
