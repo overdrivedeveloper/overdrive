@@ -14,6 +14,7 @@ import { liquidatorAddresses } from "./batch";
 import { LIQUIDATOR_STATUS_JOB, runLiquidationPass, type PassResult } from "./service";
 import { loadLiquidatorSettings, type LiquidatorSettings } from "./settings";
 import { LiquidatorState } from "./state";
+import { onAbort } from "../lib/abort";
 
 export { runLiquidationPass, type PassDeps, type PassResult } from "./service";
 export { LiquidatorState } from "./state";
@@ -57,7 +58,7 @@ export async function bootLiquidator(env: Record<string, string | undefined>, op
   }
   const sql = options.sql ?? createDbClient(config).sql;
   const abort = new AbortController();
-  options.signal?.addEventListener("abort", () => abort.abort(), { once: true });
+  onAbort(options.signal, () => abort.abort());
   const lock: ServiceLock | undefined = await acquireServiceLock(config.DATABASE_URL, "liquidator", logger, abort.signal);
   if (!lock) throw new Error("Liquidator stopped before it took the single-instance lock");
 
@@ -102,7 +103,7 @@ export async function bootLiquidator(env: Record<string, string | undefined>, op
         return { ...(r.retryAfterMs ? { retryAfterMs: r.retryAfterMs } : {}), liquidatable: r.liquidatable, openBatches: r.openBatches };
       },
     });
-    abort.signal.addEventListener("abort", () => finish(), { once: true });
+    onAbort(abort.signal, () => finish());
   }
   let stopped = false;
   return {

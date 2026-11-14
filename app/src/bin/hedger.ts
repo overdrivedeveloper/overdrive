@@ -22,6 +22,7 @@ import { buildVenues, defaultMockVenue } from "../hedger/venues/port";
 import { routeFor } from "../hedger/venues/routes";
 import { acquireServiceLock } from "../lib/jobs";
 import { createLogger, safeErrorSummary } from "../log";
+import { sleepUnlessAborted } from "../lib/abort";
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL, "hedger");
@@ -149,13 +150,8 @@ while (!abort.signal.aborted) {
       await store.writeStatus("hedger", false, {}, safeErrorSummary(error).message).catch(() => undefined);
     }
   }
-  await new Promise<void>((resolve) => {
-    // A stop signal that arrived during the cycle has already fired: addEventListener would never see it and the loop
-    // would sleep a full cycle with the stop lost.
-    if (abort.signal.aborted) return resolve();
-    const t = setTimeout(resolve, settings.cycleSeconds * 1000);
-    abort.signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
-  });
+  // A stop that arrived during the cycle has already fired; sleepUnlessAborted returns at once in that case.
+  await sleepUnlessAborted(settings.cycleSeconds * 1000, abort.signal);
 }
 await lock.release();
 await sql.end({ timeout: 5 });

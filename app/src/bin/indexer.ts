@@ -7,6 +7,7 @@ import { createRpcChainSource } from "../indexer/chain-source";
 import { createChainReader } from "../indexer/chain-reader";
 import { createIndexerState, createIngest, ReorgTooDeepError } from "../indexer/ingest";
 import { createLogger, safeErrorSummary } from "../log";
+import { sleepUnlessAborted } from "../lib/abort";
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL, "indexer");
@@ -70,7 +71,7 @@ while (!abort.signal.aborted) {
     if (error instanceof ReorgTooDeepError) break; // never silently skip; an operator re-indexes
     delay = Math.min(60_000, 5_000 * 2 ** Math.min(failures - 1, 4));
   }
-  await new Promise<void>((resolve) => { const t = setTimeout(resolve, delay); abort.signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true }); });
+  await sleepUnlessAborted(delay, abort.signal);
 }
 await sql.end({ timeout: 5 });
 process.exit(abort.signal.aborted ? 0 : 1);

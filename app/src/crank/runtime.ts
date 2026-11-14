@@ -28,6 +28,7 @@ import { createQueuedSellsJob } from "./jobs/queued-sells";
 import { createRiskMonitorJob } from "./jobs/risk-monitor";
 import { setAlertSender } from "./alerts";
 import { createTelegramSender } from "./telegram";
+import { onAbort } from "../lib/abort";
 
 export { CRANK_JOBS };
 export type { CrankContext, ServiceJob };
@@ -208,7 +209,7 @@ export async function startCrank(deps: CrankDeps): Promise<CrankHandle> {
   } else {
     for (const job of jobs) scheduler.add(job);
     rearm = setInterval(() => { void armBoundaries().catch(() => undefined); }, 3_600_000);
-    deps.signal?.addEventListener("abort", () => finish(), { once: true });
+    onAbort(deps.signal, () => finish());
   }
 
   handle.stop = async () => {
@@ -255,7 +256,7 @@ export async function bootCrank(env: Record<string, string | undefined>, options
   if (config.TELEGRAM_ENV_FILE) setAlertSender(createTelegramSender(config.TELEGRAM_ENV_FILE));
   const abort = new AbortController();
   const signal = options.signal;
-  signal?.addEventListener("abort", () => abort.abort(), { once: true });
+  onAbort(signal, () => abort.abort());
   const lock = await acquireServiceLock(config.DATABASE_URL, "crank", logger, abort.signal);
   if (!lock) throw new Error("Crank stopped before it took the single-instance lock");
   let handle: CrankHandle;
