@@ -204,8 +204,11 @@ contract ODFees is AccessControl, IODFees {
         if (paid != 0) emit Paid(bucket, to, paid);
     }
 
-    /// @dev Returns what actually left this contract (measured), 0 on any failure.
+    /// @dev Returns what actually left this contract (measured), 0 on any failure. USDG the recipient sends back and
+    /// books as pending during the call (the Governor's fundCash settles its owed fees with notify) counts as paid out,
+    /// so it is never also kept by the bucket (F12-1: it was booked twice, pending and held).
     function _pay(bytes32 bucket, address to, uint256 amount) private returns (uint256 paid) {
+        uint256 p0 = pending;
         uint256 before = usdg.balanceOf(address(this));
         if (bucket == B_GOVERNOR || bucket == B_EXIT_RESERVE || bucket == B_STAKERS) {
             usdg.forceApprove(to, amount);
@@ -221,7 +224,8 @@ contract ODFees is AccessControl, IODFees {
             if (!ok || (ret.length != 0 && !abi.decode(ret, (bool)))) return 0;
         }
         uint256 afterBal = usdg.balanceOf(address(this));
-        paid = before > afterBal ? before - afterBal : 0;
+        uint256 out = before + (pending - p0); // pending only grows during the call (distribute cannot re-enter)
+        paid = out > afterBal ? out - afterBal : 0;
         if (paid > amount) paid = amount;
     }
 
