@@ -2,7 +2,26 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    { "idx": 0, "version": "7", "when": 1794700000000, "tag": "0000_base", "breakpoints": true },
-    { "idx": 1, "version": "7", "when": 1794700100000, "tag": "0001_indexer", "breakpoints": true }
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794700000000,
+      "tag": "0000_base",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794700100000,
+      "tag": "0001_indexer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794700100001,
+      "tag": "0002_vol_engine",
+      "breakpoints": true
+    }
   ]
 }
