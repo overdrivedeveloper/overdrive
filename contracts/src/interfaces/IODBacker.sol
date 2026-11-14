@@ -62,4 +62,22 @@ interface IODBacker {
         view
         returns (address owner, bytes32 gearId, uint256 collateralUsdg, uint256 debtTokens, uint256 batchId);
     function upliftActive(bytes32 market) external view returns (bool active, uint16 upliftBps);
+    // 07a additions
+    event UpliftSet(uint16 upliftBps, uint32 lead);
+    event MintPausedSet(bool paused);
+    error Slippage(uint256 got, uint256 limit);
+    function setUplift(uint16 upliftBps, uint32 lead) external; // admin any (bounded); guardian may only raise
+    function setMintPaused(bool paused) external; // guardian pauses, admin (timelock) unpauses
+    function tollFeeOwed(uint256 vaultId) external view returns (uint256 usdg); // charged at the next vault action
+    function mintPaused() external view returns (bool);
+    function uplift() external view returns (uint16 upliftBps, uint32 lead);
+    function vaultCount() external view returns (uint256);
+    function totalCollateral() external view returns (uint256 usdg); // sum of vault collateral (internal accounting)
+    function pendingFees() external view returns (uint256 usdg); // charged toll fees not yet sent to ODFees
+    function sendFees(bytes32 gearId) external; // anyone: sends pending toll fees to ODFees ("BACKER_TOLL")
+    // liquidation timing and bonus (07b executes batches; the off-chain liquidator, todo 17, reads these)
+    function SEAL_DELAY() external view returns (uint32); // execute no earlier than sealedAt + SEAL_DELAY
+    function BATCH_TTL() external view returns (uint32); // after sealedAt + BATCH_TTL the batch is void, vaults free
+    function BONUS_BPS() external view returns (uint16); // executor bonus, of the debt value
+    function batchWindow(uint256 batchId) external view returns (uint64 readyAt, uint64 expiresAt); // (0, 0) unknown
 }

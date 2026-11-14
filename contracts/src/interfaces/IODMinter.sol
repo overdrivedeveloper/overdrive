@@ -103,4 +103,9 @@ interface IODMinter {
     function hook() external view returns (address);
     function poolManager() external view returns (address);
     function stake() external view returns (address);
+    // 07a additions: gear tokens for backer vaults. Only the Governor's backer may call; it mints only to a vault
+    // owner (a mint not sold to the Governor) and burns only the repayer's own tokens (repay).
+    error NotBacker();
+    function backerMint(bytes32 gearId, address to, uint256 tokens) external;
+    function backerBurn(bytes32 gearId, address from, uint256 tokens) external;
 }

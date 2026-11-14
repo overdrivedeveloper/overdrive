@@ -281,6 +281,27 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
         try registry.setStatus(gearId, GearStatus.SETTLED) {} catch {}
     }
 
+    // ================================================================================================ backer
+
+    /// @inheritdoc IODMinter
+    /// @dev The Governor's backer only (07a): tokens of a backer mint that the vault owner keeps.
+    function backerMint(bytes32 gearId, address to, uint256 tokens) external nonReentrant {
+        IODGear(_backerToken(gearId)).mint(to, tokens);
+    }
+
+    /// @inheritdoc IODMinter
+    /// @dev The Governor's backer only (07a): burns a repayer's own tokens against a vault's debt.
+    function backerBurn(bytes32 gearId, address from, uint256 tokens) external nonReentrant {
+        IODGear(_backerToken(gearId)).burn(from, tokens);
+    }
+
+    function _backerToken(bytes32 gearId) private view returns (address token) {
+        address b = governor.backer();
+        if (msg.sender != b || b == address(0)) revert NotBacker();
+        token = registry.gear(gearId).token;
+        if (token == address(0)) revert UnknownGear(gearId);
+    }
+
     // ================================================================================================ views
 
     /// @inheritdoc IODMinter

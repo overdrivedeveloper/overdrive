@@ -111,16 +111,18 @@ abstract contract SystemFixture is ODTest {
         _postVol(ETH, 3500);
         _postVol(vol.pairKey(TSLA, NVDA), 3000);
 
+        address backerAt = _deployBacker();
         vm.startPrank(admin);
         reg.setMinter(address(minter));
         vol.setBounds(TSLA, 500, 4000); // RACE needs a vol ceiling <= 40%
         gov.setMinter(address(minter));
-        gov.setBacker(makeAddr("backer"));
+        gov.setBacker(backerAt);
         gov.setHedger(makeAddr("hedgeWallet"));
         gov.setDepositor(lp, true);
         gov.setMarketGroup(ETH, 2);
-        ins.setCoverers(address(gov), makeAddr("backer"));
+        ins.setCoverers(address(gov), backerAt);
         fees.setNotifier(address(gov), true);
+        fees.setNotifier(backerAt, true);
         vm.stopPrank();
 
         cruise = _list(TSLA, NONE, Gear.CRUISE);
@@ -133,6 +135,11 @@ abstract contract SystemFixture is ODTest {
 
         _deposit(lp, _lpDeposit());
         _poke();
+    }
+
+    /// The address wired as the Governor's backer. The backer suites override it with a real ODBacker.
+    function _deployBacker() internal virtual returns (address) {
+        return makeAddr("backer");
     }
 
     function _lpDeposit() internal view virtual returns (uint256) {

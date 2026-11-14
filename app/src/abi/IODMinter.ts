@@ -34,6 +34,52 @@ export const IODMinterAbi = [
   },
   {
     "type": "function",
+    "name": "backerBurn",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "from",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "backerMint",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "buy",
     "inputs": [
       {
@@ -1090,6 +1136,11 @@ export const IODMinterAbi = [
   {
     "type": "error",
     "name": "InvalidParams",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotBacker",
     "inputs": []
   },
   {

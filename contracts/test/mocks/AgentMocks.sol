@@ -273,6 +273,14 @@ contract MockAgentMinter is IODMinter, Unused {
     function queuedSell(uint256) external pure returns (bytes32, address, address, uint256, uint256) {
         revert UnusedInMock();
     }
+
+    function backerMint(bytes32, address, uint256) external pure {
+        revert UnusedInMock();
+    }
+
+    function backerBurn(bytes32, address, uint256) external pure {
+        revert UnusedInMock();
+    }
 }
 
 /// Vaults with an owner field, operator approvals and a sell-to-Governor mint whose proceeds stay as collateral.
@@ -373,6 +381,58 @@ contract MockAgentBacker is IODBacker, Unused {
     }
 
     function health(uint256) external pure returns (uint256, uint256, uint256, uint256, uint256) {
+        revert UnusedInMock();
+    }
+
+    function setUplift(uint16, uint32) external pure {
+        revert UnusedInMock();
+    }
+
+    function setMintPaused(bool) external pure {
+        revert UnusedInMock();
+    }
+
+    function tollFeeOwed(uint256) external pure returns (uint256) {
+        revert UnusedInMock();
+    }
+
+    function mintPaused() external pure returns (bool) {
+        return false;
+    }
+
+    function uplift() external pure returns (uint16, uint32) {
+        revert UnusedInMock();
+    }
+
+    function vaultCount() external view returns (uint256) {
+        return nextId - 1;
+    }
+
+    function totalCollateral() external pure returns (uint256) {
+        revert UnusedInMock();
+    }
+
+    function pendingFees() external pure returns (uint256) {
+        revert UnusedInMock();
+    }
+
+    function sendFees(bytes32) external pure {
+        revert UnusedInMock();
+    }
+
+    function SEAL_DELAY() external pure returns (uint32) {
+        return 30;
+    }
+
+    function BATCH_TTL() external pure returns (uint32) {
+        return 900;
+    }
+
+    function BONUS_BPS() external pure returns (uint16) {
+        return 500;
+    }
+
+    function batchWindow(uint256) external pure returns (uint64, uint64) {
         revert UnusedInMock();
     }
 
