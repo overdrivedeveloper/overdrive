@@ -36,6 +36,13 @@
       "when": 1794700100006,
       "tag": "0006_liquidator",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794700100007,
+      "tag": "0007_risk_sim",
+      "breakpoints": true
     }
   ]
 }

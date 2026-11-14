@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-11-13T02:00:00Z",
+  "book_ts": "2026-11-13T01:55:00Z",
+  "price_ts": "2026-11-13T01:58:00Z",
+  "equity_usd": 400000,
+  "exit_reserve_usd": 1500000,
+  "exit_reserve_floor_usd": 50000,
+  "hedge_stale": false,
+  "hedge_position_usd": {"TSLA": 1350000},
+  "sigma_bps": {"TSLA": 6500},
+  "gears": [
+    {"id": "TSLA:sport", "key": "TSLA", "power": 2, "supply_tokens": 500000, "backer_debt_tokens": 0, "value_per_token": 1, "cap_usd": 1000000},
+    {"id": "TSLA:cruise", "key": "TSLA", "power": 1.5, "supply_tokens": 300000, "backer_debt_tokens": 0, "value_per_token": 1, "cap_usd": 1000000},
+    {"id": "TSLA:reverse", "key": "TSLA", "power": -1, "supply_tokens": 100000, "backer_debt_tokens": 0, "value_per_token": 1, "cap_usd": 1000000}
+  ]
+}

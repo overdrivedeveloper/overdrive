@@ -1,0 +1,6 @@
+.venv/
+*.egg-info/
+__pycache__/
+out/
+.pytest_cache/
+tests/fixtures/index_vectors.json

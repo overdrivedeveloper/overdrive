@@ -222,3 +222,22 @@ export const liquidationAttempts = pgTable("liquidation_attempts", {
   ts: at("ts").notNull().defaultNow(), vaultId: int78("vault_id").notNull(), gear: text("gear"), verdict: text("verdict").notNull(),
   ratioBps: int78("ratio_bps"), requiredBps: int78("required_bps"), reason: text("reason"),
 }, (t) => [index("liquidation_attempts_ts_idx").on(t.ts), index("liquidation_attempts_vault_idx").on(t.vaultId, t.ts)]);
+
+// Risk simulator (todo 18, drizzle/0007_risk_sim.sql). Plain USD numerics, not raw USDG.
+export const riskRuns = pgTable("risk_runs", {
+  runDate: date("run_date", { mode: "string" }).primaryKey(), createdAt: at("created_at").notNull().defaultNow(), status: text("status").notNull(),
+  gate: text("gate").notNull(), worstLossUsd: numeric("worst_loss_usd").notNull().default("0"), worstScenario: text("worst_scenario").notNull().default(""),
+  offendingScenario: text("offending_scenario"), equityUsd: numeric("equity_usd").notNull().default("0"), maxLossBps: integer("max_loss_bps").notNull(),
+  flags: text("flags").array().notNull().default(sql`'{}'`), plan: jsonb("plan"), reportPath: text("report_path").notNull().default(""),
+});
+
+export const riskScenarioResults = pgTable("risk_scenario_results", {
+  runDate: date("run_date", { mode: "string" }).notNull(), scenario: text("scenario").notNull(), status: text("status").notNull(),
+  worstLossUsd: numeric("worst_loss_usd").notNull().default("0"), worstCase: text("worst_case").notNull().default(""),
+  contractBudgetUsd: numeric("contract_budget_usd"), flags: text("flags").array().notNull().default(sql`'{}'`), detail: jsonb("detail").notNull().default(sql`'{}'::jsonb`),
+}, (t) => [primaryKey({ columns: [t.runDate, t.scenario] })]);
+
+export const riskCaps = pgTable("risk_caps", {
+  runDate: date("run_date", { mode: "string" }).notNull(), gear: text("gear").notNull(), grp: text("grp").notNull(), capUsd: numeric("cap_usd").notNull(),
+  specMaxUsd: numeric("spec_max_usd").notNull(), factor: numeric("factor").notNull(), spreadBps: integer("spread_bps").notNull(),
+}, (t) => [primaryKey({ columns: [t.runDate, t.gear] }), index("risk_caps_date_idx").on(t.runDate)]);

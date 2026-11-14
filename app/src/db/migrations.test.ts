@@ -15,7 +15,7 @@ const SPEC_TABLES = ["gears", "nf_history", "backer_vaults", "governor_ledger", 
   "liquidation_batches", "liquidations", "pause_log", "stock_events", "exit_reserve_log", "indexer_skipped_events", "cursors", "block_hashes", "reorg_log",
   "service_status", "jobs", "job_schedule", "stake_events", "agent_policies", "agent_trades", "admin_events", "entity_events",
   "earnings_dates", "vol_post_intents", "vol_alerts", "hedges", "hedge_cycles", "hedger_signals",
-  "liquidation_runs", "liquidation_attempts"];
+  "liquidation_runs", "liquidation_attempts", "risk_runs", "risk_scenario_results", "risk_caps"];
 
 async function tables(db: TestDatabase): Promise<Set<string>> {
   const rows = await db.sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`;
