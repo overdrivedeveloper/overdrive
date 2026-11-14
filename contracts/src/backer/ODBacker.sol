@@ -50,7 +50,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     uint32 public constant MAX_ROUND_AGE = 15 minutes;
     /// M-6: gas required before each vault of an execute (one liquidation with insurance and stake cover measured at
     /// about 0.3M on mocks); less reverts the whole execute and leaves the batch open
-    uint256 internal constant MIN_VAULT_GAS = 400_000;
+    uint256 public constant MIN_VAULT_GAS = 400_000;
     bytes32 public constant FEE_KIND = "BACKER_TOLL";
     uint256 internal constant BPS = 10_000;
 

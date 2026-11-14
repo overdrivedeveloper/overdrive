@@ -59,12 +59,12 @@ contract ODBackerHarness is ODBacker {
         _vaults[vaultId].batchId = id;
     }
 
-    /// Test-only: takes `amount` of a vault's collateral out to `to` (books kept), to reach states such as a vault
-    /// whose collateral cannot even pay the executor's minimum reward.
-    function harnessDrain(uint256 vaultId, uint256 amount, address to) external {
+    /// Test-only: takes `amount` off a vault's collateral books; the fixture's `_drain` moves the USDG out (kept out
+    /// of the harness so it stays under the code size limit), to reach states such as a vault whose collateral
+    /// cannot even pay the executor's minimum reward.
+    function harnessDrain(uint256 vaultId, uint256 amount) external {
         _vaults[vaultId].collateralUsdg -= amount;
         totalCollateral -= amount;
-        usdg.transfer(to, amount);
     }
 }
 
@@ -129,6 +129,13 @@ abstract contract BackerFixture is SystemFixture {
     function _mint(address who, uint256 vaultId, uint256 tokens, bool sell) internal returns (uint256) {
         vm.prank(who);
         return backer.mint(vaultId, tokens, sell, 0);
+    }
+
+    /// Takes `amount` of a vault's collateral out to `to` (books kept).
+    function _drain(uint256 vaultId, uint256 amount, address to) internal {
+        backer.harnessDrain(vaultId, amount);
+        vm.prank(address(backer));
+        usdg.transfer(to, amount);
     }
 
     function _coll(uint256 vaultId) internal view returns (uint256 c) {

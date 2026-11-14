@@ -352,7 +352,7 @@ contract LiquidationTest is BackerFixture {
         uint256 id = _sportVault(alice);
         _deepCrash();
         // collateral below even the executor's floor; no insurance, no stake: the Governor's free cash pays it
-        backer.harnessDrain(id, _coll(id) - 1000, stranger);
+        _drain(id, _coll(id) - 1000, stranger);
         uint256 b = _seal(sport, id);
         uint256 cash = gov.freeCash();
         uint256 govBal = usdg.balanceOf(address(gov));
@@ -398,7 +398,7 @@ contract LiquidationTest is BackerFixture {
         uint256 a = _sportVault(alice);
         uint256 dust = _open(carol, sport, 50e6);
         _mint(carol, dust, 1e12, false);
-        backer.harnessDrain(dust, 50e6 - 1, stranger); // 1 wei of collateral vs 2 wei of debt value
+        _drain(dust, 50e6 - 1, stranger); // 1 wei of collateral vs 2 wei of debt value
         _crash();
         uint256[] memory ids = new uint256[](2);
         (ids[0], ids[1]) = (dust, a);
