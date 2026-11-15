@@ -34,8 +34,18 @@ NARROW = {
     "ODMinter": ["test/minter/", "test/invariant/SellQueueInvariant.t.sol"],
     "ODBacker": ["test/backer/"],
     "ODGovernor": ["test/governor/"],
-    "ODOracleGuard": ["test/oracle/OracleGuard.t.sol", "test/oracle/ReopenRound.t.sol", "test/oracle/HolidayReopen.t.sol"],
-    "ODMarketHours": ["test/oracle/MarketHours.t.sol", "test/oracle/Calendar.t.sol", "test/oracle/HolidayReopen.t.sol"],
+    "ODOracleGuard": [
+        "test/oracle/OracleGuard.t.sol",
+        "test/oracle/ReopenRound.t.sol",
+        "test/oracle/HolidayReopen.t.sol",
+        "test/oracle/OracleGuardMutationKills.t.sol",
+    ],
+    "ODMarketHours": [
+        "test/oracle/MarketHours.t.sol",
+        "test/oracle/Calendar.t.sol",
+        "test/oracle/HolidayReopen.t.sol",
+        "test/oracle/MarketHoursMutationKills.t.sol",
+    ],
     "ODHook": ["test/hook/", "test/minter/Hook.t.sol"],
 }
 
