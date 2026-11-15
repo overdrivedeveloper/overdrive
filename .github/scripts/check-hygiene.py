@@ -111,6 +111,18 @@ else:
 for tool, ver in pins.items():
     if ver and tv.get(tool) != ver:
         bad(f".tool-versions: {tool} is '{tv.get(tool)}', ci.yml says '{ver}'")
+# the server provision script pins the same Bun and Foundry as CI
+prov = ROOT / "app" / "scripts" / "server" / "provision.sh"
+if prov.exists():
+    ptxt = prov.read_text()
+    for tool, var in (("bun", "BUN_VERSION"), ("foundry", "FOUNDRY_VERSION")):
+        pm = re.search(rf'^{var}="?v?([0-9][^"\s]*)"?\s*$', ptxt, re.M)
+        if not pm:
+            bad(f"provision.sh: {var} is missing")
+        elif pins.get(tool) and pm.group(1) != pins[tool]:
+            bad(f"provision.sh: {var} is '{pm.group(1)}', ci.yml says '{pins[tool]}' (server and CI must match)")
+else:
+    bad("app/scripts/server/provision.sh is missing")
 py_file = ROOT / ".python-version"
 if not py_file.exists() or py_file.read_text().strip() != pins["python"]:
     bad(f".python-version must be {pins['python']} (as in ci.yml)")

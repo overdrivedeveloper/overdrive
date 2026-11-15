@@ -45,7 +45,7 @@
 # It never creates, reads or moves a key: /etc/overdrive/keys is created empty and the owner copies the keystores in.
 set -euo pipefail
 
-BUN_VERSION="1.4.2"
+BUN_VERSION="1.4.4"
 FOUNDRY_VERSION="1.8.4"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

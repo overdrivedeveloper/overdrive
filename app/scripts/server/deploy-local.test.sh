@@ -102,7 +102,7 @@ mkdir "$T/dep"; printf '{"chainId": 4663, "network": "mainnet"}\n' >"$T/dep/4663
 mkroot() { # mkroot <dir>: a provisioned fake server root
   local r="$1"
   mkdir -p "$r/opt/overdrive/bin" "$r/opt/overdrive/releases" "$r/etc/overdrive/keys" "$r/var/lock"
-  printf '#!/bin/sh\necho 1.4.2\n' >"$r/opt/overdrive/bin/bun"; chmod +x "$r/opt/overdrive/bin/bun"
+  printf '#!/bin/sh\necho 1.4.4\n' >"$r/opt/overdrive/bin/bun"; chmod +x "$r/opt/overdrive/bin/bun"
   printf 'NETWORK=mainnet\nCHAIN_ID=4663\nDEPLOYMENT_FILE=/opt/overdrive/current/app/deployments/4663.json\nPUBLIC_RPC_URL=http://rpc.test\nAPI_PORT=38101\n' >"$r/etc/overdrive/overdrive.env"
   printf 'DATABASE_URL=postgres://overdrive:x@127.0.0.1:5432/overdrive\n' >"$r/etc/overdrive/db.env"
   local k; for k in crank hedger liquidator vol-signer; do echo fake >"$r/etc/overdrive/keys/$k.json"; echo fake >"$r/etc/overdrive/keys/$k.password"; done
