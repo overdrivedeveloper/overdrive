@@ -9,8 +9,11 @@
 # - `--skip SystemInvariant --skip SystemHandler`: test/invariant/SystemHandler.sol (the stateful system
 #   handler, the only file that fails) is stack too deep under --ir-minimum. It is test code, so it is left out
 #   of the coverage build; it still runs in the normal `forge test`. No file under src/ is excluded.
-# - `--no-match-test test_DiscountGasBound`: a gas ceiling test (30k gas); coverage instrumentation adds gas, so
-#   it fails only here. It runs and passes in the normal `forge test`.
+# - `--no-match-test GasBound`: the gas ceiling tests, named `..._GasBound` (test_DiscountGasBound, 30k gas;
+#   test_FallbackCalendar_GasBound, test_R8_2_ListLength_GasBound and test_R8_2_GuardMidWeek_FullList_GasBound,
+#   the calendar walk against the guard's 300,000 gas read). The coverage build is unoptimised and instrumented,
+#   so they fail only here. They run and pass in the normal `forge test`. Nothing else is left out by this flag:
+#   a test must have the suffix to be skipped.
 # - `--no-match-coverage`: report only contracts/src (tests, scripts and libraries are not counted).
 # - RHC_RPC_URL is unset, so every fork test skips itself and the run is reproducible offline.
 # Usage: bash scripts/coverage.sh        (about 10 to 15 minutes; the coverage build is not cached)
@@ -24,7 +27,7 @@ unset RHC_RPC_URL
 
 FOUNDRY_PROFILE=coverage forge coverage --ir-minimum \
     --skip SystemInvariant --skip SystemHandler \
-    --no-match-test test_DiscountGasBound \
+    --no-match-test GasBound \
     --no-match-coverage '(^|/)(test|script|lib)/' \
     --report summary --report lcov --report-file "$out/lcov.info" \
     > "$out/forge-summary.txt" 2>&1 || { tail -n 40 "$out/forge-summary.txt" >&2; exit 1; }

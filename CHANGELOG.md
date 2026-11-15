@@ -11,6 +11,16 @@ Nothing is released or deployed yet. What exists in the repository:
 - `vol-engine/` volatility engine and `risk-sim/` stress simulation.
 - `scripts/ci-local.sh` local CI, pre-commit public guard and commit-msg guard.
 
+Fix round 11 (audit rescore 8 and independent check 8):
+
+- The holiday list is on chain from the deploy: `script/config/*.json` list the NYSE full and early closes of 2026 to 2028, `SystemDeployer` writes them with `setHolidays`, the config loader refuses an empty or ended list and `SystemChecks` compares the chain with the config (tag `HOLIDAYS`) (R8-1).
+- `ODCalendar.closeMinuteOf` is a binary search, so the calendar walk no longer grows with the list: at most 176,941 gas cold with 0 to 64 listed holidays, under two thirds of the guard's 300,000 gas read (R8-2).
+- `ODMarketHours.closedBetween` measures a close over its whole length: a feed round printed before or inside an out-of-session stretch of 24 hours or more is not live after it, at any age. The guard asks the calendar for every in-session round of a stock market (the under 24 hours shortcut is gone) (I8-1). Signature unchanged, meaning changed: see the NatSpec.
+- `ODMinter.fillQueued`: anyone but the ticket's owner may fill only while buys are open on the reading (reference inside the band, no pause). The owner may fill on any live reading with a reference (I8-2).
+- API: a queued sell's suggested minimum comes from the last good value less 5% when the minter quotes no amount, never 0; `POST /v1/intent/sell` refuses to build a queued sell with no minimum (409 `QUEUE_MIN_UNKNOWN`) unless `minOut` is sent; `queue.minUsdgOutSuggested` may be null. `API_QUOTE_MAX_RPC_PER_REQUEST` default is 3 (one more read for that case). The exit page fills the same minimum.
+- `scripts/coverage.sh` leaves out the gas ceiling tests that fail only under instrumentation and runs green again.
+- SECURITY.md: R8-1, R8-2, I8-1 and I8-2 entries; I7-2 residuals updated.
+
 Fix round 10 (independent check 7):
 
 - A sell on a reading that is not live (market closed, calendar unknown, halted) is paid only when every leg's reference is a Pyth print inside `refMaxAge`. With a v3 TWAP as the only reference it is refused `UseQueue` (direct and hook paths, `quote` returns `queued`), and the exit is the sell queue, filled at the first live round (I7-1). In session nothing changes.
