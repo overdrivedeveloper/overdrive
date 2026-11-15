@@ -49,6 +49,8 @@ draw (amount measured by balance, event after a call to the fixed ODInsurance). 
 
 Fix round 10 moved 25 results (line shifts in `ODOracleGuard` and `ODMinterPricing`; same findings on the same code,
 reasons kept) and added one, read against the source: `unused-return` in `ODMinterPricing._fromPyth`, which needs only
-the source flag of `ODOracleGuard.refPrice` (the price is already in the reading). 151 triaged results, 0 open.
+the source flag of `ODOracleGuard.refPrice` (the price is already in the reading).
+Fix round 11 moved 27 results (line shifts in `ODOracleGuard`, `ODMinter` and `ODCalendar`; each matched its old
+entry word for word apart from line numbers, reasons kept) and added none. 151 triaged results, 0 open.
 
 To re-triage: `cd contracts && slither . --config-file slither.config.json`, read the new results, then add them to the db.
