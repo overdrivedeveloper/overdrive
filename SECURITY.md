@@ -273,14 +273,15 @@ Known and accepted for the first release, stated generically:
 
 Measured 2026-11-15 on the audited commit with the slither-mutate operators: 35 sampled mutants per contract
 (seed 1115) for ODMinter (with the exit queue), ODBacker, ODGovernor, ODOracleGuard, ODMarketHours and ODHook,
-killed by the hermetic forge suites that own each contract. Score (killed / compiled): 75.5% before, 82.0% after
-the tests the run added (`test/*/MutationKills.t.sol`, `test/oracle/MarketHoursMutationKills.t.sol`); 90.5% with
-the 13 equivalent mutants left out. Per contract after: ODBacker 91.7%, ODMinter 90.5%, ODGovernor 88.0%,
-ODMarketHours 84.6%, ODHook 83.3%, ODOracleGuard 56.0%. Rerun: `scripts/mutation.sh` (about 2 hours at 4 jobs;
-`MUTATION_SAMPLE`, `MUTATION_JOBS`, `MUTATION_ONLY`, `MUTATION_EXCLUDE` in its header).
+killed by the hermetic forge suites that own each contract. Score (killed / compiled): 75.5% before, 90.6%
+(126 / 139) after the tests the run added (`test/*/MutationKills.t.sol`, `test/oracle/MarketHoursMutationKills.t.sol`,
+`test/oracle/OracleGuardMutationKills.t.sol`). Every sampled survivor left is one of the 13 equivalent mutants
+(each proved in the review), so the score with them left out is 100%. Per contract after: ODMinter 100%,
+ODMarketHours 92.3%, ODGovernor 92.0%, ODBacker 91.7%, ODOracleGuard 84.0%, ODHook 83.3%.
+Rerun: `scripts/mutation.sh` (about 2 hours at 4 jobs; `MUTATION_SAMPLE`, `MUTATION_JOBS`, `MUTATION_ONLY`, `MUTATION_EXCLUDE` in its header).
 
 ## Follow-ups
 
 - NatSpec on every external function is not complete; the contracts are frozen, so it is a follow-up.
 - Slither runs in CI with a triaged config (`contracts/SLITHER.md`); the 137 triaged results were read by class, not one by one. gitleaks also runs in CI.
-- Mutation testing: 12 sampled survivors still lack a test (most in ODOracleGuard); see the section above.
+- Mutation testing: the sample is 35 of about 1,500 mutants per contract (about +/- 7 points per contract); a full run is a follow-up.
