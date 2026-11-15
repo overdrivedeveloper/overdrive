@@ -12,6 +12,8 @@
 # Env: MUTATION_JOBS (default 4), MUTATION_SAMPLE (default 35, 0 = all), MUTATION_SEED (default 1115),
 #      MUTATION_TIMEOUT seconds per mutant (default 900), MUTATION_OUT (default .mutation/), MUTATION_ONLY
 #      (comma-separated mutant ids: rerun just those, e.g. to show a new test kills them).
+#      MUTATION_EXCLUDE (regex of test files to leave out, e.g. MutationKills to score the tree before the
+#      tests that mutation testing added).
 # Verdicts in $OUT/cache-narrow.jsonl and cache-broad.jsonl (an earlier run, same tree) are reused, not rerun.
 # Usage: scripts/mutation.sh [ContractName ...]
 set -euo pipefail
@@ -27,6 +29,7 @@ seed="${MUTATION_SEED:-1115}"
 timeout="${MUTATION_TIMEOUT:-900}"
 out="${MUTATION_OUT:-$root/.mutation}"
 only="${MUTATION_ONLY:-}"
+exclude="${MUTATION_EXCLUDE:-}"
 mkdir -p "$out/work"
 
 if [ "$#" -gt 0 ]; then targets="$*"; else targets="ODMinter ODBacker ODGovernor ODOracleGuard ODMarketHours ODHook"; fi
@@ -59,7 +62,7 @@ fi
 # shellcheck disable=SC2086
 python3 "$root/scripts/mutation/run.py" --contracts "$root/contracts" --mutants "$out/mutants.jsonl" \
   --out "$out/narrow.jsonl" --work "$out/work" --jobs "$jobs" --sample "$sample" --seed "$seed" \
-  --timeout "$timeout" --scope narrow --no-optimizer --cache "$out/cache-narrow.jsonl" $cargs
+  --timeout "$timeout" --scope narrow --no-optimizer --exclude "$exclude" --cache "$out/cache-narrow.jsonl" $cargs
 
 survivors="$(python3 -c 'import json,sys
 print(",".join(r["id"] for r in map(json.loads, open(sys.argv[1])) if r["verdict"] == "survived"))' "$out/narrow.jsonl")"
@@ -67,7 +70,7 @@ if [ -n "$survivors" ]; then
   # shellcheck disable=SC2086
   python3 "$root/scripts/mutation/run.py" --contracts "$root/contracts" --mutants "$out/mutants.jsonl" \
     --out "$out/broad.jsonl" --work "$out/work" --jobs "$jobs" --timeout "$timeout" --scope broad \
-    --no-optimizer --only "$survivors" --cache "$out/cache-broad.jsonl" $cargs
+    --no-optimizer --exclude "$exclude" --only "$survivors" --cache "$out/cache-broad.jsonl" $cargs
 fi
 
 python3 "$root/scripts/mutation/summary.py" "$out/narrow.jsonl" "$out/broad.jsonl" > "$out/summary.md"

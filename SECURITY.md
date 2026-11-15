@@ -269,8 +269,18 @@ Known and accepted for the first release, stated generically:
 - **I9-2, no deployed key holds `moveToExitReserve` (accepted, Info).** `DeploySystem` wires `HEDGER_ROLE` on the Governor and grants `KEEPER_ROLE` to nobody, neither the crank nor the hedger calls the function, and the post-deploy check passes. The exit reserve has no automated top-up: the timelock (admin) moves free cash into it, and anyone can donate with `fundExitReserve`. The keeper table above states the deploy as it is.
 - **I8-2, a queued sell filled far under the feed (closed in fix round 11).** A sell is paid the lower of the feed value and the reference value and the reference band closed buys only; the API suggested a minimum of 0 for a sell queued in a market that is not live, and anyone could fill that ticket at a v3 TWAP held under the feed. Now (1) `fillQueued` by anyone but the ticket's owner requires buys to be open on the reading, so the reference is inside `refBandBps` of the feed and no pause, split window or continuity latch is set; the owner may fill on any live reading with a reference, bound by the ticket's own minimum; a settled gear is filled by anyone as before; (2) `GET /v1/quote` and `POST /v1/intent/sell` give a queued sell a minimum from the last good value less 5% (`QUEUE_MARGIN_BPS`) when the minter quotes no amount, return no suggestion when no value is known, and never build a `queueSell` with 0 unless the caller sends it; the static exit page does the same. What is left: a third-party fill can be up to the band (2% on stock markets) under the feed price, times the gear's power, less the spread, never under the ticket's minimum; a ticket whose minimum is above the reopening value waits until its owner cancels and queues again; while buys are paused (manual pause, split window) only the owner fills. Tests: `test/poc/Ind8QueuedFillLowTwap.t.sol`, `app/src/api/routes/quote.test.ts`.
 
+## Mutation testing
+
+Measured 2026-11-15 on the audited commit with the slither-mutate operators: 35 sampled mutants per contract
+(seed 1115) for ODMinter (with the exit queue), ODBacker, ODGovernor, ODOracleGuard, ODMarketHours and ODHook,
+killed by the hermetic forge suites that own each contract. Score (killed / compiled): 75.5% before, 82.0% after
+the tests the run added (`test/*/MutationKills.t.sol`, `test/oracle/MarketHoursMutationKills.t.sol`); 90.5% with
+the 13 equivalent mutants left out. Per contract after: ODBacker 91.7%, ODMinter 90.5%, ODGovernor 88.0%,
+ODMarketHours 84.6%, ODHook 83.3%, ODOracleGuard 56.0%. Rerun: `scripts/mutation.sh` (about 2 hours at 4 jobs;
+`MUTATION_SAMPLE`, `MUTATION_JOBS`, `MUTATION_ONLY`, `MUTATION_EXCLUDE` in its header).
+
 ## Follow-ups
 
 - NatSpec on every external function is not complete; the contracts are frozen, so it is a follow-up.
 - Slither runs in CI with a triaged config (`contracts/SLITHER.md`); the 137 triaged results were read by class, not one by one. gitleaks also runs in CI.
-- Mutation testing has not been measured.
+- Mutation testing: 12 sampled survivors still lack a test (most in ODOracleGuard); see the section above.

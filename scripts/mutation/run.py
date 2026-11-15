@@ -69,6 +69,9 @@ def imports_of(root: Path, rel: Path):
     return out
 
 
+EXCLUDE = ""
+
+
 def select_tests(root: Path, contract: str, scope: str = "broad"):
     files = [p.relative_to(root) for p in (root / "test").rglob("*.sol")]
     files = [f for f in files if not any(str(f).startswith(s) for s in SKIP_DIRS)]
@@ -91,6 +94,8 @@ def select_tests(root: Path, contract: str, scope: str = "broad"):
         return hit
 
     tests = sorted(f for f in files if str(f).endswith(".t.sol") and touches(f))
+    if EXCLUDE:
+        tests = [f for f in tests if not re.search(EXCLUDE, str(f))]
     if scope == "narrow" and contract in NARROW:
         tests = [f for f in tests if any(str(f).startswith(p) for p in NARROW[contract])]
     closure, todo = set(), list(tests)
@@ -162,10 +167,13 @@ def main():
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--only", default="")
     ap.add_argument("--cache", default="")
+    ap.add_argument("--exclude", default="", help="regex of test files to leave out (to score a tree as it was)")
     ap.add_argument("--contract", action="append", default=[])
     ap.add_argument("--scope", choices=["narrow", "broad"], default="narrow")
     ap.add_argument("--no-optimizer", action="store_true", help="FOUNDRY_OPTIMIZER=false (faster compile)")
     a = ap.parse_args()
+    global EXCLUDE  # pylint: disable=global-statement
+    EXCLUDE = a.exclude
     if a.no_optimizer:
         ENV_OVERRIDES["FOUNDRY_OPTIMIZER"] = "false"
     root = Path(a.contracts).resolve()
