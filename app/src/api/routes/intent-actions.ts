@@ -223,9 +223,10 @@ export function registerIntentActionRoutes(app: OpenAPIHono, deps: ApiDependenci
     if (!gear) return notFound(context, "The ticket's gear is not in this deployment.");
     // Fillable now only when a fresh sell of the same size pays at least the ticket's minimum.
     const o = await service.quote({ gear: lower(gear.id), side: "sell", exactIn: found.ticket.tokens });
-    if (o.sellMode === "queued" || !o.buyable || !o.v4) throw new ApiError(409, (o.refusal?.code === "QUEUED" || !o.refusal ? "UPSTREAM" : o.refusal.code) as ErrorCode, "This ticket cannot be filled now.", o.refusal?.reason ?? "NOT_PAYABLE_NOW");
-    if (o.v4.amountOut < found.ticket.minUsdgOut) throw new ApiError(409, "BELOW_MIN", "The price now is below the ticket's minimum.", "BELOW_TICKET_MIN");
-    return done("queue_fill", minter, encodeFunctionData({ abi: IODMinterAbi, functionName: "fillQueued", args: [found.id] }), [], { ticket: found.id, expectedOut: o.v4.amountOut, minUsdgOut: found.ticket.minUsdgOut }, "Anyone can send this. Pays the ticket's recipient at the fresh price.", o.blockNumber);
+    const priced = o.v4 ?? o.minter; // I9-3: a direct-path quote is as good as the hook one for a fill (the minter pays it)
+    if (o.sellMode === "queued" || !o.buyable || !priced) throw new ApiError(409, (o.refusal?.code === "QUEUED" || !o.refusal ? "UPSTREAM" : o.refusal.code) as ErrorCode, "This ticket cannot be filled now.", o.refusal?.reason ?? "NOT_PAYABLE_NOW");
+    if (priced.amountOut < found.ticket.minUsdgOut) throw new ApiError(409, "BELOW_MIN", "The price now is below the ticket's minimum.", "BELOW_TICKET_MIN");
+    return done("queue_fill", minter, encodeFunctionData({ abi: IODMinterAbi, functionName: "fillQueued", args: [found.id] }), [], { ticket: found.id, expectedOut: priced.amountOut, minUsdgOut: found.ticket.minUsdgOut }, "Anyone can send this. Pays the ticket's recipient at the fresh price.", o.blockNumber);
   });
 
   // ------------------------------------------------------------------------------------------ agent router

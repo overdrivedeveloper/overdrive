@@ -15,7 +15,7 @@ const RawQuoteSchema = z.object({
 });
 export const QuoteSchema = z.object({
   ...MetaFields,
-  gear: z.string(), gearId: Hex32, side: z.enum(["buy", "sell"]), source: z.literal("v4_quoter"), blockNumber: z.string(), quoteId: z.string(), expiresAt: Iso,
+  gear: z.string(), gearId: Hex32, side: z.enum(["buy", "sell"]), source: z.enum(["v4_quoter", "minter"]).openapi({ description: "v4_quoter: executes through the hook. minter: a sell executes on the direct IODMinter.sell path (the hook route is short of tokens)." }), blockNumber: z.string(), quoteId: z.string(), expiresAt: Iso,
   buyable: z.boolean().openapi({ description: "True only when the same trade executes now with these amounts. A sell that can only be queued is false with sellMode queued." }),
   reason: z.string().nullable(), code: z.string().nullable(), message: z.string().nullable(),
   sellMode: z.enum(["instant", "instant_min", "queued"]).nullable(), priceRule: z.string().nullable(),
@@ -44,7 +44,7 @@ const MESSAGES: Record<string, string> = {
 };
 
 export function quoteDocument(deps: Pick<ApiDependencies, "deployment">, ref: { id: string; symbol: string }, o: QuoteOutcome) {
-  const q = o.v4 ?? null;
+  const q = o.v4 ?? (o.source === "minter" ? o.minter : null);
   const m = o.minter;
   const toll = m?.tollPerDayWad ?? null;
   const spread = m?.spreadBps ?? null;
@@ -52,7 +52,7 @@ export function quoteDocument(deps: Pick<ApiDependencies, "deployment">, ref: { 
   const closedSell = o.side === "sell" && o.sellMode === "instant_min";
   return {
     asOfBlock: o.blockNumber.toString(), asOf: new Date(o.asOfMs).toISOString(), stale: false, decimals: { usdg: 6 as const, token: 18 as const, value: 18 as const },
-    gear: ref.symbol, gearId: ref.id, side: o.side, source: "v4_quoter" as const, blockNumber: o.blockNumber.toString(), quoteId: o.quoteId, expiresAt: new Date(o.asOfMs + QUOTE_TTL_MS).toISOString(),
+    gear: ref.symbol, gearId: ref.id, side: o.side, source: o.source ?? ("v4_quoter" as const), blockNumber: o.blockNumber.toString(), quoteId: o.quoteId, expiresAt: new Date(o.asOfMs + QUOTE_TTL_MS).toISOString(),
     buyable: o.buyable, reason: o.refusal?.reason ?? null, code: o.refusal?.code ?? null, message: o.refusal ? MESSAGES[o.refusal.code] ?? null : null,
     sellMode: o.sellMode, priceRule: closedSell ? "The market is closed: a sell pays the lower of the last value and the reference value." : o.sellMode === "queued" ? "Paid at the next fresh price, never below your minimum." : null,
     amountIn: priced ? q.amountIn.toString() : null, amountOut: priced ? q.amountOut.toString() : o.sellMode === "queued" && m ? m.amountOut.toString() : null,

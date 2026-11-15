@@ -1027,8 +1027,10 @@
           "source": {
             "type": "string",
             "enum": [
-              "v4_quoter"
-            ]
+              "v4_quoter",
+              "minter"
+            ],
+            "description": "v4_quoter: executes through the hook. minter: a sell executes on the direct IODMinter.sell path (the hook route is short of tokens)."
           },
           "blockNumber": {
             "type": "string"

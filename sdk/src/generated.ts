@@ -303,7 +303,8 @@ export interface Operations {
         gear: string;
         gearId: string;
         side: "buy" | "sell";
-        source: "v4_quoter";
+        /** v4_quoter: executes through the hook. minter: a sell executes on the direct IODMinter.sell path (the hook route is short of tokens). */
+        source: "v4_quoter" | "minter";
         blockNumber: string;
         quoteId: string;
         /** ISO 8601 time. */

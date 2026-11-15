@@ -16,6 +16,8 @@ import { ABIS } from "../abi";
 export const WRAPPED_ERROR_ABI = parseAbi([
   "error UnexpectedRevertBytes(bytes revertData)",
   "error WrappedError(address target, bytes4 selector, bytes reason, bytes details)",
+  // ODHook.beforeSwap: the PoolManager holds less of the input token than the sell needs (I9-3; the hook is not in ABIS).
+  "error PoolManagerShort(address token, uint256 have, uint256 need)",
 ]);
 const DECODERS: readonly Abi[] = [...(Object.values(ABIS) as unknown as readonly Abi[]), WRAPPED_ERROR_ABI as unknown as Abi];
 

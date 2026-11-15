@@ -46,8 +46,9 @@ export function registerIntentRoutes(app: OpenAPIHono, deps: ApiDependencies, se
       const minOut = BigInt(body.minOut ?? o.minOutSuggested!.toString());
       return { ...base, kind: "queue_sell" as const, tx: { to: minter, data: encodeFunctionData({ abi: IODMinterAbi, functionName: "queueSell", args: [ref.id as `0x${string}`, amount, minOut, recipient] }), value: "0" as const }, approvals: [{ token: ref.token as `0x${string}`, spender: minter, amount: amount.toString() }], expectedOut: o.minter.amountOut.toString(), minOut: minOut.toString(), note: "Queued: paid at the next fresh price, never below your minimum. If the price falls under your minimum the ticket waits: cancel it and queue again with a lower one." };
     }
-    if (!o.buyable || !o.v4) throw new ApiError(409, (o.refusal?.code === "QUEUED" || !o.refusal ? "UPSTREAM" : o.refusal.code), "This trade cannot execute now.", o.refusal?.reason);
-    const out = o.v4.amountOut;
+    if (!o.buyable || (!o.v4 && o.source !== "minter") || !o.minter) throw new ApiError(409, (o.refusal?.code === "QUEUED" || !o.refusal ? "UPSTREAM" : o.refusal.code), "This trade cannot execute now.", o.refusal?.reason);
+    // I9-3: a sell the hook cannot front is quoted from the minter; its calldata is the same IODMinter.sell.
+    const out = (o.v4 ?? o.minter).amountOut;
     const minOut = BigInt(body.minOut ?? o.minOutSuggested!.toString());
     if (minOut > out) throw new ApiError(400, "BAD_REQUEST", "minOut is above the quoted output.");
     const data = side === "buy"

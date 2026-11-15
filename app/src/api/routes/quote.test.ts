@@ -133,3 +133,38 @@ test("a queued sell in a closed market carries a real minimum on the quote and o
     g.lastValueWad = last;
   } finally { g.session = saved.session; g.refValueWad = saved.ref; h.hook.block += 1n; }
 });
+
+// I9-3: a sell above what the PoolManager holds is built on the direct IODMinter.sell path with the quoted minimum.
+test("a sell above the hook seed builds IODMinter.sell with the quoted minimum", async () => {
+  const { encodeErrorResult, decodeFunctionData, parseAbi } = await import("viem");
+  const { IODMinterAbi } = await import("../../abi");
+  const short = parseAbi(["error PoolManagerShort(address token, uint256 have, uint256 need)"]);
+  const seed = WAD;
+  const inner = (need: bigint) => encodeErrorResult({ abi: short, errorName: "PoolManagerShort", args: [`0x${"22".repeat(20)}`, seed, need] });
+  const hs = await harness("quote_seed", { chain: {} });
+  if (!hs) return;
+  try {
+    const real = hs.chain.quoter.quote.bind(hs.chain.quoter);
+    hs.chain.quoter.quote = async (i: any) => {
+      if (i.side === "sell" && i.exactIn > seed) throw { errorName: "WrappedError", args: [`0x${"33".repeat(20)}`, "0x575e24b4", inner(i.exactIn), "0x"] };
+      return real(i);
+    };
+    const post = async (path: string, body: unknown) => { const r = await hs.app.request(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, body: (await r.json()) as any }; };
+    const tokens = 100n * seed;
+    const q = (await (await hs.app.request(`/v1/quote?gear=TSLA-SPORT&side=sell&tokens=${tokens}`)).json()) as any;
+    expect(q.buyable).toBe(true);
+    expect(q.source).toBe("minter");
+    expect(q.sellMode).toBe("instant");
+    expect(BigInt(q.amountOut)).toBeGreaterThan(0n);
+    const intent = await post("/v1/intent/sell", { gear: "TSLA-SPORT", account: "0x00000000000000000000000000000000000a11ce", tokens: tokens.toString() });
+    expect(intent.status).toBe(200);
+    expect(intent.body.kind).toBe("sell");
+    expect(intent.body.tx.to.toLowerCase()).toBe(hs.deployment.contracts.ODMinter!.toLowerCase());
+    const call = decodeFunctionData({ abi: IODMinterAbi, data: intent.body.tx.data });
+    expect(call.functionName).toBe("sell");
+    expect((call.args as readonly unknown[])[2]).toBe(BigInt(q.minOutSuggested)); // quote equals execution
+    expect(intent.body.minOut).toBe(q.minOutSuggested);
+    // a buy is unaffected
+    expect((await post("/v1/intent/buy", { gear: "TSLA-SPORT", account: "0x00000000000000000000000000000000000a11ce", usdg: "5000000" })).status).toBe(200);
+  } finally { await hs.close(); }
+});

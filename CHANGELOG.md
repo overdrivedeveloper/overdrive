@@ -11,6 +11,10 @@ Nothing is released or deployed yet. What exists in the repository:
 - `vol-engine/` volatility engine and `risk-sim/` stress simulation.
 - `scripts/ci-local.sh` local CI, pre-commit public guard and commit-msg guard.
 
+Fix round 12 (independent check 9):
+
+- I9-3: the API quotes a sell above the hook seed from the minter (`source: "minter"`) and the sell intent builds `IODMinter.sell` with the quoted minimum, instead of refusing as UPSTREAM. SECURITY.md records I9-1 and I9-2 as accepted, corrects the keeper power row and the worst cold gas figure (224,690).
+
 Fix round 11 (audit rescore 8 and independent check 8):
 
 - The holiday list is on chain from the deploy: `script/config/*.json` list the NYSE full and early closes of 2026 to 2028, `SystemDeployer` writes them with `setHolidays`, the config loader refuses an empty or ended list and `SystemChecks` compares the chain with the config (tag `HOLIDAYS`) (R8-1).

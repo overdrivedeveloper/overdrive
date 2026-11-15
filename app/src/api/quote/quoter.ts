@@ -15,6 +15,9 @@ export interface QuoteOutcome {
   blockNumber: bigint;
   /** null when the trade cannot execute (no price is shown for a closed or stale buy). */
   v4: RawQuote | null;
+  /** "v4_quoter" when the hook route executes; "minter" when a sell executes on the direct IODMinter.sell path (I9-3: the
+   * hook route was short of tokens); null when the trade cannot execute. */
+  source: "v4_quoter" | "minter" | null;
   minter: RawQuote | null;
   refusal: Refusal | null;
   buyable: boolean;
@@ -53,13 +56,20 @@ export function createQuoteService(options: QuoteServiceOptions) {
     const base = { gearId: i.gear, side: i.side, asOfMs: options.now() };
     const quoteId = (block: bigint, out: bigint) => createHash("sha256").update(`${i.gear}:${i.side}:${i.exactIn}:${block}:${out}`).digest("hex").slice(0, 32);
     const refuse = (refusal: Refusal, block: bigint, minterRaw: RawQuote | null = null): QuoteOutcome => ({
-      ...base, blockNumber: block, v4: null, minter: minterRaw, refusal, buyable: false, sellMode: null, parity: [], minOutSuggested: null, quoteId: quoteId(block, 0n),
+      ...base, blockNumber: block, v4: null, source: null, minter: minterRaw, refusal, buyable: false, sellMode: null, parity: [], minOutSuggested: null, quoteId: quoteId(block, 0n),
     });
     const block = "ok" in minter ? minter.ok.blockNumber : "ok" in v4 ? v4.ok.blockNumber : 0n;
 
     if ("revert" in v4) {
       const refusal = classifyRevert(v4.revert.errorName, v4.revert.args);
-      if (refusal.code === "QUEUED") {
+      const poolShort = i.side === "sell" && v4.revert !== undefined && refusal.reason === "PoolManagerShort";
+      if (poolShort && "ok" in minter && !minter.ok.queued && minter.ok.amountOut > 0n) {
+        // I9-3: the hook can only front what the PoolManager holds (accepted risk L-7). The minter pays a sell of any size
+        // itself, so the executable path is IODMinter.sell: the intent route builds that call with this quote's minimum.
+        const m = minter.ok;
+        return { ...base, blockNumber: m.blockNumber, v4: null, source: "minter", minter: m, refusal: null, buyable: true, sellMode: sellModeOf(m), parity: [], minOutSuggested: minOutSuggested(m.amountOut), quoteId: quoteId(m.blockNumber, m.amountOut) };
+      }
+      if (refusal.code === "QUEUED" || (poolShort && "ok" in minter && minter.ok.queued)) {
         // A sell the hook cannot pay now: the minter's own quote carries the queue terms (the next-fresh-price rule).
         if ("ok" in minter && minter.ok.queued) {
           const m = minter.ok;
@@ -67,7 +77,7 @@ export function createQuoteService(options: QuoteServiceOptions) {
           // value, never 0: a ticket is filled by anyone at the next live price.
           const read = options.chain.minterValuePerToken;
           const last = m.amountOut > 0n || !read ? null : await (async () => meter(() => read(i.gear)))().catch(() => null);
-          return { ...base, blockNumber: m.blockNumber, v4: null, minter: m, refusal, buyable: false, sellMode: "queued", parity: [], minOutSuggested: queuedMinOut(i.exactIn, m.amountOut, last), quoteId: quoteId(m.blockNumber, m.amountOut) };
+          return { ...base, blockNumber: m.blockNumber, v4: null, source: null, minter: m, refusal: refusal.code === "QUEUED" ? refusal : { code: "QUEUED", reason: "USE_QUEUE" }, buyable: false, sellMode: "queued", parity: [], minOutSuggested: queuedMinOut(i.exactIn, m.amountOut, last), quoteId: quoteId(m.blockNumber, m.amountOut) };
         }
         return refuse({ code: "UPSTREAM", reason: "PARITY_MISMATCH" }, block);
       }
@@ -79,7 +89,7 @@ export function createQuoteService(options: QuoteServiceOptions) {
     if (parity.length) return { ...refuse({ code: "UPSTREAM", reason: "PARITY_MISMATCH" }, v4.ok.blockNumber, minter.ok), parity };
     const out = v4.ok.amountOut;
     return {
-      ...base, blockNumber: v4.ok.blockNumber, v4: v4.ok, minter: minter.ok, refusal: null, buyable: true,
+      ...base, blockNumber: v4.ok.blockNumber, v4: v4.ok, source: "v4_quoter", minter: minter.ok, refusal: null, buyable: true,
       sellMode: i.side === "sell" ? sellModeOf(minter.ok) : null, parity: [], minOutSuggested: minOutSuggested(out), quoteId: quoteId(v4.ok.blockNumber, out),
     };
   }

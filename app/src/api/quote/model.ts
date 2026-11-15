@@ -53,6 +53,9 @@ export function classifyRevert(name: string, args: readonly unknown[]): Refusal 
     case "StressBudget": return { code: "CAP_REACHED", reason: "STRESS_BUDGET" };
     case "BelowMinimum": return { code: "BELOW_MIN", reason: "BELOW_MINIMUM" };
     case "InsufficientCash": return { code: "RESERVE_FLOOR", reason: "RESERVE_FLOOR" };
+    // I9-3: the hook route is short of the input token (accepted risk L-7). Still UPSTREAM for a buy; the quote service
+    // answers a sell from the direct minter path.
+    case "PoolManagerShort": return { code: "UPSTREAM", reason: "PoolManagerShort" };
     case "UseQueue": return { code: "QUEUED", reason: "USE_QUEUE" };
     default: return { code: "UPSTREAM", reason: name };
   }
