@@ -24,3 +24,14 @@ depth = 200
 
 [profile.deep.fuzz]
 runs = 5000
+
+# Coverage build (scripts/coverage.sh). Same compiler settings as default; forge coverage --ir-minimum then
+# lowers the optimiser. Lighter fuzz and invariant campaigns keep the instrumented run short.
+[profile.coverage]
+
+[profile.coverage.fuzz]
+runs = 64
+
+[profile.coverage.invariant]
+runs = 16
+depth = 16
