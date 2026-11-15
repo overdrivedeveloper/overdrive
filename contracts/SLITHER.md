@@ -8,7 +8,7 @@ Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI a
 | File | What it holds |
 |---|---|
 | `slither.config.json` | paths skipped, detectors excluded, `fail_on: pedantic` so any new result fails |
-| `slither.db.json` | the 150 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
+| `slither.db.json` | the 151 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
 
 ## Excluded detectors (style or by-design, whole class)
 
@@ -46,5 +46,9 @@ their ids). 85 are the same findings on the same code and kept their reason; 8 w
 `ODOracleGuard.liquidationBlock` (a zero check on the reference), the `ODBacker` repay, buy-back, mint and liquidation
 writes after calls to the fixed minter and Governor (entry points `nonReentrant`), and the `ODGovernorRisk` insurance
 draw (amount measured by balance, event after a call to the fixed ODInsurance). No new class of result.
+
+Fix round 10 moved 25 results (line shifts in `ODOracleGuard` and `ODMinterPricing`; same findings on the same code,
+reasons kept) and added one, read against the source: `unused-return` in `ODMinterPricing._fromPyth`, which needs only
+the source flag of `ODOracleGuard.refPrice` (the price is already in the reading). 151 triaged results, 0 open.
 
 To re-triage: `cd contracts && slither . --config-file slither.config.json`, read the new results, then add them to the db.

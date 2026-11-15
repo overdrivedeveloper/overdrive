@@ -126,12 +126,12 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "15f58e67bdaa4a76e549ee5348c22698c8e91ce055a1a6bf33caab9026ad857b",
+  "id": "95a1422179ecf9fbf1da7a6e587f583dbb4ec0c4e65d7eb2c5960e400ace685a",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODMinterPricing.context(ODMinterPricing.Deps,bytes32,NormState,uint64,uint256,uint128) (src/governor/ODMinterPricing.sol#76-121) uses a dangerous strict equality:\n\t- c.nfNew == c.nf (src/governor/ODMinterPricing.sol#116)\n",
-  "first_markdown_element": "src/governor/ODMinterPricing.sol#L76-L121",
+  "description": "ODMinterPricing.context(ODMinterPricing.Deps,bytes32,NormState,uint64,uint256,uint128) (src/governor/ODMinterPricing.sol#78-130) uses a dangerous strict equality:\n\t- c.nfNew == c.nf (src/governor/ODMinterPricing.sol#125)\n",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L78-L130",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -153,21 +153,21 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "6f927f21bc3c3bf4249544b586d17b18b0f261b81e43a49686aa03fdcbadc373",
+  "id": "15c28d28e73059155dbcfdbd9c2e64f6b4f91e8f27ca37291c784e11d57d4d5d",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODMinterPricing.context(ODMinterPricing.Deps,bytes32,NormState,uint64,uint256,uint128) (src/governor/ODMinterPricing.sol#76-121) uses a dangerous strict equality:\n\t- s.lastAccrual == block.timestamp (src/governor/ODMinterPricing.sol#102)\n",
-  "first_markdown_element": "src/governor/ODMinterPricing.sol#L76-L121",
+  "description": "ODMinterPricing.context(ODMinterPricing.Deps,bytes32,NormState,uint64,uint256,uint128) (src/governor/ODMinterPricing.sol#78-130) uses a dangerous strict equality:\n\t- s.lastAccrual == block.timestamp (src/governor/ODMinterPricing.sol#111)\n",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L78-L130",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "8d8b9c1539dc615b51b1d9bf0ef5f6531a41f6326d2dba5ecd4d521756e4f09c",
+  "id": "0e6434283727f15174df876f2a97e0b70ef179809c6330e12a7646da9076129f",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODMinterPricing._feeDrain(ODMinterPricing.Deps,uint256) (src/governor/ODMinterPricing.sol#124-134) uses a dangerous strict equality:\n\t- fee == 0 (src/governor/ODMinterPricing.sol#130)\n",
-  "first_markdown_element": "src/governor/ODMinterPricing.sol#L124-L134",
+  "description": "ODMinterPricing._feeDrain(ODMinterPricing.Deps,uint256) (src/governor/ODMinterPricing.sol#133-143) uses a dangerous strict equality:\n\t- fee == 0 (src/governor/ODMinterPricing.sol#139)\n",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L133-L143",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -441,30 +441,30 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "4b3d6a76c8be4af93737d15c37e5b0613abcc401698709560a4f352d16c54cb5",
+  "id": "9bf5c7577b91e75f31dddba506197d0ad1082e77a6aa109cfec3b44f1a65c5bf",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- e.kind == Session.OPEN (src/oracle/ODOracleGuard.sol#361)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#336-433) uses a dangerous strict equality:\n\t- e.kind == Session.OPEN (src/oracle/ODOracleGuard.sol#366)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L336-L433",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "6386a6627626f1bfe5a2849d6068907b15bf7b9844dd72702de6e13c460de1b4",
+  "id": "9c36745d9d669ff2065dbb71b7a87772f0bc9bf3bfaa08844f8a3228d4c27e85",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#468-477) uses a dangerous strict equality:\n\t- aggregator == feed || aggregator.code.length == 0 (src/oracle/ODOracleGuard.sol#473)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L468-L477",
+  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#476-485) uses a dangerous strict equality:\n\t- aggregator == feed || aggregator.code.length == 0 (src/oracle/ODOracleGuard.sol#481)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L476-L485",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "6ac14a774cbeb62b4355b5a939704178269139253b57da177d1c2ca77c4540ab",
+  "id": "d307486ec51d1525b326fc30b39c2bb34cff7937a3ecbdf87947532e8f4a0907",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#602-630) uses a dangerous strict equality:\n\t- mult == 0 (src/oracle/ODOracleGuard.sol#626)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L602-L630",
+  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#622-650) uses a dangerous strict equality:\n\t- mult == 0 (src/oracle/ODOracleGuard.sol#646)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L622-L650",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -477,102 +477,102 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "775b24d68f66244c3b98713c267c686cdde24f71457a9b2175ea6f91cbdb8321",
+  "id": "e3056939376e537437ca960f6c42997504a482518e0ff42da88d4d5fcd447ec4",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- inSession = e.kind == Session.OPEN || e.kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#336)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#336-433) uses a dangerous strict equality:\n\t- inSession = e.kind == Session.OPEN || e.kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#341)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L336-L433",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "7a4e178e28bc1bcbd560c3ec5b0b327bb2d30a7c26755854a35f74bc3c139605",
+  "id": "b4e41d8eba2be890be4195c8bce024d7e732b284d6b08915ea6ae838ecdfbe23",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- p == 0 || p > MAX_P (src/oracle/ODOracleGuard.sol#366)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#336-433) uses a dangerous strict equality:\n\t- p == 0 || p > MAX_P (src/oracle/ODOracleGuard.sol#374)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L336-L433",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "9afb7e98402f3bcbff71f157a8e7e1a8ade7858a82ce23d6304fc47e8aff9609",
+  "id": "894c6ff2229763f4ffe26dbc0de14fb088561b850b6d9aecf41bbf0030ed6e4a",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#468-477) uses a dangerous strict equality:\n\t- ! okA || agg == 0 || agg > type()(uint160).max (src/oracle/ODOracleGuard.sol#471)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L468-L477",
+  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#476-485) uses a dangerous strict equality:\n\t- ! okA || agg == 0 || agg > type()(uint160).max (src/oracle/ODOracleGuard.sol#479)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L476-L485",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "9c5fb4c8791514897359e66ae264eebab1733a7cf337a43c5a195ba020886b8b",
+  "id": "d8d3d0e246edf7cf07e3540f5675c9d1f5609a297fdcbeca0477f10f48b2ddaa",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#186-196) uses a dangerous strict equality:\n\t- rb.p == 0 (src/oracle/ODOracleGuard.sol#189)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L186-L196",
+  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#191-201) uses a dangerous strict equality:\n\t- rb.p == 0 (src/oracle/ODOracleGuard.sol#194)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L191-L201",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "a896c84e5a05e10dce30da83edc753f6802f1eb047ad7db9585259fed3701478",
+  "id": "646a0070ef5ee29cc37cc3d32fdb1687d3f870db2afb008f16bf5ebeda700c81",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#186-196) uses a dangerous strict equality:\n\t- ra.refP == 0 || rb.refP == 0 (src/oracle/ODOracleGuard.sol#190)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L186-L196",
+  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#191-201) uses a dangerous strict equality:\n\t- ra.refP == 0 || rb.refP == 0 (src/oracle/ODOracleGuard.sol#195)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L191-L201",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "ae01f2c34b4b0ea0d527edb5efdb247660613f05c11445cfab10066c524b7614",
+  "id": "00111a0ff4ca543d7ad20bc664477300cdbd7c8dfee3b0cca912da71c8f35b08",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._derivedHalt(MarketConfig,uint8) (src/oracle/ODOracleGuard.sol#535-549) uses a dangerous strict equality:\n\t- kind == Session.OPEN || kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#545)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L535-L549",
+  "description": "ODOracleGuard._derivedHalt(MarketConfig,uint8) (src/oracle/ODOracleGuard.sol#555-569) uses a dangerous strict equality:\n\t- kind == Session.OPEN || kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#565)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L555-L569",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "bd2eed96092c107bfbccf74718a2e860a2ec44947b531d8d8ed63e33baa09df9",
+  "id": "7f2ec9b0f8e9e4bf65baf18228968c9a1a8291e920fa1b8da6f8429e9622aa96",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#262-312) uses a dangerous strict equality:\n\t- next == 0 && (e.kind == Session.OPEN || e.kind == Session.EXTENDED) (src/oracle/ODOracleGuard.sol#305)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L262-L312",
+  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#267-317) uses a dangerous strict equality:\n\t- next == 0 && (e.kind == Session.OPEN || e.kind == Session.EXTENDED) (src/oracle/ODOracleGuard.sol#310)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L267-L317",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "bffaf2994a8868a482467f77feaa98f4c98ad3bac408938368e7cbbccbb6b60d",
+  "id": "794ca489a8b3f116b3a0cc42f48b2c03ff3d1b18c050881546d0a7ff2ff1b2eb",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#649-657) uses a dangerous strict equality:\n\t- target.code.length == 0 (src/oracle/ODOracleGuard.sol#650)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L649-L657",
+  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#669-677) uses a dangerous strict equality:\n\t- target.code.length == 0 (src/oracle/ODOracleGuard.sol#670)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L669-L677",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "d5108a5e177fcc52fc0b116d1055274c898c520b1c8429a7cb57dd5c7545ca05",
+  "id": "3826ce6e8f742e7023fdf05af63769978dd7b70044df58c3d8a29c925a55a30d",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- r.refP == 0 (src/oracle/ODOracleGuard.sol#414)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#336-433) uses a dangerous strict equality:\n\t- r.refP == 0 (src/oracle/ODOracleGuard.sol#422)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L336-L433",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "f26846633fb59c0b63efbc035ef5ccbeb8a55fcb4dbb64fbab27565e34d4a69a",
+  "id": "7686cf476a4a9855f4ab188412dec708236a48fd721126db0f6addfdc6470266",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#262-312) uses a dangerous strict equality:\n\t- e.r.session == Session.HALTED (src/oracle/ODOracleGuard.sol#297)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L262-L312",
+  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#267-317) uses a dangerous strict equality:\n\t- e.r.session == Session.HALTED (src/oracle/ODOracleGuard.sol#302)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L267-L317",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "f56e557d07b4e0025db8e35a6fee400036295831e118a0c8fba295a3d41670e3",
+  "id": "61581c022a87498e4fc5c906f76833f2814ba51c1d9f116d41088eb2648c8b65",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard._validatePool(MarketConfig) (src/oracle/ODOracleGuard.sol#480-495) uses a dangerous strict equality:\n\t- baseIsToken0 == (address(uint160(t1)) == cfg.stockToken) (src/oracle/ODOracleGuard.sol#489)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L480-L495",
+  "description": "ODOracleGuard._validatePool(MarketConfig) (src/oracle/ODOracleGuard.sol#488-503) uses a dangerous strict equality:\n\t- baseIsToken0 == (address(uint160(t1)) == cfg.stockToken) (src/oracle/ODOracleGuard.sol#497)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L488-L503",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -585,30 +585,30 @@
   "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
  },
  {
-  "id": "672d59f94c9ccc65da65599134cf9f8d716946347b07c8a8c3966f05763f0d52",
+  "id": "f18dd0d3d22a1d3f71d1a2997519a32a91da1c39facb8769f8c17e7d48688e07",
   "check": "missing-zero-check",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard.constructor(address,address,address,address,address).sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#114) lacks a zero-check on :\n\t\t- sequencerFeed = sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#120)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L114",
+  "description": "ODOracleGuard.constructor(address,address,address,address,address).sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#119) lacks a zero-check on :\n\t\t- sequencerFeed = sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#125)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L119",
   "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
  },
  {
-  "id": "d97fdaca9c094e0283cc9b74150370230fcabfe23e6f258a74c8f4e4c2021875",
+  "id": "1f95b434f3e9d781f24997fb0aa26dbdc9732910b77d9f6a1c53cd1ace9c5a9f",
   "check": "missing-zero-check",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard.constructor(address,address,address,address,address).pyth_ (src/oracle/ODOracleGuard.sol#114) lacks a zero-check on :\n\t\t- pyth = pyth_ (src/oracle/ODOracleGuard.sol#119)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L114",
+  "description": "ODOracleGuard.constructor(address,address,address,address,address).pyth_ (src/oracle/ODOracleGuard.sol#119) lacks a zero-check on :\n\t\t- pyth = pyth_ (src/oracle/ODOracleGuard.sol#124)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L119",
   "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
  },
  {
-  "id": "d1fb99bf8519b7e5545ad90294ef53afc7e7c6212df0f801f723af7471ca2052",
+  "id": "058d45dd52040d55f717b68ff89830d2a1b95b77ba13432bcbaa06763a223b4b",
   "check": "calls-loop",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#649-657) has external calls inside a loop: (ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#652)\n\tCalls stack containing the loop:\n\t\tODOracleGuard.haltedSince(bytes32)\n\t\tODOracleGuard._derivedHalt(MarketConfig,uint8)\n\t\tODOracleGuard._sessionKind(uint256)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L649-L657",
+  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#669-677) has external calls inside a loop: (ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#672)\n\tCalls stack containing the loop:\n\t\tODOracleGuard.haltedSince(bytes32)\n\t\tODOracleGuard._derivedHalt(MarketConfig,uint8)\n\t\tODOracleGuard._sessionKind(uint256)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L669-L677",
   "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
  },
  {
@@ -621,12 +621,12 @@
   "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
  },
  {
-  "id": "09342658bf09965b23de7759c5087c22b1b863b635e6dea9df815e4ca6bd4746",
+  "id": "2515c3bedc03a4b2f0ffc2c46671b3da0cc53b64aa1702f12b2001fbc0e74aec",
   "check": "return-bomb",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._sequencerDown() (src/oracle/ODOracleGuard.sol#633-647) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#636-637)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L633-L647",
+  "description": "ODOracleGuard._sequencerDown() (src/oracle/ODOracleGuard.sol#653-667) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#656-657)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L653-L667",
   "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
  },
  {
@@ -639,30 +639,30 @@
   "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
  },
  {
-  "id": "4ff0e09905317b7ea0b72f44623d74edf6925cb2e2fb2ff854b4f113369be9ed",
+  "id": "ad5cb4c3a93f4ddde0ac6cf94bd273de6f3a38fdf7212ec757e9fe502267f858",
   "check": "return-bomb",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._readFeed(address,uint8) (src/oracle/ODOracleGuard.sol#554-579) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#559-561)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L554-L579",
+  "description": "ODOracleGuard._readFeed(address,uint8) (src/oracle/ODOracleGuard.sol#574-599) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#579-581)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L574-L599",
   "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
  },
  {
-  "id": "96ac36345efaa80ebed76e7bbac14d63ac14bbbf0a34d634b53d81022ff8ace8",
+  "id": "3b4af9e70bb2d9ec12b81fc1049a01308f8f6a26f1e83b24aa9d748b2d70b0ce",
   "check": "return-bomb",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#602-630) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = pyth.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(getPriceUnsafe(bytes32),cfg.pythId)) (src/oracle/ODOracleGuard.sol#604-605)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L602-L630",
+  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#622-650) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = pyth.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(getPriceUnsafe(bytes32),cfg.pythId)) (src/oracle/ODOracleGuard.sol#624-625)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L622-L650",
   "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
  },
  {
-  "id": "e6a2d98e3a5598dc80b271a4eee76272fef68367802bf40f9ca32d47fb214ae5",
+  "id": "7fd5bcd635a4f1e0e42cab69393f11ff2c726f217c236ec4c6679bd9f1ff468d",
   "check": "return-bomb",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#649-657) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#652)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L649-L657",
+  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#669-677) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#672)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L669-L677",
   "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
  },
  {
@@ -675,12 +675,12 @@
   "triage": "false positive or accepted by design: ODBuyBurn.execute and ODBacker._mint are nonReentrant; the stale balance is only compared against a floor that reverts the whole call, so a reentrant top-up can only make the call revert."
  },
  {
-  "id": "894c2fa3e261fd7cb09eb6be3764bf08bd1c904f3f2a5fafd02ad8f93d9c2010",
+  "id": "152e16284bc4f2bb6c7d7f7dbb972775e66d743630bb323497d5973b839ed745",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
-  "description": "ODOracleGuard.liquidationBlock(bytes32) (src/oracle/ODOracleGuard.sol#248-257) uses a dangerous strict equality:\n\t- e.r.refP == 0 (src/oracle/ODOracleGuard.sol#254)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L248-L257",
+  "description": "ODOracleGuard.liquidationBlock(bytes32) (src/oracle/ODOracleGuard.sol#253-262) uses a dangerous strict equality:\n\t- e.r.refP == 0 (src/oracle/ODOracleGuard.sol#259)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L253-L262",
   "triage": "false positive or accepted by design: Zero check: refP 0 means the market has no reference now; exact by construction, not a balance."
  },
  {
@@ -1348,5 +1348,14 @@
   "description": "Reentrancy in ODGovernorRisk._drawInsurance(IERC20,IODInsurance,uint256) (src/governor/ODGovernorRisk.sol#481-488):\n\tExternal calls:\n\t- ins.cover(usdg) (src/governor/ODGovernorRisk.sol#483)\n\tEvent emitted after the call(s):\n\t- IODGovernor.InsuranceDrawn(usdg,got) (src/governor/ODGovernorRisk.sol#487)\n",
   "first_markdown_element": "src/governor/ODGovernorRisk.sol#L481-L488",
   "triage": "false positive or accepted by design: Event after a call to the fixed ODInsurance; the Governor entry point (onSell) is nonReentrant and no state depends on the event order."
+ },
+ {
+  "id": "8e0828720fa27e01c46dabed10216d3f5f412892bd7c0e1f1f3971245bf4acf2",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODMinterPricing._fromPyth(IODOracleGuard,bytes32) (src/governor/ODMinterPricing.sol#145-147) ignores return value by (None,pyth) = guard.refPrice(market) (src/governor/ODMinterPricing.sol#146)\n",
+  "first_markdown_element": "src/governor/ODMinterPricing.sol#L145-L147",
+  "triage": "accepted by design: ODMinterPricing._fromPyth needs only the source flag of ODOracleGuard.refPrice (I7-1); the reference price itself is already in the reading taken by context from guard.read / readRatio in the same call."
  }
 ]
