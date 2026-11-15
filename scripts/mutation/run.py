@@ -117,8 +117,8 @@ def make_worker(root: Path, wdir: Path, closure):
         dst = wdir / f
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(root / f, dst)
-    # vectors and other non-sol fixtures read through vm.readFile
-    for p in (root / "test").rglob("*.json"):
+    # vectors and deploy configs read through vm.readFile
+    for p in list((root / "test").rglob("*.json")) + list((root / "script").rglob("*.json")):
         dst = wdir / p.relative_to(root)
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(p, dst)
