@@ -251,7 +251,7 @@ All config comes from environment variables and is checked at startup (`app/src/
 | `VOL_STALE_WARN_SECONDS` | `900` | Warn when the vol oracle is older than this |
 | `FEES_MIN_USDG` | `50` | Smallest fee balance the crank distributes |
 | `PYTH_HERMES_URL` | `https://hermes.pyth.network` | Hermes base URL the `pyth-push` job fetches signed price updates from |
-| `PYTH_HERMES_API_KEY` | empty | Hermes API key. Empty = the `pyth-push` job stays idle and logs a warning (Pyth-referenced markets then go stale). Set it in the crank env file (`/etc/overdrive/crank.env`), never in git |
+| `PYTH_HERMES_API_KEY` | empty | Hermes API key. Empty = the `pyth-push` job pushes nothing and logs a warning (Pyth-referenced markets then go stale); its reference health check and critical alert still run. Set it in the crank env file (`/etc/overdrive/crank.env`), never in git |
 | `PYTH_HERMES_AUTH_HEADER` | `x-api-key` | Header that carries the key (never sent in the URL). Pyth Terminal keys use `Authorization`, sent as `Bearer <key>` |
 | `PYTH_PUSH_INTERVAL_SECONDS` | `45` | How often the job runs (10 to 3600); keep it below the smallest `refMaxAge` (120 s on mainnet) |
 | `PYTH_PUSH_FRESH_PERCENT` | `50` | Skip a push while the on-chain print is younger than this share of the market's `refMaxAge` (read from the guard per market) |
@@ -286,7 +286,7 @@ Never commit `.env` files or keys; they are ignored by `.gitignore`.
 Markets reference Pyth, and nothing on chain 4663 keeps Pyth fresh by itself. The crank job `pyth-push` does: every
 `PYTH_PUSH_INTERVAL_SECONDS` it reads each Pyth market's `refMaxAge` from the oracle guard, skips the push while the on-chain
 print is fresh enough or Hermes holds nothing newer, and otherwise calls `getUpdateFee` then `updatePriceFeeds` with exactly that fee.
-Without `PYTH_HERMES_API_KEY` it stays idle and warns. Steps: (1) get a Hermes API key from the Hermes provider; (2) put it in
+Without `PYTH_HERMES_API_KEY` it pushes nothing and warns; the reference health check and its critical alert still run on every pass. Steps: (1) get a Hermes API key from the Hermes provider; (2) put it in
 `/etc/overdrive/crank.env` as `PYTH_HERMES_API_KEY` (mode 0440); (3) fund the crank wallet (the fee and gas come from it; `gas-watch`
 alerts when it is low); (4) restart the crank, run once with `CRANK_DRY_RUN=1` and check the log line "Pyth prices pushed" shows
 `dryRun: true`, then arm. Check `GET /v1/status`: `oracle.ok` is true and every market shows `source` `pyth` or `twap`. A market with

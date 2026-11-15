@@ -11,6 +11,8 @@ import { contractAddress } from "../gears";
 import { fetchLatestUpdates, type HermesUpdate } from "../hermes";
 
 export const PYTH_PUSH_JOB = "pyth-push";
+/** Failed Hermes passes in a row after which the alert is critical instead of a warning. */
+export const HERMES_CRITICAL_AFTER = 3;
 
 export const PythAbi = parseAbi([
   "function getPriceUnsafe(bytes32 id) view returns ((int64 price, uint64 conf, int32 expo, uint256 publishTime))",
@@ -91,6 +93,25 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
   let restored = false;
   let warnedAt = 0;
   let intervalChecked = false;
+  let hermesFailures = 0; // passes in a row that could not get an update from Hermes
+
+  // I6-3: the health read and its critical alert. Runs on every pass, also when the push could not run (no key) or
+  // failed (Hermes refused the key, the fee read or the send failed): that is when a reference is about to go stale.
+  const health = async (): Promise<MarketReference[]> => {
+    const references = await checkReferences(context);
+    for (const ref of references.filter((r) => !r.ok)) {
+      await raiseAlert(context, {
+        key: `pyth-ref:${ref.symbol}`, level: "critical",
+        text: `Market ${ref.symbol} has no usable reference price (${ref.reason}). Buys, sells, fills and seals that need it are refused until it is fixed.`,
+        meta: { ...ref },
+      });
+    }
+    await saveJobMeta(context, PYTH_PUSH_JOB, {
+      reference: { checkedAt: new Date(nowMs()).toISOString(), ok: references.every((r) => r.ok), markets: references },
+      budget: { day, spentWei: spentWei.toString(), limitWei: budgetWei.toString() },
+    });
+    return references;
+  };
 
   const retry = async <T>(label: string, work: () => Promise<T>): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
@@ -106,10 +127,23 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
   return async (): Promise<Record<string, unknown>> => {
     const markets = pythMarkets(context);
     if (!markets.length) return { idle: true, reason: "no_pyth_markets" };
+    let pushed: Record<string, unknown> = { idle: true, reason: "fresh" };
+    const skipped: string[] = [];
+    let references: MarketReference[] = [];
+    try {
+      pushed = await pushPass(markets, skipped);
+    } finally {
+      // a failed push still rethrows after this (the run is reported failed); the alert below does not wait for it
+      references = await health();
+    }
+    return { ...pushed, skipped, references: references.map((r) => `${r.symbol}:${r.ok ? r.source : "none"}`) };
+  };
+
+  async function pushPass(markets: PythMarket[], skipped: string[]): Promise<Record<string, unknown>> {
     if (!config.PYTH_HERMES_API_KEY) {
       if (nowMs() - warnedAt > 3_600_000) {
         warnedAt = nowMs();
-        logger.warn({ job: PYTH_PUSH_JOB }, "PYTH_HERMES_API_KEY is not set: the Pyth push job is idle and Pyth-referenced markets will go stale on chain");
+        logger.warn({ job: PYTH_PUSH_JOB }, "PYTH_HERMES_API_KEY is not set: the Pyth push job pushes nothing and Pyth-referenced markets will go stale on chain");
       }
       return { idle: true, reason: "no_hermes_key" };
     }
@@ -135,7 +169,6 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
       ]) as never,
     }) as { status: string; result?: unknown }[];
     const stale: { market: PythMarket; published: number }[] = [];
-    const skipped: string[] = [];
     markets.forEach((market, i) => {
       const cfg = rows[i * 2]!;
       const price = rows[i * 2 + 1]!;
@@ -151,31 +184,18 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
     });
     intervalChecked = true;
 
-    let pushed: Record<string, unknown> = { idle: true, reason: "fresh" };
-    if (stale.length) {
-      pushed = await pushOnce(stale);
-    }
-    // 2. the health read, after any push
-    const references = await checkReferences(context);
-    for (const ref of references.filter((r) => !r.ok)) {
-      await raiseAlert(context, {
-        key: `pyth-ref:${ref.symbol}`, level: "critical",
-        text: `Market ${ref.symbol} has no usable reference price (${ref.reason}). Buys, sells, fills and seals that need it are refused until it is fixed.`,
-        meta: { ...ref },
-      });
-    }
-    await saveJobMeta(context, PYTH_PUSH_JOB, {
-      reference: { checkedAt: new Date(nowMs()).toISOString(), ok: references.every((r) => r.ok), markets: references },
-      budget: { day, spentWei: spentWei.toString(), limitWei: budgetWei.toString() },
-    });
-    return { ...pushed, skipped, references: references.map((r) => `${r.symbol}:${r.ok ? r.source : "none"}`) };
+    return stale.length ? pushOnce(stale) : { idle: true, reason: "fresh" };
 
     async function pushOnce(wanted: { market: PythMarket; published: number }[]): Promise<Record<string, unknown>> {
       const ids = wanted.map((w) => w.market.pythId);
       const update = await retry("hermes", () => fetchUpdates(ids)).catch(async (error) => {
-        await raiseAlert(context, { key: "pyth-push:hermes", level: "warn", text: `The Pyth push job cannot reach Hermes: ${error instanceof Error ? error.message : String(error)}` });
+        // one failed pass is a warning; HERMES_CRITICAL_AFTER in a row (a refused key does not heal) is critical
+        hermesFailures++;
+        const level = hermesFailures >= HERMES_CRITICAL_AFTER ? "critical" : "warn";
+        await raiseAlert(context, { key: `pyth-push:hermes:${level}`, level, text: `The Pyth push job cannot get prices from Hermes (${hermesFailures} passes in a row): ${error instanceof Error ? error.message : String(error)}` });
         throw error;
       });
+      hermesFailures = 0;
       const unknown = wanted.filter((w) => !update.publishTimes.has(w.market.pythId.toLowerCase())).map((w) => w.market.symbol);
       if (unknown.length) {
         logger.warn({ job: PYTH_PUSH_JOB, symbols: unknown }, "Hermes does not know these Pyth ids; check the id in the deployment config");
@@ -202,5 +222,5 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
       logger.info({ job: PYTH_PUSH_JOB, symbols: newer.map((n) => n.market.symbol), feeWei: fee.toString(), spentTodayWei: spentWei.toString(), dryRun: result.simulated }, "Pyth prices pushed");
       return { idle: false, pushed: newer.map((n) => n.market.symbol), feeWei: fee.toString(), dryRun: result.simulated, unknown };
     }
-  };
+  }
 }

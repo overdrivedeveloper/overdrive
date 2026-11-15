@@ -4,7 +4,7 @@ import { RevertError } from "../chain/revert";
 import { oracleOf } from "../api/routes/status";
 import { authHeaderValue, fetchLatestUpdates, HermesError } from "./hermes";
 import { checkReferences, createPythPushJob, PythAbi } from "./jobs/pyth-push";
-import { resetAlertMemory } from "./alerts";
+import { resetAlertMemory, setAlertSender, type Alert } from "./alerts";
 import { FakeChain, MARKET_ETH, MARKET_NVDA, MARKET_TSLA, nullSql } from "../testing/mock-chain";
 
 const ETH_ID = `0x${"11".repeat(32)}` as const;
@@ -80,6 +80,35 @@ describe("pyth push", () => {
     expect(warnings).toHaveLength(1);
     expect(hermesCalls).toBe(0);
     expect(chain.sent).toHaveLength(0);
+  });
+
+  // I6-3: the health read and its critical alert run on every pass, whatever happened to the push
+  test("no key: the reference health check still runs and raises the critical alert", async () => {
+    const alerts: Alert[] = [];
+    setAlertSender(async (alert) => { alerts.push(alert); });
+    try {
+      const result = await job({ PYTH_HERMES_API_KEY: "" })();
+      expect(result).toMatchObject({ idle: true, reason: "no_hermes_key" });
+      expect(result.references).toContain("ETH:none");
+      expect(hermesCalls).toBe(0);
+      expect(alerts.filter((a) => a.level === "critical").map((a) => a.key)).toEqual(["pyth-ref:ETH"]);
+    } finally { setAlertSender(undefined); }
+  });
+
+  test("Hermes refuses the key: the pass fails, the critical reference alert is raised first, and the Hermes alert turns critical", async () => {
+    const alerts: Alert[] = [];
+    setAlertSender(async (alert) => { alerts.push(alert); });
+    try {
+      const run = createPythPushJob(chain.context(nullSql, env), {
+        ...deps(), fetchUpdates: async () => { hermesCalls++; throw new HermesError("Hermes answered 403", 403); },
+      });
+      await expect(run()).rejects.toThrow("403");
+      expect(alerts.map((a) => `${a.level}:${a.key}`)).toEqual(["warn:pyth-push:hermes:warn", "critical:pyth-ref:ETH"]);
+      await expect(run()).rejects.toThrow("403");
+      await expect(run()).rejects.toThrow("403");
+      expect(alerts.map((a) => `${a.level}:${a.key}`)).toContain("critical:pyth-push:hermes:critical");
+      expect(chain.sent).toHaveLength(0);
+    } finally { setAlertSender(undefined); }
   });
 
   test("retries Hermes with doubling backoff, then gives up after the bound", async () => {
