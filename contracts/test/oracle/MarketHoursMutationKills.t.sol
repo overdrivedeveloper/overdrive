@@ -56,6 +56,34 @@ contract MarketHoursMutationKillsTest is Test {
         assertEq(mh.MAX_SESSION_GAP(), 5 days);
     }
 
+    /// Kills m5741 (_edgeAfter: inside a later pushed window the next edge read from window 0, `i % 1`, instead of
+    /// window i - 1). A span inside the second or third of three pushed windows holds no close; the wrong edge sent
+    /// the walk back in time until it failed closed.
+    function test_ClosedBetweenInsideLaterPushedWindows() public {
+        SessionWindow[] memory s = new SessionWindow[](3);
+        for (uint256 i; i < 3; ++i) {
+            uint256 o = TUE_1200 + i * 1 days;
+            s[i] = SessionWindow({open: uint64(o), close: uint64(o + 3 hours)});
+        }
+        _push(s);
+        for (uint256 i; i < 3; ++i) {
+            uint256 from = TUE_1200 + i * 1 days + 30 minutes;
+            assertFalse(mh.closedBetween(from, from + 2 hours, 1 hours), "in-session span inside window i");
+        }
+        // the gap between two windows is a close
+        assertTrue(mh.closedBetween(TUE_1200 + 1 hours, TUE_1200 + 1 days + 1 hours, 1 hours), "gap is a close");
+    }
+
+    /// Kills m5545 (closedBetween: the early exit looked up time 0, `to == minClosedSeconds`, instead of
+    /// `to - minClosedSeconds`). A one-hour span inside a weekend, checked against a close longer than any real one,
+    /// whose look-back point is a Tuesday noon in session, is answered false by that one lookup; without it the walk
+    /// over 200 days of calendar boundaries passes MAX_SCAN_STEPS and fails closed.
+    function test_ShortSpanAgainstVeryLongCloseUsesEarlyExit() public view {
+        uint256 from = TUE_1200 + 200 days; // a Saturday noon (EDT), out of session
+        uint256 minClosed = 200 days + 1 hours;
+        assertFalse(mh.closedBetween(from, from + 1 hours, minClosed), "no close that long");
+    }
+
     function _kinds(uint256 n) private pure returns (Session[] memory k) {
         k = new Session[](n);
         for (uint256 i; i < n; ++i) {
