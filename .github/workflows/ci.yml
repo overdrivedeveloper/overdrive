@@ -86,6 +86,8 @@ jobs:
         run: "! grep -rnE '!= 0\\) .*worse' src/oracle"
       - name: check_privileged_functions
         run: python3 script/ci/privileged-functions.py --check
+      - name: check_audit_scope
+        run: python3 script/ci/audit-scope.py --check
       - run: forge fmt --check
       - run: forge build
       - name: check_code_size
