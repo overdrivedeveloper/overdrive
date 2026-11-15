@@ -72,7 +72,13 @@ contract BackerRepayTest is BackerFixture {
         assertEq(_coll(id), 1_000e6 + proceeds - cost);
         assertEq(_debt(id), 300e18);
         assertEq(gov.backerDebt(sport), 300e18);
-        assertEq(gov.freeCash(), cash0 + cost);
+        // I6-1: the cost is cancelled against the sale credit (that USDG is already the Governor's free cash); what
+        // is left of the credit stays locked behind the 300 tokens still sold
+        (uint256 held, uint256 locked) = backer.vaultHeld(id);
+        assertEq(held, proceeds - cost);
+        assertEq(locked, held);
+        assertEq(gov.saleCredit(), held);
+        assertEq(gov.freeCash(), cash0);
         assertEq(gov.netTokens(sport), -300e18);
     }
 

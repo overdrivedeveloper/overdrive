@@ -32,6 +32,8 @@ contract BackerTest is GovernorFixture {
         gov.onBackerRepay(id, 1, 0, address(1));
     }
 
+    /// I6-1: a sale to the Governor pays nothing out. The proceeds are booked as sale credit, held to free cash, and
+    /// settled later from free cash only; the exit reserve never pays them.
     function test_SoldMintNeverUsesReserve() public {
         _fundReserve(10_000e6);
         vm.prank(backerC);
@@ -41,9 +43,29 @@ contract BackerTest is GovernorFixture {
         _fundCash(1_000e6);
         vm.prank(backerC);
         assertTrue(gov.onBackerMint(id, 100e18, true, 100e6, address(1)));
-        assertEq(usdg.balanceOf(backerC), 100e6);
-        assertEq(gov.freeCash(), 900e6);
-        assertEq(gov.exitReserve(), 10_000e6);
+        assertEq(usdg.balanceOf(backerC), 0, "nothing is paid at the sale");
+        assertEq(gov.saleCredit(), 100e6, "owed to the vault");
+        assertEq(gov.freeCash(), 1_000e6, "free cash untouched");
+        vm.prank(backerC);
+        assertFalse(gov.onBackerMint(id, 1e18, true, 901e6, address(1)), "credit of all vaults within free cash");
+        // settled: 60 paid from free cash, 40 kept by the Governor (a buy-back cost)
+        vm.prank(backerC);
+        assertEq(gov.settleSaleCredit(60e6, 40e6), 60e6);
+        assertEq(usdg.balanceOf(backerC), 60e6);
+        assertEq(gov.freeCash(), 940e6);
+        assertEq(gov.saleCredit(), 0);
+        // free cash short: it pays what there is, the unpaid part stays owed, the reserve does not move
+        vm.prank(backerC);
+        assertTrue(gov.onBackerMint(id, 100e18, true, 900e6, address(1)));
+        vm.prank(admin);
+        gov.moveToExitReserve(900e6);
+        vm.prank(backerC);
+        assertEq(gov.settleSaleCredit(900e6, 0), 40e6);
+        assertEq(gov.saleCredit(), 860e6, "the rest stays owed");
+        assertEq(gov.exitReserve(), 10_900e6, "the exit reserve never pays sale credit");
+        vm.prank(backerC);
+        vm.expectRevert();
+        gov.settleSaleCredit(0, 861e6); // more than is owed
     }
 
     /// The cap rule on the hook alone: here supply does not rise with the mint (a mock backer). For a mint to the

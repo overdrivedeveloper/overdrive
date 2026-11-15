@@ -400,6 +400,14 @@ contract MockAgentBacker is IODBacker, Unused {
         revert UnusedInMock();
     }
 
+    function totalHeld() external pure returns (uint256) {
+        return 0;
+    }
+
+    function vaultHeld(uint256) external pure returns (uint256, uint256) {
+        return (0, 0);
+    }
+
     function mintPaused() external pure returns (bool) {
         return false;
     }

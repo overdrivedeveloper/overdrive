@@ -39,7 +39,12 @@ contract BackerMintTest is BackerFixture {
         assertEq(_token(sport).totalSupply(), supply0, "no supply change");
         assertEq(gov.backerDebt(sport), 400e18);
         assertEq(gov.netTokens(sport), -400e18);
-        assertEq(gov.freeCash(), cash0 - proceeds);
+        assertEq(gov.freeCash(), cash0, "I6-1: the proceeds stay in the Governor's free cash");
+        assertEq(gov.saleCredit(), proceeds, "owed to the vault");
+        (uint256 held, uint256 locked) = backer.vaultHeld(id);
+        assertEq(held, proceeds, "held by the Governor");
+        assertEq(locked, proceeds, "locked behind the sold debt");
+        assertEq(usdg.balanceOf(address(backer)), 1_000e6, "the backer contract holds the deposit only");
         assertEq(usdg.balanceOf(alice), 0, "proceeds never leave the vault");
     }
 

@@ -2,15 +2,14 @@
 pragma solidity 0.8.26;
 
 import {BackerFixture} from "../backer/BackerFixture.sol";
-import {IODMinter} from "overdrive/interfaces/IODMinter.sol";
 
-/// Backer debt sold to the Governor is not debt minted to an owner's wallet (M-7), and until fix round 8 a holder
-/// sell on a gear whose net those sales alone had taken below zero was paid like any other: free cash, the exit
-/// reserve, insurance. Decision D32 (I4-1b) changes that on purpose: a sell that leaves net below zero is paid from
-/// free cash only, and queues when free cash is short ("holders queue sooner"), because the same path let one actor
-/// move the whole reserve and insurance into the Governor's book. What this file now guards: (1) such a sell still
-/// pays at once, in full, while free cash covers it; (2) short of free cash it queues and the reserve and insurance
-/// do not move; (3) with net at or above zero the reserve pays a holder exactly as before.
+/// Backer debt sold to the Governor is not debt minted to an owner's wallet (M-7). Fix round 8 (decision D32, I4-1b)
+/// paid a holder sell that left net below zero from free cash only; that rule let one actor lock holders out of a
+/// full exit reserve (I6-1) and is gone. Fix round 9 closes I4-1b at its cause instead: the proceeds of a direct sale
+/// never leave the Governor (sale credit), so the money holders are owed is still there. What this file guards:
+/// (1) with net below zero from direct sales, a holder sell pays at once from free cash while free cash covers it;
+/// (2) short of free cash the exit reserve pays it, at once, no more than her payout, insurance untouched, and the
+/// direct sale itself moved neither; (3) with net at or above zero the reserve pays a holder as it always did.
 contract DirectSaleBelowZeroTest is BackerFixture {
     uint256 internal constant RESERVE = 100_000e6;
     uint256 internal constant INSURANCE = 50_000e6;
@@ -29,7 +28,11 @@ contract DirectSaleBelowZeroTest is BackerFixture {
         // A backer sells 30% of the gear's cap straight to the Governor: net far below zero, nothing minted to a wallet.
         uint256 v = _open(bob, sport, 2_500_000e6);
         (uint256 value,) = minter.valuePerToken(sport);
+        uint256 cashBefore = gov.freeCash();
+        uint256 backerBefore = usdg.balanceOf(address(backer));
         _mint(bob, v, reg.gear(sport).capUsdWad * 3 / 10 / value * 1e18, true);
+        assertEq(gov.freeCash(), cashBefore, "the direct sale took no free cash");
+        assertEq(usdg.balanceOf(address(backer)), backerBefore, "and paid nothing out");
         assertLt(gov.netTokens(sport), -int256(aliceTokens), "net below zero before the holder sells");
 
         uint256 quoted = minter.quote(sport, false, true, aliceTokens).amountOut;
@@ -46,25 +49,18 @@ contract DirectSaleBelowZeroTest is BackerFixture {
         assertEq(gov.exitReserve(), res0, "from free cash, not the reserve");
         vm.revertToState(snap);
 
-        // (2) free cash nearly all moved to the exit reserve: the sell queues, the reserve and insurance stay whole
+        // (2) free cash nearly all moved to the exit reserve: the reserve pays her, at once (I6-1: no queue)
         uint256 keep = quoted / 20;
         uint256 c = gov.freeCash();
         vm.prank(admin);
         gov.moveToExitReserve(c - keep);
         res0 = gov.exitReserve();
-        assertTrue(minter.quote(sport, false, true, aliceTokens).queued, "quote: queued");
-        vm.prank(alice);
-        vm.expectRevert(IODMinter.UseQueue.selector);
-        minter.sell(sport, aliceTokens, 0, alice, uint64(vm.getBlockTimestamp()));
-        assertEq(gov.exitReserve(), res0, "exit reserve untouched");
-        assertEq(ins.balance(), ins0, "insurance untouched");
-        vm.prank(alice);
-        uint256 ticket = minter.queueSell(sport, aliceTokens, 0, alice);
-        vm.prank(admin);
-        gov.moveFromExitReserve(c - keep); // cash returns (here: the timelock's path back)
+        assertFalse(minter.quote(sport, false, true, aliceTokens).queued, "quote: instant");
         a0 = usdg.balanceOf(alice);
-        minter.fillQueued(ticket);
-        assertGt(usdg.balanceOf(alice), a0, "the queued sell is paid once free cash is back");
+        out = _sell(alice, sport, aliceTokens);
+        assertEq(usdg.balanceOf(alice) - a0, quoted, "paid in full in the same call");
+        assertGe(res0 - gov.exitReserve(), quoted - keep, "the exit reserve paid what free cash could not");
+        assertLe(res0 - gov.exitReserve(), quoted, "and no more than her payout");
         assertEq(ins.balance(), ins0, "insurance untouched");
     }
 

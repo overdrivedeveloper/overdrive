@@ -214,6 +214,8 @@ contract LiquidationInvariantTest is BackerFixture, IWalk {
             sum += c;
         }
         assertEq(backer.totalCollateral(), sum);
-        assertEq(usdg.balanceOf(address(backer)), backer.totalCollateral() + backer.pendingFees());
+        // I6-1: sale credit is collateral the Governor holds
+        assertEq(usdg.balanceOf(address(backer)) + backer.totalHeld(), backer.totalCollateral() + backer.pendingFees());
+        assertEq(gov.saleCredit(), backer.totalHeld());
     }
 }

@@ -195,6 +195,7 @@ contract SystemHandler is Test, Ghosts {
             if (pend < _feePendingBefore || held != _feeHeldBefore) ++feeViolations;
             else feesNotified += pend - _feePendingBefore;
         }
+        _p2(gearIds[totalCalls % gearIds.length], false);
         _count(name, true);
     }
 
@@ -371,8 +372,8 @@ contract SystemHandler is Test, Ghosts {
         // M-7: the reserve stands behind all supply above the backer debt minted to owners' wallets; the share of a
         // sell that takes supply below that debt is paid from the backer sale lock then free cash, so R1 speaks while
         // the sell keeps supply >= backerOwnDebt. Net below zero from sales to the Governor alone does not excuse it.
-        // I4-1b (D32): and only while the sell keeps net at or above zero against all backer debt.
-        bool keepsNet = t.totalSupply() >= s.gov.backerDebt(g) + (exactIn ? amount : q.amountIn);
+        // I6-1: net below zero from sales to the Governor no longer excuses a refusal (the D32 rule is gone).
+        bool keepsNet = t.totalSupply() >= ghostOwnGear[g] + (exactIn ? amount : q.amountIn);
         bool r1 = qok && aboveFloor && r.p != 0 && r.refP != 0 && payout != 0 && payout <= reserve
             && s.minter.settledValue(g) == 0 && keepsNet;
         // The hook takes the input tokens out of the PoolManager before the swapper settles, so a hook sell needs the
@@ -655,13 +656,15 @@ contract SystemHandler is Test, Ghosts {
         uint256 room = req == 0 ? 0 : coll * 1e12 * 10_000 / req;
         uint256 maxTokens = v == 0 || room <= debtWad ? 1e18 : (room - debtWad) * 1e18 / v;
         tokens = _bound(tokens, 1e18, maxTokens < 1e18 ? 1e18 : maxTokens);
+        if (sellToGovernor) {
+            if (!_directSale(id, owner, tokens)) ++revertsOf["backerMint"];
+            return;
+        }
         vm.prank(owner);
-        try s.backer.mint(id, tokens, sellToGovernor, 0) {
-            if (!sellToGovernor) {
-                ghostOwnOf[id] += tokens;
-                ghostOwnGear[g] += tokens;
-                _ceilingCheck(owner);
-            }
+        try s.backer.mint(id, tokens, false, 0) {
+            ghostOwnOf[id] += tokens;
+            ghostOwnGear[g] += tokens;
+            _ceilingCheck(owner);
         } catch {
             ++revertsOf["backerMint"];
         }
@@ -689,8 +692,7 @@ contract SystemHandler is Test, Ghosts {
         (uint256 id, address owner,, uint256 debt) = _vault(vaultIdx);
         if (id == 0) return;
         if (sellFirst) {
-            vm.prank(owner);
-            try s.backer.mint(id, _bound(tokens, 1e18, 50e18), true, 0) {} catch {}
+            _directSale(id, owner, _bound(tokens, 1e18, 50e18));
             (,,, debt,) = s.backer.vault(id);
         }
         if (debt == 0) return;
@@ -737,11 +739,8 @@ contract SystemHandler is Test, Ghosts {
         return payout != 0 && tokensIn != 0 && r.p != 0 && r.refP != 0 && s.minter.settledValue(g) == 0
             && _tok(g).totalSupply() >= ghostOwnGear[g] + tokensIn
             && payout + s.gov.feeOwed()
-                <= s.gov.freeCash()
-                    // I4-1b: the reserve and insurance stand only behind a sell that keeps net at or above zero
-                    + (_tok(g).totalSupply() >= s.gov.backerDebt(g) + tokensIn
-                            ? s.gov.exitReserve() + IODInsurance(address(s.gov.insurance())).balance()
-                            : 0);
+                // I6-1: at any net (a direct sale takes no USDG out of the Governor, so the D32 carve-out is gone)
+                <= s.gov.freeCash() + s.gov.exitReserve() + IODInsurance(address(s.gov.insurance())).balance();
     }
 
     /// M-8: right after a successful own mint the locks of all gears are within maxLockBps of free cash plus locks.
@@ -809,8 +808,6 @@ contract SystemHandler is Test, Ghosts {
         }
     }
 
-    uint256 public netBelowZeroDraws; // I4-1b: sells that left net below zero and drew the reserve or insurance
-
     struct M7Pre {
         uint256 room; // supply above the gear's own-minted backer debt: the tokens the reserve stands behind
         uint256 res;
@@ -843,7 +840,6 @@ contract SystemHandler is Test, Ghosts {
         uint256 fromLock = p.lock > lockNow ? p.lock - lockNow : 0;
         if (lockNow > p.lock || fromLock > paid - (allowed > paid ? paid : allowed) + 1) ++m7LockViolations;
         if (s.gov.netTokens(g) < 0) {
-            if (drawn != 0) ++netBelowZeroDraws; // I4-1b: such a sell is paid from free cash (and its lock) only
             ++m7BelowZero;
             if (above == burned) ++m7BelowZeroDirect;
         }
@@ -973,6 +969,188 @@ contract SystemHandler is Test, Ghosts {
                 if (_sel(e) == IODGovernor.HedgeStale.selector) ++claimHedgeStale;
                 else _gated("claim", e);
             }
+        }
+    }
+
+    // ============================================================================================ I6-1 direct sales
+
+    address public constant ATTACKER = address(uint160(uint256(keccak256("od.invariant.attacker"))));
+    mapping(bytes32 gear => uint256) internal attackerVault;
+    uint256 public directSales; // successful sales of backer debt to the Governor (any vault)
+    uint256 public roundTrips; // attacker cycles buy, direct sale, sell that completed
+    uint256 public attackerDrawn; // exit reserve plus insurance that fell inside an attacker round trip
+    uint256 public p1Violations; // P1: ...beyond the fees that left for ODFees in the same call
+    uint256 public attackerDrawnBeyondFees; // P1: the USDG of those violations (0)
+    uint256 public p2Checked; // P2: honest full exits the exit reserve alone could pay
+    uint256 public p2Violations; // P2: ...that were quoted as queued
+    uint256 public p2AfterAttack; // P2 checks made right after an attacker action with net below zero
+    uint256 public p3Violations; // P3: a direct sale that moved USDG out of the Governor or made it withdrawable
+    uint256 public creditPaid; // sale credit the Governor paid out to the backer contract (after the debt cleared)
+
+    /// P3: one sale of backer debt to the Governor. The proceeds must stay in the Governor: its free cash does not
+    /// fall, the backer contract and the owner receive nothing, and the vault's withdrawable collateral (collateral
+    /// less the part held by the Governor) does not rise. A toll fee charged in the same call only lowers them.
+    function _directSale(uint256 id, address owner, uint256 amount) internal returns (bool ok) {
+        uint256 cash0 = s.gov.freeCash();
+        uint256 credit0 = s.gov.saleCredit();
+        uint256 bal0 = s.usdg.balanceOf(address(s.backer));
+        uint256 own0 = s.usdg.balanceOf(owner);
+        uint256 liquid0 = _liquid(id);
+        (uint256 held0, uint256 locked0) = s.backer.vaultHeld(id);
+        vm.prank(owner);
+        try s.backer.mint(id, amount, true, 0) returns (uint256 proceeds) {
+            ok = true;
+            ++directSales;
+            (uint256 held, uint256 locked) = s.backer.vaultHeld(id);
+            // the toll fee of the call may have been paid out of older credit: `out` left the Governor for it
+            uint256 creditNow = s.gov.saleCredit();
+            uint256 out = credit0 + proceeds > creditNow ? credit0 + proceeds - creditNow : 0;
+            if (
+                s.gov.freeCash() > cash0 || s.usdg.balanceOf(address(s.backer)) > bal0 + out
+                    || s.usdg.balanceOf(owner) != own0 || _liquid(id) > liquid0 || creditNow > credit0 + proceeds
+                    || held + out != held0 + proceeds || locked + out < locked0 + proceeds
+            ) ++p3Violations;
+            // and none of it can be withdrawn while the debt is open
+            vm.prank(owner);
+            try s.backer.withdraw(id, _liquid(id) + 1, owner) {
+                ++p3Violations;
+            } catch {}
+        } catch {}
+    }
+
+    function _liquid(uint256 id) internal view returns (uint256) {
+        (,, uint256 coll,,) = s.backer.vault(id);
+        (uint256 held,) = s.backer.vaultHeld(id);
+        return coll - held;
+    }
+
+    function _attackerVault(uint256 gearIdx) internal returns (uint256 id, bytes32 g) {
+        uint256 n = gearIds.length;
+        for (uint256 k; k < n; ++k) {
+            g = _gear(gearIdx % n + k);
+            if (!isEco[(gearIdx % n + k) % n]) break;
+        }
+        id = attackerVault[g];
+        if (id != 0) return (id, g);
+        _fund(ATTACKER, 300_000e6, address(s.backer));
+        vm.prank(ATTACKER);
+        try s.backer.openVault(g, 300_000e6) returns (uint256 v) {
+            id = v;
+            attackerVault[g] = v;
+            vaultIds.push(v); // the other backer actions and the liquidator reach it too
+        } catch {}
+    }
+
+    /// P2: for every holder of `g`, a full exit that the exit reserve alone could pay is not quoted as queued, as
+    /// long as both prices are there and the exit stays above the wallet-minted debt (M-7: that tail is paid from
+    /// the backer sale lock and free cash by design). `afterAttack`: counts the checks made with net below zero.
+    function _p2(bytes32 g, bool afterAttack) internal {
+        if (s.minter.settledValue(g) != 0) return;
+        PriceReading memory r = _reading(g);
+        if (r.p == 0 || r.refP == 0) return;
+        uint256 supply = _tok(g).totalSupply();
+        uint256 reserve = s.gov.exitReserve();
+        for (uint256 i; i < 5; ++i) {
+            address who = a.holders[i];
+            uint256 bal = _tok(g).balanceOf(who);
+            if (bal == 0 || supply < ghostOwnGear[g] + bal) continue;
+            (bool qok, Quote memory q) = _quote(who, g, false, true, bal);
+            if (!qok || q.amountOut == 0 || q.amountOut > reserve) continue;
+            ++p2Checked;
+            if (afterAttack && s.gov.netTokens(g) < 0) ++p2AfterAttack;
+            if (q.queued) ++p2Violations;
+        }
+    }
+
+    /// P1 (I4-1b): the attacker buys as a holder, sells the same amount of debt straight to the Governor, and sells
+    /// the bought tokens, in one call (no price move in between). His exit is paid by his own buy: the exit reserve
+    /// and insurance must not fall by more than the fees that left for ODFees in the same call (the Governor's fee
+    /// backlog and the toll accrued by the buy, both settled out of the cash the buy brought, and the vault's own
+    /// toll fee, which the vault pays).
+    function attackRoundTrip(uint256 gearIdx, uint256 usdg) external step("attackRoundTrip") {
+        (uint256 id, bytes32 g) = _attackerVault(gearIdx);
+        if (id == 0) return;
+        usdg = _bound(usdg, 100e6, 20_000e6);
+        uint256 fees0 = s.usdg.balanceOf(address(s.fees)) + s.backer.pendingFees();
+        uint256 res0 = s.gov.exitReserve();
+        uint256 ins0 = IODInsurance(address(s.gov.insurance())).balance();
+        _fund(ATTACKER, usdg, address(s.minter));
+        vm.prank(ATTACKER);
+        try s.minter.buy(g, usdg, 0, ATTACKER, _now64()) returns (uint256 out) {
+            _directSale(id, ATTACKER, out);
+            uint256 u0 = s.usdg.balanceOf(ATTACKER);
+            vm.prank(ATTACKER);
+            try s.minter.sell(g, out, 0, ATTACKER, _now64()) {
+                ++roundTrips;
+                _holderPaidThisCall = s.usdg.balanceOf(ATTACKER) - u0;
+            } catch {}
+        } catch {
+            ++revertsOf["attackRoundTrip"];
+        }
+        uint256 resNow = s.gov.exitReserve();
+        uint256 insNow = IODInsurance(address(s.gov.insurance())).balance();
+        uint256 drawn = (res0 > resNow ? res0 - resNow : 0) + (ins0 > insNow ? ins0 - insNow : 0);
+        uint256 feesNow = s.usdg.balanceOf(address(s.fees)) + s.backer.pendingFees();
+        uint256 feesPaid = feesNow > fees0 ? feesNow - fees0 : 0;
+        attackerDrawn += drawn;
+        if (drawn > feesPaid) {
+            ++p1Violations;
+            attackerDrawnBeyondFees += drawn - feesPaid;
+        }
+        _p2(g, true);
+    }
+
+    /// P2 (I6-1): the attacker sells debt to the Governor, several times, sized to take the gear's net below zero,
+    /// then every honest holder's exit is checked against the exit reserve.
+    function attackSqueeze(uint256 gearIdx, uint256 share) external step("attackSqueeze") {
+        (uint256 id, bytes32 g) = _attackerVault(gearIdx);
+        if (id == 0) return;
+        uint256 supply = _tok(g).totalSupply();
+        uint256 unit = supply == 0 ? 10e18 : supply * _bound(share, 10, 60) / 100;
+        for (uint256 i; i < 3; ++i) {
+            if (!_directSale(id, ATTACKER, unit)) unit /= 4;
+            if (unit == 0) break;
+        }
+        _p2(g, true);
+    }
+
+    /// The attacker leaves: buys debt back with USDG and withdraws what is free. Sale credit reaches the backer
+    /// contract only here (or in a repay or a liquidation), never at the sale.
+    function attackUnwind(uint256 gearIdx, uint256 share) external step("attackUnwind") {
+        (uint256 id, bytes32 g) = _attackerVault(gearIdx);
+        if (id == 0) return;
+        (,,, uint256 debt,) = s.backer.vault(id);
+        uint256 credit0 = s.gov.saleCredit();
+        uint256 bal0 = s.usdg.balanceOf(address(s.backer));
+        if (debt != 0) {
+            vm.prank(ATTACKER);
+            try s.backer.repayWithUsdg(id, debt * _bound(share, 1, 100) / 100, type(uint256).max) {
+                ++usdgRepays;
+            } catch {
+                ++revertsOf["attackUnwind"];
+            }
+            _syncOwn();
+        }
+        uint256 balNow = s.usdg.balanceOf(address(s.backer));
+        if (balNow > bal0) {
+            creditPaid += balNow - bal0;
+            // what arrived was credit, and no more than the credit that was settled
+            if (balNow - bal0 > credit0 - s.gov.saleCredit()) ++p3Violations;
+        }
+        vm.prank(ATTACKER);
+        try s.backer.withdraw(id, _liquid(id) / 2, ATTACKER) {} catch {}
+        _p2(g, true);
+    }
+
+    /// The timelock moves nearly all free cash into the exit reserve (unmetered for the admin), so later exits lean
+    /// on the reserve: the state in which I6-1 locked holders out.
+    function leanOnReserve(uint256 keepBps) external step("leanOnReserve") {
+        uint256 cash = s.gov.freeCash();
+        uint256 move = cash - cash * _bound(keepBps, 0, 500) / 10_000;
+        vm.prank(address(s.timelock));
+        try s.gov.moveToExitReserve(move) {}
+        catch {
+            ++revertsOf["leanOnReserve"];
         }
     }
 

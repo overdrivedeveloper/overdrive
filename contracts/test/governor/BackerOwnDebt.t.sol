@@ -46,31 +46,30 @@ contract BackerOwnDebtTest is GovernorFixture {
         ins.fund(amount);
     }
 
-    /// Sales to the Governor took net below zero; no mint to a wallet. I4-1b (D32): the holder's sell, which leaves
-    /// net below zero, is paid from free cash only; short of it the sell is refused (the minter queues it) and the
-    /// exit reserve and insurance do not move.
-    function test_DirectSaleBelowZeroPaysFromFreeCashOnly() public {
+    /// Sales to the Governor took net below zero; no mint to a wallet. I6-1: the direct sale took no USDG out of the
+    /// Governor (sale credit), so the holder's sell is paid like any other: free cash, the exit reserve, insurance.
+    function test_DirectSaleBelowZero_HolderIsPaidLikeAnySell() public {
         _buy(id, 300e18, 300e6);
+        uint256 cash0 = gov.freeCash();
         _direct(500e18, 500e6);
+        assertEq(gov.freeCash(), cash0, "the direct sale took no free cash");
+        assertEq(gov.saleCredit(), 500e6, "its proceeds are owed, not paid");
         assertEq(gov.netTokens(id), -200e18);
         assertEq(gov.backerOwnDebt(id), 0, "no own-minted debt");
         assertEq(gov.backerLock(id), 0);
         _leaveCash(100e6);
         uint256 res = gov.exitReserve();
         _fundInsurance(100e6);
-        assertFalse(gov.canPaySell(id, 300e18, 100e6 + 1, 0), "quote: queued, one unit past free cash");
-        uint256 snap = vm.snapshotState(); // the mock minter burns before it asks; the real one reverts UseQueue
-        assertFalse(_sell(id, 300e18, 100e6 + res + 50e6), "refused: the minter queues it");
-        assertEq(gov.exitReserve(), res, "exit reserve untouched");
-        assertEq(ins.balance(), 100e6, "insurance untouched");
-        vm.revertToState(snap);
-        assertTrue(gov.canPaySell(id, 300e18, 100e6, 0), "quote: instant inside free cash");
+        uint256 out = 100e6 + res + 50e6;
+        assertTrue(gov.canPaySell(id, 300e18, out, 0), "quote: instant");
+        assertFalse(gov.canPaySell(id, 300e18, out + 51e6, 0), "past free cash, the reserve and insurance: queued");
         uint256 a0 = usdg.balanceOf(alice);
-        assertTrue(_sell(id, 300e18, 100e6), "paid instantly from free cash");
-        assertEq(usdg.balanceOf(alice) - a0, 100e6);
-        assertEq(gov.freeCash(), 0);
-        assertEq(gov.exitReserve(), res, "exit reserve untouched");
-        assertEq(ins.balance(), 100e6, "insurance untouched");
+        assertTrue(_sell(id, 300e18, out), "paid instantly");
+        assertEq(usdg.balanceOf(alice) - a0, out);
+        assertEq(gov.freeCash(), 0, "free cash first");
+        assertEq(gov.exitReserve(), 0, "then the exit reserve");
+        assertEq(ins.balance(), 50e6, "then insurance");
+        assertEq(gov.saleCredit(), 500e6, "the credit is still owed, and only free cash will pay it");
     }
 
     /// The same sell while net stays at or above zero is paid as it always was: free cash, the reserve, insurance.
@@ -87,7 +86,7 @@ contract BackerOwnDebtTest is GovernorFixture {
         assertEq(gov.freeCash(), 0, "free cash first");
         assertEq(gov.exitReserve(), 0, "then the exit reserve");
         assertEq(ins.balance(), 50e6, "then insurance");
-        assertFalse(gov.canPaySell(id, 1e18, 1, 0), "one token further leaves net below zero: free cash only");
+        assertTrue(gov.canPaySell(id, 1e18, 1, 0), "one token further leaves net below zero: paid all the same");
     }
 
     /// Both kinds of debt open, net below zero. The holder's tokens above the own-minted debt are paid from free cash
@@ -103,13 +102,12 @@ contract BackerOwnDebtTest is GovernorFixture {
         _leaveCash(10e6);
         uint256 res = gov.exitReserve();
 
-        // The holder: supply 400 to 100, never below the own-minted 100, but net stays below zero: free cash only.
-        assertFalse(gov.canPaySell(id, 300e18, 300e6, 0), "short of free cash: queues, whatever the reserve holds");
-        _fundCash(290e6);
-        assertTrue(gov.canPaySell(id, 300e18, 300e6, 0));
-        assertTrue(_sell(id, 300e18, 300e6), "holder paid instantly from free cash");
+        // The holder: supply 400 to 100, never below the own-minted 100. Net stays below zero; paid like any sell.
+        assertTrue(gov.canPaySell(id, 300e18, 300e6, 0), "free cash, then the reserve");
+        assertTrue(_sell(id, 300e18, 300e6), "holder paid instantly");
         assertEq(gov.freeCash(), 0);
-        assertEq(gov.exitReserve(), res, "never the reserve");
+        res -= 290e6;
+        assertEq(gov.exitReserve(), res, "the reserve paid what free cash could not");
         assertEq(gov.backerLock(id), 80e6, "lock untouched");
 
         // The owner's tokens: supply 100 to 0, all below the own-minted debt. Lock 80, free cash must find 20.
@@ -132,14 +130,15 @@ contract BackerOwnDebtTest is GovernorFixture {
         IERC20 tok = _token(id);
         vm.prank(bob);
         assertTrue(tok.transfer(alice, 100e18));
-        _leaveCash(30e6);
+        _leaveCash(10e6);
         uint256 res = gov.exitReserve();
-        assertFalse(gov.canPaySell(id, 400e18, 400e6, 0), "30 of free cash is short of 20 + 300");
-        _fundCash(290e6);
+        assertFalse(gov.canPaySell(id, 400e18, 400e6, 0), "10 of free cash is short of the 20 the own share needs");
+        _fundCash(20e6);
+        assertTrue(gov.canPaySell(id, 400e18, 400e6, 0));
         assertTrue(_sell(id, 400e18, 400e6));
         assertEq(gov.backerLock(id), 0, "lock: 80 of the 100 share");
-        assertEq(gov.freeCash(), 0, "free cash: 20 of that share and the 300 of the rest");
-        assertEq(gov.exitReserve(), res, "never the reserve");
+        assertEq(gov.freeCash(), 0, "free cash: 20 of that share and 10 of the rest");
+        assertEq(gov.exitReserve(), res - 290e6, "the reserve: the other 290 of the rest, none of the own share");
     }
 
     /// With the reserve and insurance full and free cash empty, the own-minted share alone cannot be paid.

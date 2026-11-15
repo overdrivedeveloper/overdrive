@@ -73,12 +73,15 @@ contract OwnDebtAttributionTest is BackerFixture {
         if (!ownFirst) _mint(bob, a, 300e18, false);
         uint256 lock0 = _lock(sport);
         uint256 cash0 = gov.freeCash();
+        uint256 credit0 = gov.saleCredit();
         assertEq(backer.vaultOwnDebt(a), 300e18);
         if (burn) _burn(bob, a, 200e18);
         else _buyBack(bob, a, 200e18);
         assertEq(_own(sport), 300e18, "the first 200 repaid are the sold debt");
         assertEq(_lock(sport), lock0);
-        if (burn) assertEq(gov.freeCash(), cash0, "nothing released");
+        // I6-1: the burn pays the sale credit of the sold debt out of free cash; nothing leaves the lock
+        if (burn) assertEq(gov.freeCash(), cash0 - credit0, "only the sale credit was paid, nothing released");
+        assertEq(gov.saleCredit(), 0, "the sold debt is gone and so is its credit");
         if (burn) _burnFromHolder(a, 100e18);
         else _buyBack(bob, a, 100e18);
         assertEq(_own(sport), 200e18);

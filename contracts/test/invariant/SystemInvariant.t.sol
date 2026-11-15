@@ -148,7 +148,16 @@ contract SystemInvariantTest is HookFixture {
         sel[25] = SystemHandler.backerSell.selector; // M-7
         sel[26] = SystemHandler.backerSell.selector;
         targetSelector(FuzzSelector({addr: address(h), selectors: sel}));
-        bytes4[] memory extra = new bytes4[](10);
+        bytes4[] memory extra = new bytes4[](19);
+        extra[10] = SystemHandler.attackRoundTrip.selector; // I4-1b: the attacker's vector, weighted so it is reached
+        extra[11] = SystemHandler.attackRoundTrip.selector;
+        extra[12] = SystemHandler.attackRoundTrip.selector;
+        extra[13] = SystemHandler.attackSqueeze.selector; // I6-1
+        extra[14] = SystemHandler.attackSqueeze.selector;
+        extra[15] = SystemHandler.attackUnwind.selector;
+        extra[16] = SystemHandler.leanOnReserve.selector; // exits lean on the reserve (reserveDrawn > 0)
+        extra[17] = SystemHandler.leanOnReserve.selector;
+        extra[18] = SystemHandler.sell.selector;
         extra[7] = SystemHandler.crossOwnSell.selector; // rescore 4: sells that cross the own-minted debt
         extra[8] = SystemHandler.crossOwnSell.selector;
         extra[9] = SystemHandler.crossOwnSell.selector;
@@ -287,7 +296,12 @@ contract SystemInvariantTest is HookFixture {
     /// forge-config: deep.invariant.depth = 10
     function invariant_BooksCovered() public view {
         assertGe(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve(), "R5: governor books");
-        assertGe(usdg.balanceOf(address(backer)), backer.totalCollateral() + backer.pendingFees(), "R5: backer books");
+        // I6-1: sale credit is collateral the Governor holds, not this contract
+        assertGe(
+            usdg.balanceOf(address(backer)) + backer.totalHeld(),
+            backer.totalCollateral() + backer.pendingFees(),
+            "R5: backer books"
+        );
         uint256 sum;
         for (uint256 id = 1; id <= backer.vaultCount(); ++id) {
             (,, uint256 c,,) = backer.vault(id);
@@ -404,7 +418,34 @@ contract SystemInvariantTest is HookFixture {
     function invariant_HolderSellLiveness() public view {
         assertEq(h.liveViolations(), 0, "S18: a covered holder sell was queued");
         assertEq(h.lockCeilingViolations(), 0, "S18: an own mint passed the lock ceiling");
-        assertEq(h.netBelowZeroDraws(), 0, "S19: the reserve or insurance funded a sell that left net below zero");
+    }
+
+    /// I6-1 and I4-1b, the properties behind the direct-sale design (INVARIANTS.md S19 to S21).
+    /// P1 (S19): the attacker's round trip (buy, sell the same debt to the Governor, sell the bought tokens) never
+    /// draws the exit reserve or insurance beyond the fees paid to ODFees in the same call; the reserve pays holders
+    /// only (R8).
+    /// P2 (S20): whatever one actor did with direct sales, an honest holder's full exit that the exit reserve alone
+    /// could pay is never quoted as queued. P3 (S21): direct-sale proceeds never leave the Governor at the sale, are
+    /// never withdrawable while held, and the two books of that credit agree.
+    /// forge-config: default.invariant.runs = 16
+    /// forge-config: default.invariant.depth = 40
+    /// forge-config: deep.invariant.runs = 2
+    /// forge-config: deep.invariant.depth = 10
+    function invariant_DirectSaleProperties() public view {
+        assertEq(h.p1Violations(), 0, "S19/P1: an attacker round trip drew the exit reserve or insurance");
+        assertEq(h.p2Violations(), 0, "S20/P2: an exit the reserve could pay was queued");
+        assertEq(h.p3Violations(), 0, "S21/P3: direct-sale proceeds left the Governor or became withdrawable");
+        assertEq(gov.saleCredit(), backer.totalHeld(), "S21: sale credit == collateral held by the Governor");
+        uint256 sum;
+        for (uint256 id = 1; id <= backer.vaultCount(); ++id) {
+            (,, uint256 c, uint256 debt,) = backer.vault(id);
+            (uint256 held, uint256 locked) = backer.vaultHeld(id);
+            sum += held;
+            assertLe(held, c, "S21: held within collateral");
+            assertLe(locked, held, "S21: locked within held");
+            if (debt == backer.vaultOwnDebt(id)) assertEq(locked, 0, "S21: nothing locked without sold debt");
+        }
+        assertEq(sum, backer.totalHeld(), "S21: held sum");
     }
 
     /// forge-config: default.invariant.runs = 16
@@ -528,6 +569,7 @@ contract SystemInvariantTest is HookFixture {
         invariant_OnlyTimelockUnpauses();
         invariant_FeesConserved();
         invariant_BackerSupplyNeverDrawsReserve();
+        invariant_DirectSaleProperties();
     }
 
     /// Coverage evidence per run, one parseable line (script/ci/deep-invariants.sh sums them; shown with -vv).
@@ -589,6 +631,23 @@ contract SystemInvariantTest is HookFixture {
             vm.toString(h.liveChecked()),
             " usdgRepays=",
             vm.toString(h.usdgRepays())
+        );
+        line = string.concat(
+            line,
+            " directSales=",
+            vm.toString(h.directSales()),
+            " roundTrips=",
+            vm.toString(h.roundTrips()),
+            " attackerDrawn=",
+            vm.toString(h.attackerDrawn()),
+            " attackerDrawnBeyondFees=",
+            vm.toString(h.attackerDrawnBeyondFees()),
+            " p2Checked=",
+            vm.toString(h.p2Checked()),
+            " p2AfterAttack=",
+            vm.toString(h.p2AfterAttack()),
+            " creditPaid=",
+            vm.toString(h.creditPaid())
         );
         console.log(line);
         // one line per run for the deep script to sum (out/ is the only writable path)
