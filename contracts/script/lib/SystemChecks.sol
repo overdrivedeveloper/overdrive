@@ -23,11 +23,12 @@ import {ODStake} from "overdrive/stake/ODStake.sol";
 import {ODPaymaster} from "overdrive/agent/ODPaymaster.sol";
 import {ODRoles} from "overdrive/interfaces/ODRoles.sol";
 import {GearConfig, MarketConfig} from "overdrive/interfaces/ODTypes.sol";
+import {IODMarketHours, Holiday} from "overdrive/interfaces/IODMarketHours.sol";
 
 /// @title SystemChecks
 /// @notice The read-only live check of a deployment against its config (todo 11 rule R8). Every failure is one line
 /// starting with its check tag: CHAIN CODE WIRING ROLE DELAY HOOK_FLAGS POOL FEED MARKET_CONFIG ORC-CARD CAP SEEDED
-/// GEAR_CAP. An empty list is a pass.
+/// GEAR_CAP HOLIDAYS. An empty list is a pass.
 abstract contract SystemChecks is DeploymentFile {
     using StateLibrary for IPoolManager;
 
@@ -55,6 +56,7 @@ abstract contract SystemChecks is DeploymentFile {
         if (!fork && block.chainid != c.chainId) _fail(a, "CHAIN", "RPC chain id differs from the config");
         if (_checkCode(a, d)) {
             _checkWiring(a, c, d);
+            _checkHolidays(a, c, d);
             _checkRoles(a, c, d, deployer);
             _checkTimelock(a, c, d, deployer);
             _checkHookAndPools(a, c, d);
@@ -112,6 +114,17 @@ abstract contract SystemChecks is DeploymentFile {
 
     function _eq(Acc memory a, address target, string memory sig, address want, string memory what) private view {
         if (_get(target, sig) != want) _fail(a, "WIRING", what);
+    }
+
+    /// R8-1: the on-chain holiday list equals the config's and still reaches past today.
+    function _checkHolidays(Acc memory a, Config memory c, Deployed memory d) private view {
+        Holiday[] memory h = IODMarketHours(d.marketHours).holidays();
+        if (keccak256(abi.encode(h)) != keccak256(abi.encode(c.holidays))) {
+            _fail(a, "HOLIDAYS", "ODMarketHours.holidays() differs from the config list");
+        }
+        if (h.length == 0 || uint256(h[h.length - 1].day) * 1 days <= block.timestamp) {
+            _fail(a, "HOLIDAYS", "the on-chain holiday list is empty or ends in the past");
+        }
     }
 
     function _checkWiring(Acc memory a, Config memory c, Deployed memory d) private view {

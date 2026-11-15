@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {ODScript} from "./ODScript.sol";
 import {Gear, MarketConfig} from "overdrive/interfaces/ODTypes.sol";
+import {Holiday} from "overdrive/interfaces/IODMarketHours.sol";
 
 /// @title SystemConfig
 /// @notice Reads `script/config/<network>.json` (or the raw JSON in `OD_CONFIG_JSON`, or the path in `OD_CONFIG`). A
@@ -80,6 +81,8 @@ abstract contract SystemConfig is ODScript {
         bool seedApproved;
         MarketCfg[] markets;
         GearCfg[] gears;
+        /// R8-1: NYSE full and early closes written to ODMarketHours at deploy (ascending by Eastern day).
+        Holiday[] holidays;
     }
 
     error ConfigRefused(string why);
@@ -136,6 +139,22 @@ abstract contract SystemConfig is ODScript {
         c.seedApproved = vm.parseJsonBool(j, ".hookSeed.approvedByOwner");
         c.markets = _markets(j);
         c.gears = _gears(j);
+        c.holidays = _holidays(j);
+    }
+
+    /// `.holidays[i]` = { date (for the reader), day (days since 1970-01-01, Eastern date), closeMinute (0 = closed
+    /// all day, else the early close as a minute of the Eastern day) }.
+    function _holidays(string memory j) private view returns (Holiday[] memory hs) {
+        uint256 n;
+        while (vm.keyExistsJson(j, string.concat(".holidays[", vm.toString(n), "]"))) ++n;
+        hs = new Holiday[](n);
+        for (uint256 i; i < n; ++i) {
+            string memory k = string.concat(".holidays[", vm.toString(i), "]");
+            hs[i] = Holiday({
+                day: uint32(vm.parseJsonUint(j, string.concat(k, ".day"))),
+                closeMinute: uint16(vm.parseJsonUint(j, string.concat(k, ".closeMinute")))
+            });
+        }
     }
 
     function _markets(string memory j) private view returns (MarketCfg[] memory ms) {
@@ -250,6 +269,16 @@ abstract contract SystemConfig is ODScript {
         if (_isRealChain(c.chainId) && c.ext.createX == address(0)) revert ConfigRefused("placeholder createX");
         if (c.markets.length != 0 && c.ext.pythCore == address(0)) revert ConfigRefused("placeholder pythCore");
         if (c.gears.length > MAX_GEARS) revert ConfigRefused("more gears than MAX_GEARS");
+        // R8-1: the calendar must know the holidays from the first block. The list must reach past today (a list
+        // that ended in the past would read the next holiday as a trading day).
+        uint256 nh = c.holidays.length;
+        if (nh == 0 || nh > 64) revert ConfigRefused("holiday list empty or over 64");
+        for (uint256 i = 1; i < nh; ++i) {
+            if (c.holidays[i].day <= c.holidays[i - 1].day) revert ConfigRefused("holidays not ascending");
+        }
+        if (uint256(c.holidays[nh - 1].day) * 1 days <= block.timestamp) {
+            revert ConfigRefused("holiday list is in the past");
+        }
         for (uint256 i; i < c.markets.length; ++i) {
             uint256 per;
             for (uint256 k; k < c.gears.length; ++k) {

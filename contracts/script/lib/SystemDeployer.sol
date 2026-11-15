@@ -134,6 +134,8 @@ abstract contract SystemDeployer is SystemConfig {
         }
         IERC20 usdg = IERC20(d.usdg);
         d.marketHours = address(new ODMarketHours(me, c.roles.keeper));
+        // R8-1: the holiday list is on chain before any market exists; later lists go through the timelock.
+        ODMarketHours(d.marketHours).setHolidays(c.holidays);
         d.guard = address(new ODOracleGuard(me, c.roles.guardianSafe, d.marketHours, c.ext.pythCore, address(0)));
         d.vol = address(new ODVolOracle(me, c.roles.guardianSafe, c.roles.volSigner));
         d.registry = address(new ODGearRegistry(me, c.roles.guardianSafe, IODOracleGuard(d.guard), IODVolOracle(d.vol)));
