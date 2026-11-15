@@ -5,6 +5,7 @@ import {ForkSystem} from "./ForkSystem.sol";
 import {SessionWindow} from "overdrive/interfaces/IODMarketHours.sol";
 import {Gear, GearConfig, PriceReading, Quote, Session} from "overdrive/interfaces/ODTypes.sol";
 import {ODIndex} from "overdrive/math/ODIndex.sol";
+import {IODMinter} from "overdrive/interfaces/IODMinter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// R8: the weekend on the real calendar (ODMarketHours fallback, no pushed sessions), real state otherwise.
@@ -70,7 +71,9 @@ contract WeekendForkTest is ForkSystem {
         assertEq(uint256(guard.read(NVDA).session), uint256(Session.CLOSED));
     }
 
-    /// Saturday: stock buys blocked, ETH and BTC gears trade, stock sells pay min(lastValue, refValue).
+    /// Saturday: stock buys blocked, ETH and BTC gears trade. The real weekend reference is the v3 pool (Pyth has no
+    /// stock print), and on the pool alone a stock sell queues (I7-1). With a Pyth print inside refMaxAge it pays
+    /// min(lastValue, refValue).
     function test_SaturdayRules() public {
         (uint256 tStock,, bytes32 id) = _saturdaySetup();
         _fundUsdg(bob, 100e6);
@@ -83,8 +86,17 @@ contract WeekendForkTest is ForkSystem {
         assertGt(_hookBuy(bob, gearOf[BTC][Gear.CRUISE], 500e6), 0, "BTC trades");
         GearConfig memory c = reg.gear(id);
         (uint256 last,) = guard.lastGood(NVDA);
+        // the weekend as it is on chain: Pyth's last print is Friday's, the reference is the pool's TWAP
+        _mockPyth(NVDA, int64(int256(last * 1e18 / multOf[NVDA] / 1e10)), fri11);
+        (uint256 poolRef, bool fromPyth) = guard.refPrice(NVDA);
+        assertGt(poolRef, 0, "the pool answers");
+        assertFalse(fromPyth, "not Pyth");
+        assertTrue(minter.quote(id, false, true, tStock / 2).queued, "pool only: queue");
+        vm.expectRevert(IODMinter.UseQueue.selector);
+        vm.prank(alice);
+        minter.sell(id, tStock / 2, 0, alice, uint64(vm.getBlockTimestamp()));
         uint256 nf = minter.normState(id).nf;
-        // reference below the last good: the reference value
+        // a Pyth print below the last good: the reference value
         _mockPyth(NVDA, int64(int256((last * 97 / 100) * 1e18 / multOf[NVDA] / 1e10)), vm.getBlockTimestamp());
         PriceReading memory r = guard.read(NVDA);
         assertLt(r.refP, last);

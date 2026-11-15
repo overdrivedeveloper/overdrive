@@ -33,6 +33,11 @@ contract MockHours {
     function nextLongClose(uint256, uint256) external view returns (uint64, uint64) {
         return (closeAt, reopenAt);
     }
+
+    /// One kind for all time: a long close lies between two instants only when that kind is out of session.
+    function closedBetween(uint256 from, uint256 to, uint256 minClosed) external view returns (bool) {
+        return kind != Session.OPEN && kind != Session.EXTENDED && to >= from + minClosed;
+    }
 }
 
 /// ODBacker plus a way to put a vault in a sealed batch before 07b exists.

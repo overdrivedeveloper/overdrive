@@ -245,11 +245,16 @@ contract OracleForkTest is ODTest {
         return block.timestamp - updatedAt;
     }
 
-    /// Deterministic on any day: a round inside the limit must read live in the forced OPEN session, a round past it
-    /// must read HALTED (not fresh, buys paused with reason HALTED, never a live price). Returns true when live.
+    /// Deterministic on any day: a round inside the limit with no long close since its print must read live in the
+    /// forced OPEN session; a round past the limit, or printed before the last long close (I7-2), must read HALTED (not fresh, buys paused with reason HALTED, never a live price). Returns true when live.
     function _assertLiveOrHalted(Mkt memory m, PriceReading memory r) internal returns (bool live) {
         uint256 age = _feedAge(m);
         live = age <= _limit(m);
+        // I7-2: a stock round with a close of 24 hours or more since its print (a fork block on a Sunday evening or
+        // a Monday before the first round) is not live either, whatever its age.
+        if (live && m.token != address(0)) {
+            live = !mh.closedBetween(block.timestamp - age, block.timestamp, guard.LONG_CLOSE());
+        }
         if (live) {
             assertEq(uint256(r.session), uint256(Session.OPEN), m.sym);
             assertTrue(r.fresh, m.sym);
@@ -264,7 +269,7 @@ contract OracleForkTest is ODTest {
             (uint256 lg,) = guard.lastGood(m.id);
             assertEq(lg, 0, "a stale round must never become the last good price");
             assertGt(guard.haltedSince(m.id), 0, "the halt is latched");
-            console2.log(m.sym, "feed round older than the in-session limit: HALTED, age", age);
+            console2.log(m.sym, "feed round past the limit or the last long close: HALTED, age", age);
         }
     }
 

@@ -25,12 +25,33 @@ contract MockKindCalendar {
         stepKind.push(k);
     }
 
-    function kindAt(uint256 ts) external view returns (Session k) {
+    function kindAt(uint256 ts) public view returns (Session k) {
         k = defaultKind;
         for (uint256 i; i < stepAt.length; ++i) {
             if (stepAt[i] > ts) break;
             k = stepKind[i];
         }
+    }
+
+    /// Same meaning as ODMarketHours.closedBetween (I7-2), walked over the steps.
+    function closedBetween(uint256 from, uint256 to, uint256 minClosed) external view returns (bool) {
+        if (to <= from) return false;
+        uint256 start = from;
+        bool out = _out(kindAt(from));
+        for (uint256 i; i < stepAt.length; ++i) {
+            uint256 b = stepAt[i];
+            if (b <= from) continue;
+            if (b >= to) break;
+            if (out && b - start >= minClosed) return true;
+            bool o = _out(stepKind[i]);
+            if (o && !out) start = b;
+            out = o;
+        }
+        return out && to - start >= minClosed;
+    }
+
+    function _out(Session k) private pure returns (bool) {
+        return k != Session.OPEN && k != Session.EXTENDED;
     }
 }
 
