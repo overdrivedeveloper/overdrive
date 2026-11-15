@@ -11,6 +11,14 @@ Nothing is released or deployed yet. What exists in the repository:
 - `vol-engine/` volatility engine and `risk-sim/` stress simulation.
 - `scripts/ci-local.sh` local CI, pre-commit public guard and commit-msg guard.
 
+Fix round 9 (independent check 6):
+
+- Direct sales no longer take USDG out of the Governor (I6-1, I4-1b). `onBackerMint` books the proceeds of a sale to the Governor as sale credit: collateral of the vault that the Governor holds, locked behind the sold debt and paid to the backer contract from free cash only as that debt is repaid or liquidated. New: `ODGovernor.saleCredit`, `settleSaleCredit` (backer only), events `SaleCreditBooked` and `SaleCreditSettled`; `ODBacker.vaultHeld`, `totalHeld`. `ODBacker.withdraw` pays out only collateral that is not held. NAV subtracts the credit.
+- The fix round 8 rule "a sell that leaves net below zero is paid from free cash only" is removed: a holder sell is paid from free cash, the exit reserve, then insurance at any net.
+- System invariants S19 to S21 (reserve and insurance pay holders only, holder exit liveness against direct sales, proceeds stay in the Governor), with an attacker actor in the handler.
+- `pyth-push`: the reference health check and its critical alert run on every pass, also with no Hermes key or a refused key; three failed Hermes passes in a row are critical (I6-3).
+- SECURITY.md: the I4-4, I4-1b, I6-1, I6-2 and I6-4 entries state what is closed, what is accepted and what is left.
+
 Fix round 8 (audit rescore 5 and independent check 5):
 
 - Liquidation fails closed on a disagreeing reference: `sealBatch` reverts and `executeBatch` voids while `ODOracleGuard.liquidationBlock` reports `NOT_LIVE`, `CONTINUITY`, `SPLIT_PENDING`, `REF_UNAVAILABLE` or `REF_BAND` (I5-1). The 15 minute round rule at seal is removed (I5-3).
