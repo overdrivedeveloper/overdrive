@@ -183,6 +183,7 @@ file (never in this repository); this table names the roles. Fill the private fi
 | Hedge equity share, jump window net, stress and outflow limits | `risk-monitor` | Risk is outside its bounds |
 | Oracle or volatility post stale | `vol-watch` | Prices cannot be trusted; the guard halts a market by itself |
 | Keeper, hedger, liquidator or signer balance low | `gas-watch` | A bot will stop sending transactions |
+| A market has no usable reference price, or the Pyth push budget or Hermes is failing | `pyth-push` | Buys, sells, fills and seals that need the reference are refused (fail closed); the crank is the only pusher of Pyth on chain 4663 |
 | No heartbeat | `heartbeat` | The crank itself is down |
 
 ### To pause (guardian, immediate)

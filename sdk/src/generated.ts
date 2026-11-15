@@ -37,6 +37,19 @@ export interface Operations {
           lastOk: string | null;
           lastError: string | null;
         }>;
+        oracle: {
+          /** ISO 8601 time. */
+          checkedAt: string | null;
+          ok: boolean;
+          markets: Array<{
+            symbol: string;
+            ok: boolean;
+            source: "pyth" | "twap" | "none";
+            pythAgeSeconds: number | null;
+            refMaxAge: number | null;
+            reason: string | null;
+          }>;
+        } | null;
         pauses: Array<{
           scope: string;
           ref: string | null;

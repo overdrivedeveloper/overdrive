@@ -8,6 +8,11 @@ const Status = z.object({
   ...MetaFields,
   indexer: z.object({ lagBlocks: z.string().nullable(), lastOk: Iso.nullable(), lastError: z.string().nullable(), snapshotStale: z.boolean() }),
   services: z.array(z.object({ job: z.string(), lastRun: Iso.nullable(), lastOk: Iso.nullable(), lastError: z.string().nullable() })),
+  /** Per market, whether the guard reads a reference price (fresh Pyth or a TWAP pool). Written by the crank's pyth-push job; null until it has run. */
+  oracle: z.object({
+    checkedAt: Iso.nullable(), ok: z.boolean(),
+    markets: z.array(z.object({ symbol: z.string(), ok: z.boolean(), source: z.enum(["pyth", "twap", "none"]), pythAgeSeconds: z.number().nullable(), refMaxAge: z.number().nullable(), reason: z.string().nullable() })),
+  }).nullable(),
   pauses: z.array(z.object({ scope: z.string(), ref: z.string().nullable(), since: Iso, reason: z.string().nullable(), pausedBy: z.string().nullable(), whoCanUnpause: z.string() })),
 }).openapi("Status");
 
@@ -22,7 +27,23 @@ export function registerStatusRoutes(app: OpenAPIHono, deps: ApiDependencies): v
       ...metaOf(fresh),
       indexer: { lagBlocks: fresh.lagBlocks, lastOk: fresh.lastOk, lastError: fresh.lastError, snapshotStale: fresh.snapshotStale },
       services: services.map((s) => ({ job: s.job, lastRun: s.lastRun, lastOk: s.lastOk, lastError: s.lastError })),
+      oracle: oracleOf(services.find((s) => s.job === "pyth-push")?.meta.reference),
       pauses: pauses.map((p) => ({ scope: p.scope, ref: p.ref, since: p.ts, reason: p.reason, pausedBy: p.actor, whoCanUnpause: WHO_CAN_UNPAUSE })),
     };
   });
+}
+
+interface StoredReference { checkedAt?: unknown; ok?: unknown; markets?: unknown }
+/** The crank's last reference check as stored in service_status.meta.reference; anything malformed reads as "not checked". */
+export function oracleOf(raw: unknown): z.infer<typeof Status>["oracle"] {
+  const ref = raw as StoredReference | undefined;
+  if (!ref || !Array.isArray(ref.markets)) return null;
+  const markets = (ref.markets as Record<string, unknown>[]).map((m) => ({
+    symbol: String(m.symbol), ok: m.ok === true,
+    source: (m.source === "pyth" || m.source === "twap" ? m.source : "none") as "pyth" | "twap" | "none",
+    pythAgeSeconds: typeof m.pythAgeSeconds === "number" ? m.pythAgeSeconds : null,
+    refMaxAge: typeof m.refMaxAge === "number" ? m.refMaxAge : null,
+    reason: typeof m.reason === "string" ? m.reason : null,
+  }));
+  return { checkedAt: typeof ref.checkedAt === "string" ? ref.checkedAt : null, ok: markets.length > 0 && markets.every((m) => m.ok), markets };
 }

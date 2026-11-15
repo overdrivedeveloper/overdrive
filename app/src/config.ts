@@ -2,7 +2,7 @@ import { z } from "zod";
 import { KeyConfigError, assertDistinctKeys } from "./keys";
 
 /** Valid job names, one exported const per service. Config validation imports them, so an unknown name fails at boot. */
-export const CRANK_JOBS = ["sessions", "toll", "poke", "vol-watch", "queued-sells", "fees", "risk-monitor", "admin-watch", "gas-watch", "heartbeat"] as const;
+export const CRANK_JOBS = ["sessions", "toll", "poke", "vol-watch", "queued-sells", "fees", "risk-monitor", "admin-watch", "gas-watch", "pyth-push", "heartbeat"] as const;
 export const HEDGER_JOBS = ["cycle", "post", "reconcile"] as const;
 export const LIQUIDATOR_JOBS = ["scan", "seal", "execute", "watch"] as const;
 export type CrankJob = (typeof CRANK_JOBS)[number];
@@ -81,6 +81,18 @@ const envSchema = z.object({
   CRANK_QUEUE_MAX_PER_PASS: z.coerce.number().int().min(1).default(25),
   CRANK_QUEUE_RETRY_MS: z.coerce.number().int().min(1000).default(600_000),
   VOL_STALE_WARN_SECONDS: z.coerce.number().int().min(60).default(900),
+  /** Pyth push (I5-2). Hermes serves the signed updates; with no key the job stays idle and says so. */
+  PYTH_HERMES_URL: z.string().url().default("https://hermes.pyth.network"),
+  PYTH_HERMES_API_KEY: z.string().trim().default(""),
+  PYTH_HERMES_AUTH_HEADER: z.string().regex(/^[A-Za-z][A-Za-z0-9-]*$/).default("x-api-key"),
+  /** Must stay below every market's refMaxAge (mainnet: 120 s); the job warns when it does not. */
+  PYTH_PUSH_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(45),
+  /** Push only when the on-chain print is older than this share of the market's refMaxAge. */
+  PYTH_PUSH_FRESH_PERCENT: z.coerce.number().int().min(10).max(90).default(50),
+  PYTH_PUSH_MAX_RETRIES: z.coerce.number().int().min(0).max(6).default(3),
+  PYTH_PUSH_BACKOFF_MS: z.coerce.number().int().min(100).max(60_000).default(1000),
+  /** Update fees plus gas the job may spend per UTC day, in ETH. */
+  PYTH_PUSH_DAILY_BUDGET_ETH: z.coerce.number().min(0).max(10).default(0.02),
   FEES_MIN_USDG: z.coerce.number().min(0).default(50),
   GAS_WATCH_MIN_ETH_CRANK: z.coerce.number().min(0).default(0.01),
   GAS_WATCH_MIN_ETH_HEDGER: z.coerce.number().min(0).default(0.01),

@@ -78,7 +78,7 @@ describe("runtime", () => {
 
   test("job_tiers_put_protocol_work_first", () => {
     const order = CRANK_JOBS.filter((j) => JOB_TIERS[j] === "protocol");
-    expect(order).toEqual(["sessions", "toll", "poke", "fees"]);
+    expect(order).toEqual(["sessions", "toll", "poke", "fees", "pyth-push"]);
     expect(JOB_TIERS["queued-sells"]).toBe("user");
     const chain = new FakeChain();
     const ctx = chain.context(nullSql);

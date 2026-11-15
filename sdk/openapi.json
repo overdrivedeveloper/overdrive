@@ -159,6 +159,77 @@
               ]
             }
           },
+          "oracle": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "checkedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ISO 8601 time."
+              },
+              "ok": {
+                "type": "boolean"
+              },
+              "markets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "pyth",
+                        "twap",
+                        "none"
+                      ]
+                    },
+                    "pythAgeSeconds": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "refMaxAge": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "symbol",
+                    "ok",
+                    "source",
+                    "pythAgeSeconds",
+                    "refMaxAge",
+                    "reason"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "checkedAt",
+              "ok",
+              "markets"
+            ]
+          },
           "pauses": {
             "type": "array",
             "items": {
@@ -211,6 +282,7 @@
           "decimals",
           "indexer",
           "services",
+          "oracle",
           "pauses"
         ]
       },

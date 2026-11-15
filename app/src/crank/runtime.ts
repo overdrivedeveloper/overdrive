@@ -26,6 +26,7 @@ import { createFeesJob } from "./jobs/fees";
 import { createGasWatchJob } from "./jobs/gas-watch";
 import { createQueuedSellsJob } from "./jobs/queued-sells";
 import { createRiskMonitorJob } from "./jobs/risk-monitor";
+import { createPythPushJob } from "./jobs/pyth-push";
 import { setAlertSender } from "./alerts";
 import { createTelegramSender } from "./telegram";
 import { onAbort } from "../lib/abort";
@@ -35,7 +36,7 @@ export type { CrankContext, ServiceJob };
 
 /** Jobs in the order they matter (KEEP-4): protocol work first, then user-triggered work, then watchers. */
 export const JOB_TIERS: Record<CrankJob, "protocol" | "user" | "watch"> = {
-  sessions: "protocol", toll: "protocol", poke: "protocol", fees: "protocol",
+  sessions: "protocol", toll: "protocol", poke: "protocol", fees: "protocol", "pyth-push": "protocol",
   "queued-sells": "user",
   "vol-watch": "watch", "risk-monitor": "watch", "admin-watch": "watch", "gas-watch": "watch", heartbeat: "watch",
 };
@@ -83,6 +84,7 @@ export const JOB_FACTORIES: Partial<Record<CrankJob, JobFactory>> = {
   "queued-sells": (ctx) => ({ name: "queued-sells", everyMs: 120_000, run: createQueuedSellsJob(ctx) }),
   "risk-monitor": (ctx) => ({ name: "risk-monitor", everyMs: 60_000, run: createRiskMonitorJob(ctx) }),
   "admin-watch": (ctx) => ({ name: "admin-watch", everyMs: 60_000, run: createAdminWatchJob(ctx) }),
+  "pyth-push": (ctx) => ({ name: "pyth-push", everyMs: ctx.config.PYTH_PUSH_INTERVAL_SECONDS * 1000, run: createPythPushJob(ctx) }),
   "gas-watch": (ctx) => ({ name: "gas-watch", everyMs: 600_000, run: createGasWatchJob(ctx) }),
   heartbeat: (ctx, options) => ({ name: "heartbeat", everyMs: 30_000, run: createHeartbeatJob(ctx, { file: options.heartbeatFile, lock: options.lock, onLockLost: options.onLockLost }) }),
 };
@@ -132,7 +134,7 @@ const BOUNDARY_LEAD_SECONDS = 30;
 /** Role checks (R22): a missing role refuses to start unless dry run. */
 export async function assertRoles(deps: Pick<CrankDeps, "config" | "clients" | "deployment" | "logger">, enabled: ReadonlySet<string>): Promise<void> {
   const account = deps.clients.walletClient?.account;
-  const sends = ["sessions", "toll", "poke", "fees", "queued-sells", "risk-monitor"].some((job) => enabled.has(job));
+  const sends = ["sessions", "toll", "poke", "fees", "queued-sells", "risk-monitor", "pyth-push"].some((job) => enabled.has(job));
   if (!sends) return;
   if (!account) throw new Error("No crank signer configured (CRANK_KEYSTORE and CRANK_KEYSTORE_PASSWORD_FILE)");
   const roles = await checkRoles(deps.clients, requiredRoles(enabled, deps.deployment, { autopause: deps.config.CRANK_AUTOPAUSE }), account.address);

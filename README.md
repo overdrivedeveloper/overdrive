@@ -106,7 +106,7 @@ Intended holders at deployment. Nothing is deployed, so no address holds any rol
 | --- | --- | --- |
 | API | `bin/api.ts` | Read-only REST API (Hono). Reads only from Postgres; builds unsigned intents, sends nothing |
 | Indexer | `bin/indexer.ts` | The only process that polls the chain. Writes events and snapshots to Postgres |
-| Crank | `bin/crank.ts` | Scheduled jobs that send transactions: `sessions`, `toll`, `poke`, `vol-watch`, `queued-sells`, `fees`, `risk-monitor`, `admin-watch`, `gas-watch`, `heartbeat` |
+| Crank | `bin/crank.ts` | Scheduled jobs that send transactions: `sessions`, `toll`, `poke`, `vol-watch`, `queued-sells`, `fees`, `risk-monitor`, `admin-watch`, `gas-watch`, `pyth-push`, `heartbeat` |
 | Hedger | `bin/hedger.ts` | Hedges the Governor's exposure on outside venues; dry run by default; never moves funds off the system |
 | Liquidator | `bin/liquidator.ts` | Seals and executes backer liquidation batches; its key holds gas only |
 | MCP | `bin/mcp.ts` | MCP server: stdio for an agent host, or hosted read-only over HTTP |
@@ -158,7 +158,7 @@ Everything here is a script in this repository; nothing is deployed yet and no a
 | --- | --- | --- |
 | API | `bin/api.ts` | Read-only REST API (Hono). Reads only from Postgres; builds unsigned intents, sends nothing |
 | Indexer | `bin/indexer.ts` | The only process that polls the chain. Writes events and snapshots to Postgres |
-| Crank | `bin/crank.ts` | Scheduled jobs that send transactions: `sessions`, `toll`, `poke`, `vol-watch`, `queued-sells`, `fees`, `risk-monitor`, `admin-watch`, `gas-watch`, `heartbeat` |
+| Crank | `bin/crank.ts` | Scheduled jobs that send transactions: `sessions`, `toll`, `poke`, `vol-watch`, `queued-sells`, `fees`, `risk-monitor`, `admin-watch`, `gas-watch`, `pyth-push`, `heartbeat` |
 | Hedger | `bin/hedger.ts` | Hedges the Governor's exposure on outside venues; dry run by default; never moves funds off the system |
 | Liquidator | `bin/liquidator.ts` | Seals and executes backer liquidation batches; its key holds gas only |
 | MCP | `bin/mcp.ts` | MCP server: stdio for an agent host, or hosted read-only over HTTP |
@@ -250,6 +250,14 @@ All config comes from environment variables and is checked at startup (`app/src/
 | `CRANK_QUEUE_RETRY_MS` | `600000` | Wait before retrying a queued sell |
 | `VOL_STALE_WARN_SECONDS` | `900` | Warn when the vol oracle is older than this |
 | `FEES_MIN_USDG` | `50` | Smallest fee balance the crank distributes |
+| `PYTH_HERMES_URL` | `https://hermes.pyth.network` | Hermes base URL the `pyth-push` job fetches signed price updates from |
+| `PYTH_HERMES_API_KEY` | empty | Hermes API key. Empty = the `pyth-push` job stays idle and logs a warning (Pyth-referenced markets then go stale). Set it in the crank env file (`/etc/overdrive/crank.env`), never in git |
+| `PYTH_HERMES_AUTH_HEADER` | `x-api-key` | Header that carries the key (never sent in the URL). Pyth Terminal keys use `Authorization`, sent as `Bearer <key>` |
+| `PYTH_PUSH_INTERVAL_SECONDS` | `45` | How often the job runs (10 to 3600); keep it below the smallest `refMaxAge` (120 s on mainnet) |
+| `PYTH_PUSH_FRESH_PERCENT` | `50` | Skip a push while the on-chain print is younger than this share of the market's `refMaxAge` (read from the guard per market) |
+| `PYTH_PUSH_MAX_RETRIES` | `3` | Retries of the Hermes and fee reads, with doubling backoff |
+| `PYTH_PUSH_BACKOFF_MS` | `1000` | First retry wait |
+| `PYTH_PUSH_DAILY_BUDGET_ETH` | `0.02` | Update fees plus gas the job may spend per UTC day; at the limit it stops and raises a critical alert |
 | `GAS_WATCH_MIN_ETH_CRANK` | `0.01` | Alert below this ETH balance (crank wallet) |
 | `GAS_WATCH_MIN_ETH_HEDGER` | `0.01` | Alert below this ETH balance (hedger wallet) |
 | `GAS_WATCH_MIN_ETH_LIQUIDATOR` | `0.01` | Alert below this ETH balance (liquidator wallet) |
@@ -272,6 +280,17 @@ All config comes from environment variables and is checked at startup (`app/src/
 | `API_QUOTER` | `chain` | `chain` or `mock` (mock only on the fork network) |
 
 Never commit `.env` files or keys; they are ignored by `.gitignore`.
+
+### Pyth push (operator steps)
+
+Markets reference Pyth, and nothing on chain 4663 keeps Pyth fresh by itself. The crank job `pyth-push` does: every
+`PYTH_PUSH_INTERVAL_SECONDS` it reads each Pyth market's `refMaxAge` from the oracle guard, skips the push while the on-chain
+print is fresh enough or Hermes holds nothing newer, and otherwise calls `getUpdateFee` then `updatePriceFeeds` with exactly that fee.
+Without `PYTH_HERMES_API_KEY` it stays idle and warns. Steps: (1) get a Hermes API key from the Hermes provider; (2) put it in
+`/etc/overdrive/crank.env` as `PYTH_HERMES_API_KEY` (mode 0440); (3) fund the crank wallet (the fee and gas come from it; `gas-watch`
+alerts when it is low); (4) restart the crank, run once with `CRANK_DRY_RUN=1` and check the log line "Pyth prices pushed" shows
+`dryRun: true`, then arm. Check `GET /v1/status`: `oracle.ok` is true and every market shows `source` `pyth` or `twap`. A market with
+no usable reference raises a critical alert (`pyth-ref:<symbol>`) until it recovers.
 
 ### Deployment file
 

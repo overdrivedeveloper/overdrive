@@ -12,6 +12,7 @@ import type { Deployment } from "../chain/deployment";
 import { RevertError } from "../chain/revert";
 import { loadConfig, type RuntimeConfig } from "../config";
 import type { CrankContext } from "../crank/context";
+import { PythAbi } from "../crank/jobs/pyth-push";
 import type { CrankTransaction, TxQueue, TxResult } from "../crank/tx";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -49,11 +50,11 @@ export interface FakeGear {
 }
 export interface FakePrice { p: bigint; refP: bigint; session: number; fresh: boolean; buysPaused: boolean; reason: Hex; updatedAt: bigint }
 export interface FakeVol { sigmaBps: bigint; postedAt: bigint; validUntil: bigint; stale: boolean; hardStale: boolean }
-export interface SentTx { label: string; to: Address; data: Hex; contract: string; name: string; args: readonly unknown[]; simulated: boolean }
+export interface SentTx { value?: bigint; label: string; to: Address; data: Hex; contract: string; name: string; args: readonly unknown[]; simulated: boolean }
 
 const CONTRACT_ABIS: Record<string, Abi> = {
   ODMinter: IODMinterAbi as Abi, ODMarketHours: IODMarketHoursAbi as Abi, ODOracleGuard: IODOracleGuardAbi as Abi, ODGovernor: IODGovernorAbi as Abi,
-  ODFees: IODFeesAbi as Abi, ODBacker: IODBackerAbi as Abi, ODVolOracle: IODVolOracleAbi as Abi, ODGearRegistry: IODGearRegistryAbi as Abi,
+  Pyth: PythAbi as Abi, ODFees: IODFeesAbi as Abi, ODBacker: IODBackerAbi as Abi, ODVolOracle: IODVolOracleAbi as Abi, ODGearRegistry: IODGearRegistryAbi as Abi,
 };
 
 const reasonHex = (text: string): Hex => toHex(text, { size: 32 });
@@ -118,6 +119,7 @@ export class FakeChain {
 
   private contractOf(address: string): string | undefined {
     for (const [name, a] of Object.entries(this.deployment.contracts)) if (a && a.toLowerCase() === address.toLowerCase()) return name;
+    if (this.deployment.external.pythCore.toLowerCase() === address.toLowerCase()) return "Pyth";
     if ([...this.gears.values()].some((g) => g.token.toLowerCase() === address.toLowerCase())) return "gear";
     if (this.deployment.markets.some((m) => m.stockToken?.toLowerCase() === address.toLowerCase())) return "stock";
     return undefined;
@@ -259,7 +261,7 @@ export class FakeChain {
       sent: self.sent,
       async submit(t: CrankTransaction): Promise<TxResult> {
         const { gasUsed, contract, name, args } = self.execute(t.to, t.data, !self.dryRun, t.label);
-        self.sent.push({ label: t.label, to: t.to, data: t.data, contract, name, args, simulated: self.dryRun });
+        self.sent.push({ label: t.label, to: t.to, data: t.data, contract, name, args, simulated: self.dryRun, ...(t.value !== undefined ? { value: t.value } : {}) });
         return self.dryRun ? { simulated: true, gasUsed } : { simulated: false, gasUsed, hash: keccak256(toHex(self.sent.length)), receipt: { logs: self.pendingLogs.splice(0), blockNumber: 1n } as never };
       },
       status: () => ({ heldNonce: null, heldSince: null, heldHashes: 0 }),
