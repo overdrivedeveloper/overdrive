@@ -68,3 +68,4 @@ vol-engine/tests/fixtures/test.*
 # Coverage output (scripts/coverage.sh); reproduce it, never commit it.
 contracts/coverage/
 lcov.info
+.mutation/
