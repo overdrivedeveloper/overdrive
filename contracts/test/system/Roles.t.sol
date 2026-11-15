@@ -133,7 +133,7 @@ contract RolesTest is DeployFixture {
     function test_GuardianOnlyReducesRisk() public {
         GearConfig memory g = ODGearRegistry(d.registry).gear(ethSport);
         (uint16 up, uint32 lead) = ODBacker(d.backer).uplift();
-        Case[] memory cs = new Case[](11);
+        Case[] memory cs = new Case[](10);
         cs[0] = Case(
             d.guard,
             abi.encodeCall(ODOracleGuard.setBuysPaused, (ETH, true)),
@@ -148,39 +148,34 @@ contract RolesTest is DeployFixture {
             d.backer, abi.encodeCall(ODBacker.setMintPaused, (true)), abi.encodeCall(ODBacker.setMintPaused, (false))
         );
         cs[3] = Case(
-            d.backer,
-            abi.encodeCall(ODBacker.setUplift, (up + 100, lead)),
-            abi.encodeCall(ODBacker.setUplift, (up, lead))
-        );
-        cs[4] = Case(
             d.registry,
             abi.encodeCall(ODGearRegistry.setParams, (ethSport, g.capUsdWad / 2, g.spreadBps)),
             abi.encodeCall(ODGearRegistry.setParams, (ethSport, g.capUsdWad, g.spreadBps))
         );
-        cs[5] = Case(
+        cs[4] = Case(
             d.registry,
             abi.encodeCall(ODGearRegistry.setParams, (ethSport, g.capUsdWad / 2, g.spreadBps + 10)),
             abi.encodeCall(ODGearRegistry.setParams, (ethSport, g.capUsdWad / 2, g.spreadBps))
         );
-        cs[6] = Case(
+        cs[5] = Case(
             d.registry,
             abi.encodeCall(ODGearRegistry.setStatus, (ethSport, GearStatus.BUYS_PAUSED)),
             abi.encodeCall(ODGearRegistry.setStatus, (ethSport, GearStatus.LISTED))
         );
-        cs[7] = Case(
+        cs[6] = Case(
             d.registry,
             abi.encodeCall(ODGearRegistry.setStatus, (ethSport, GearStatus.SELL_ONLY)),
             abi.encodeCall(ODGearRegistry.setStatus, (ethSport, GearStatus.SETTLED))
         );
-        cs[8] = Case(
+        cs[7] = Case(
             d.vol, abi.encodeCall(ODVolOracle.revokeSigner, ()), abi.encodeCall(ODVolOracle.setSigner, (volSigner))
         );
-        cs[9] = Case(
+        cs[8] = Case(
             d.stake,
             abi.encodeCall(ODStake.setDepositsPaused, (true)),
             abi.encodeCall(ODStake.setDepositsPaused, (false))
         );
-        cs[10] = Case(
+        cs[9] = Case(
             d.paymaster, abi.encodeCall(ODPaymaster.setPaused, (true)), abi.encodeCall(ODPaymaster.setPaused, (false))
         );
         for (uint256 i; i < cs.length; ++i) {
@@ -191,6 +186,20 @@ contract RolesTest is DeployFixture {
             (ok,) = cs[i].target.call(cs[i].raises);
             assertFalse(ok, string.concat("guardian raises risk, case ", vm.toString(i)));
         }
+        // I4-2: the uplift raises maintenance (a raise can make a healthy vault sealable), so it is no guardian lever
+        bytes[3] memory ups = [
+            abi.encodeCall(ODBacker.setUplift, (up + 100, lead)),
+            abi.encodeCall(ODBacker.setUplift, (up, lead + 1 hours)),
+            abi.encodeCall(ODBacker.setUplift, (up, lead))
+        ];
+        for (uint256 i; i < ups.length; ++i) {
+            vm.prank(guardianSafe);
+            (bool ok,) = d.backer.call(ups[i]);
+            assertFalse(ok, "guardian moved the uplift");
+        }
+        _viaTimelock(d.backer, ups[0]);
+        (uint16 upNow,) = ODBacker(d.backer).uplift();
+        assertEq(upNow, up + 100, "the timelock sets the uplift");
     }
 
     /// R4: every pause from 02a to 10, paused by the guardian, comes off only through the real timelock after 48 h.

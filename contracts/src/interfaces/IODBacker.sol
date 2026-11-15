@@ -229,14 +229,20 @@ interface IODBacker {
     /// @param limit The limit the caller set.
     error Slippage(uint256 got, uint256 limit);
     /// @notice Sets the collateral uplift and its lead time.
-    /// @dev Admin may set any value within bounds; the guardian may only raise it.
+    /// @dev Admin (timelock) only, within bounds. The uplift is added to maintenance, so the guardian cannot set it.
     /// @param upliftBps Uplift in basis points.
     /// @param lead Lead time in seconds.
-    function setUplift(uint16 upliftBps, uint32 lead) external; // admin any (bounded); guardian may only raise
+    function setUplift(uint16 upliftBps, uint32 lead) external; // admin (timelock) only, bounded; never the guardian
     /// @notice Pauses or unpauses minting.
     /// @dev The guardian pauses; the admin (timelock) unpauses.
     /// @param paused True to pause, false to unpause.
     function setMintPaused(bool paused) external; // guardian pauses, admin (timelock) unpauses
+    /// @notice Returns the part of a vault's debt that was minted to the owner's wallet and is still open.
+    /// @dev A repay or a liquidation clears the vault's debt sold to the Governor first, this part last. The sum over
+    /// a gear's vaults is the Governor's backerOwnDebt(gearId).
+    /// @param vaultId Id of the vault.
+    /// @return tokens  Amount of gear tokens (18 decimals).
+    function vaultOwnDebt(uint256 vaultId) external view returns (uint256 tokens);
     /// @notice Returns the toll fee owed by a vault, charged at its next action.
     /// @param vaultId Id of the vault.
     /// @return usdg  Amount of USDG, in 6-decimal units.

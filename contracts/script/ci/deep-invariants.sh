@@ -28,6 +28,14 @@ if [ -f out/syscov.txt ]; then
   awk '{for (i = 2; i <= NF; i++) {split($i, kv, "="); sum[kv[1]] += kv[2]; if (!(kv[1] in seen)) {seen[kv[1]] = 1; order[++n] = kv[1]}}}
        END {printf "deep-invariants: coverage over %d runs:", NR; for (i = 1; i <= n; i++) printf " %s=%d", order[i], sum[order[i]]; print ""}' out/syscov.txt
 fi
+# Rescore 4: the campaign must reach the branch S17 exists for. Floor: 1 sell crossing the own-minted debt per 100
+# handler calls (1,000 at 100,000 calls); override with DEEP_MIN_CROSSING.
+if [ -f out/syscov.txt ] && [ -n "${calls:-}" ]; then
+  crossing=$(awk '{for (i = 2; i <= NF; i++) {split($i, kv, "="); if (kv[1] == "m7Crossing") sum += kv[2]}} END {print sum + 0}' out/syscov.txt)
+  floor="${DEEP_MIN_CROSSING:-$(( calls / 100 ))}"
+  echo "deep-invariants: sells crossing the own-minted debt ${crossing} (floor ${floor})"
+  if [ "$crossing" -lt "$floor" ]; then status=1; fi
+fi
 FOUNDRY_INVARIANT_RUNS="${DEEP_AREA_RUNS:-100}" FOUNDRY_INVARIANT_DEPTH="${DEEP_AREA_DEPTH:-100}" \
   forge test --match-test 'invariant_' --match-path 'test/{backer,governor,stake}/*Invariant.t.sol' >"$log.area" 2>&1 || status=1
 grep -E '^\[(PASS|FAIL|SKIP)|Suite result|Ran [0-9]+ test suites' "$log.area" || true

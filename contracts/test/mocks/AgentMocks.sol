@@ -392,6 +392,10 @@ contract MockAgentBacker is IODBacker, Unused {
         revert UnusedInMock();
     }
 
+    function vaultOwnDebt(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
     function tollFeeOwed(uint256) external pure returns (uint256) {
         revert UnusedInMock();
     }

@@ -22,14 +22,14 @@ contract BackerTest is GovernorFixture {
         assertEq(gov.netTokens(id), 600e18);
         assertEq(gov.backerDebt(id), 400e18);
         vm.prank(backerC);
-        gov.onBackerRepay(id, 100e18);
+        gov.onBackerRepay(id, 100e18, 0);
         assertEq(gov.backerDebt(id), 300e18);
         vm.prank(backerC);
-        gov.onBackerRepay(id, 1_000e18); // more than owed: floors at 0
+        gov.onBackerRepay(id, 1_000e18, 0); // more than owed: floors at 0
         assertEq(gov.backerDebt(id), 0);
         vm.prank(stranger);
         vm.expectRevert(IODGovernor.NotBacker.selector);
-        gov.onBackerRepay(id, 1);
+        gov.onBackerRepay(id, 1, 0);
     }
 
     function test_SoldMintNeverUsesReserve() public {
@@ -61,11 +61,12 @@ contract BackerTest is GovernorFixture {
         gov.onBackerMint(id, 500e18, false, 0);
         vm.prank(backerC);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.UsdgNotReceived.selector, 300e6, 0));
-        gov.absorbLiquidation(id, 500e18, 300e6);
+        gov.absorbLiquidation(id, 500e18, 500e18, 300e6);
         usdg.mint(address(gov), 300e6); // the collateral arrives first
         vm.prank(backerC);
-        gov.absorbLiquidation(id, 500e18, 300e6);
+        gov.absorbLiquidation(id, 500e18, 500e18, 300e6);
         assertEq(gov.backerDebt(id), 0);
+        assertEq(gov.backerOwnDebt(id), 0);
         assertEq(gov.freeCash(), 300e6);
     }
 }

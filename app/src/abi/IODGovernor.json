@@ -14,6 +14,11 @@
         "internalType": "uint256"
       },
       {
+        "name": "ownTokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "collateralUsdg",
         "type": "uint256",
         "internalType": "uint256"
@@ -659,6 +664,11 @@
             "name": "shockPairBps",
             "type": "uint16",
             "internalType": "uint16"
+          },
+          {
+            "name": "maxLockBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }
@@ -1047,6 +1057,11 @@
       },
       {
         "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "ownTokens",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1494,6 +1509,11 @@
           },
           {
             "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxLockBps",
             "type": "uint16",
             "internalType": "uint16"
           }
@@ -2101,6 +2121,11 @@
           },
           {
             "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxLockBps",
             "type": "uint16",
             "internalType": "uint16"
           }

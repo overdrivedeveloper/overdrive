@@ -148,7 +148,12 @@ contract SystemInvariantTest is HookFixture {
         sel[25] = SystemHandler.backerSell.selector; // M-7
         sel[26] = SystemHandler.backerSell.selector;
         targetSelector(FuzzSelector({addr: address(h), selectors: sel}));
-        bytes4[] memory extra = new bytes4[](5);
+        bytes4[] memory extra = new bytes4[](10);
+        extra[7] = SystemHandler.crossOwnSell.selector; // rescore 4: sells that cross the own-minted debt
+        extra[8] = SystemHandler.crossOwnSell.selector;
+        extra[9] = SystemHandler.crossOwnSell.selector;
+        extra[5] = SystemHandler.backerRepayUsdg.selector; // I4-1
+        extra[6] = SystemHandler.backerRepayUsdg.selector;
         extra[0] = SystemHandler.keeperFundReserve.selector;
         extra[1] = SystemHandler.keeperFundReserve.selector;
         extra[2] = SystemHandler.sealAndExecute.selector;
@@ -371,14 +376,36 @@ contract SystemInvariantTest is HookFixture {
         for (uint256 i; i < gs.length; ++i) {
             uint256 lk = gov.backerLock(gs[i]);
             uint256 own = gov.backerOwnDebt(gs[i]);
+            assertEq(own, h.ghostOwnGear(gs[i]), "I4-1: own-minted debt differs from the handler's ghost");
             assertLe(own, gov.backerDebt(gs[i]), "M-7: own-minted debt above the gear's backer debt");
             if (own == 0) assertEq(lk, 0, "M-7: a lock with no own-minted debt open");
             locks += lk;
         }
         assertGe(usdg.balanceOf(address(gov)), gov.freeCash() + gov.exitReserve() + locks, "M-7: locks covered");
+        uint256 n = h.vaultCount();
+        for (uint256 i; i < n; ++i) {
+            uint256 v = h.vaultAt(i);
+            uint256 vOwn = backer.vaultOwnDebt(v);
+            (,,, uint256 debt,) = backer.vault(v);
+            assertEq(vOwn, h.ghostOwnOf(v), "I4-1: a vault's own-minted debt differs from the handler's ghost");
+            assertLe(vOwn, debt, "I4-1: a vault's own-minted debt above its debt");
+        }
     }
 
     /// R8: the exit reserve only falls inside a holder payout at least that size.
+    /// S18 (M-8), liveness and the lock ceiling. A holder sell wholly above the wallet-minted debt is never queued
+    /// while free cash net of fees owed, the exit reserve and insurance cover it (read before every other
+    /// holder sell, right after an accrue). The locks of all gears never pass the Governor's balance, and no own mint leaves them above
+    /// Params.maxLockBps of free cash plus locks (the handler checks each successful own mint).
+    /// forge-config: default.invariant.runs = 16
+    /// forge-config: default.invariant.depth = 40
+    /// forge-config: deep.invariant.runs = 2
+    /// forge-config: deep.invariant.depth = 10
+    function invariant_HolderSellLiveness() public view {
+        assertEq(h.liveViolations(), 0, "S18: a covered holder sell was queued");
+        assertEq(h.lockCeilingViolations(), 0, "S18: an own mint passed the lock ceiling");
+    }
+
     /// forge-config: default.invariant.runs = 16
     /// forge-config: default.invariant.depth = 40
     /// forge-config: deep.invariant.runs = 2
@@ -485,6 +512,7 @@ contract SystemInvariantTest is HookFixture {
     /// forge-config: deep.invariant.depth = 200
     function invariant_AllSystem() public view {
         invariant_HoldersExitAboveFloor();
+        invariant_HolderSellLiveness();
         invariant_HolderBalancesOnlyOwnActions();
         invariant_QuoteEqualsExecution();
         invariant_ExitsNeverGatedByPauses();
@@ -549,6 +577,17 @@ contract SystemInvariantTest is HookFixture {
             vm.toString(h.timelockUnpauses()),
             " feesPaidOut=",
             vm.toString(h.feesPaidOut())
+        );
+        line = string.concat(
+            line,
+            " m7Crossing=",
+            vm.toString(h.m7Crossing()),
+            " ownMints=",
+            vm.toString(h.ownMints()),
+            " liveChecked=",
+            vm.toString(h.liveChecked()),
+            " usdgRepays=",
+            vm.toString(h.usdgRepays())
         );
         console.log(line);
         // one line per run for the deep script to sum (out/ is the only writable path)

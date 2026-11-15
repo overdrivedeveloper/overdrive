@@ -85,6 +85,7 @@ contract SystemHandler is Test, Ghosts {
 
     // per-call snapshots
     uint256 internal _resBefore;
+    bool internal _liveNow; // S18: the holder sell in progress must pay (kept in storage: sell() is at the stack limit)
     uint256 internal _feePendingBefore;
     uint256 internal _feeHeldBefore;
     uint256 internal _feeBalBefore;
@@ -348,6 +349,12 @@ contract SystemHandler is Test, Ghosts {
         (address who, bytes32 g, uint256 bal) = _held(actor, gearIdx);
         if (bal == 0) return;
         IERC20 t = _tok(g);
+        // S18: on half the sells the toll is accrued first, so the liveness reading (_live) is exact; the other half
+        // keeps the sell that accrues by itself
+        _liveNow = tokens % 2 == 0;
+        if (_liveNow) {
+            try s.minter.accrue(g) {} catch {}
+        }
         uint256 amount;
         if (exactIn) {
             amount = _bound(tokens, 1, bal);
@@ -378,6 +385,8 @@ contract SystemHandler is Test, Ghosts {
             _hookTrade(who, g, false, exactIn, amount, qok, q, 0);
             return;
         }
+        _liveNow = _liveNow && qok && _live(g, r, payout, exactIn ? amount : q.amountIn);
+        if (_liveNow) ++liveChecked;
         uint256 u0 = s.usdg.balanceOf(who);
         uint256 b0 = t.balanceOf(who);
         bool ok;
@@ -411,6 +420,7 @@ contract SystemHandler is Test, Ghosts {
             if (sel == IODMinter.UseQueue.selector) {
                 ++sellUseQueue;
                 if (r1) ++r1Violations;
+                if (_liveNow) ++liveViolations;
             } else if (sel != IODMinter.BelowMinimum.selector) {
                 _gated("sell", err);
             }
@@ -607,6 +617,10 @@ contract SystemHandler is Test, Ghosts {
 
     // ============================================================================================ backers
 
+    function vaultAt(uint256 i) external view returns (uint256) {
+        return vaultIds[i];
+    }
+
     function backerOpen(uint256 actor, uint256 gearIdx, uint256 usdg) external step("backerOpen") {
         address who = a.backer(actor);
         bytes32 g = _gear(gearIdx);
@@ -641,10 +655,52 @@ contract SystemHandler is Test, Ghosts {
         uint256 maxTokens = v == 0 || room <= debtWad ? 1e18 : (room - debtWad) * 1e18 / v;
         tokens = _bound(tokens, 1e18, maxTokens < 1e18 ? 1e18 : maxTokens);
         vm.prank(owner);
-        try s.backer.mint(id, tokens, sellToGovernor, 0) {}
-        catch {
+        try s.backer.mint(id, tokens, sellToGovernor, 0) {
+            if (!sellToGovernor) {
+                ghostOwnOf[id] += tokens;
+                ghostOwnGear[g] += tokens;
+                _ceilingCheck();
+            }
+        } catch {
             ++revertsOf["backerMint"];
         }
+    }
+
+    /// I4-1 ghost, kept by the handler alone (never read from the Governor's or the backer's counter): a vault's
+    /// wallet-minted debt still open is what it minted to its owner, capped by the debt it still carries (its debt
+    /// sold to the Governor clears first). Synced after every step that can lower a vault's debt.
+    function _syncOwn() internal {
+        for (uint256 i; i < vaultIds.length; ++i) {
+            uint256 id = vaultIds[i];
+            uint256 own = ghostOwnOf[id];
+            if (own == 0) continue;
+            (, bytes32 g,, uint256 debt,) = s.backer.vault(id);
+            if (own > debt) {
+                ghostOwnGear[g] -= own - debt;
+                ghostOwnOf[id] = debt;
+            }
+        }
+    }
+
+    /// I4-1: buy debt back with USDG whatever the owner holds (nothing is burned), also right after a direct sale from
+    /// another vault of the same owner and gear: the dilution route of the finding.
+    function backerRepayUsdg(uint256 vaultIdx, uint256 tokens, bool sellFirst) external step("backerRepayUsdg") {
+        (uint256 id, address owner,, uint256 debt) = _vault(vaultIdx);
+        if (id == 0) return;
+        if (sellFirst) {
+            vm.prank(owner);
+            try s.backer.mint(id, _bound(tokens, 1e18, 50e18), true, 0) {} catch {}
+            (,,, debt,) = s.backer.vault(id);
+        }
+        if (debt == 0) return;
+        tokens = _bound(tokens, 1, debt);
+        vm.prank(owner);
+        try s.backer.repayWithUsdg(id, tokens, type(uint256).max) {
+            ++usdgRepays;
+        } catch {
+            ++revertsOf["backerRepayUsdg"];
+        }
+        _syncOwn();
     }
 
     /// M-7: the vault owner sells tokens they minted to themselves through the minter, like a holder. The share of the
@@ -672,6 +728,78 @@ contract SystemHandler is Test, Ghosts {
         }
     }
 
+    /// S18 liveness (M-8), read before a holder sell whose toll was accrued first (so no fee settlement stands
+    /// between this reading and the sell): the sell is wholly above the wallet-minted debt (the handler's ghost), both
+    /// prices are there, and free cash net of fees owed plus the exit reserve plus insurance cover its payout. Such
+    /// a sell must pay: cash parked in backer sale locks is never the reason a holder queues.
+    function _live(bytes32 g, PriceReading memory r, uint256 payout, uint256 tokensIn) internal view returns (bool) {
+        return payout != 0 && tokensIn != 0 && r.p != 0 && r.refP != 0 && s.minter.settledValue(g) == 0
+            && _tok(g).totalSupply() >= ghostOwnGear[g] + tokensIn
+            && payout + s.gov.feeOwed()
+                <= s.gov.freeCash() + s.gov.exitReserve() + IODInsurance(address(s.gov.insurance())).balance();
+    }
+
+    /// M-8: right after a successful own mint the locks of all gears are within maxLockBps of free cash plus locks.
+    function _ceilingCheck() internal {
+        uint256 locks;
+        for (uint256 i; i < gearIds.length; ++i) {
+            locks += s.gov.backerLock(gearIds[i]);
+        }
+        ++ownMints;
+        if (locks * 10_000 > (s.gov.freeCash() + locks) * s.gov.getParams().maxLockBps) ++lockCeilingViolations;
+    }
+
+    /// Rescore 4: the state S17 exists for, reached on purpose. The owner of a vault mints to their wallet a little
+    /// more than the supply above the gear's wallet-minted debt (collateral topped up first), then sells past that
+    /// supply, so the sell crosses the own-minted debt; later holder sells on the gear are then below it too.
+    function crossOwnSell(uint256 vaultIdx, uint256 extra, uint256 sellShare) external step("crossOwnSell") {
+        (uint256 id, address owner, bytes32 g,) = _vault(vaultIdx);
+        if (id == 0) return;
+        IERC20 t = _tok(g);
+        (uint256 v,) = s.minter.valuePerToken(g);
+        if (v == 0) return;
+        uint256 supply = t.totalSupply();
+        uint256 own = ghostOwnGear[g];
+        uint256 room = supply > own ? supply - own : 0;
+        uint256 bal = t.balanceOf(owner);
+        if (bal <= room) {
+            uint256 mintTokens = room - bal + _bound(extra, 1e18, 50e18);
+            uint256 usdg = mintTokens * v / 1e30 * 4 + 100e6; // 400% of the new debt: above any initial ratio + uplift
+            if (usdg > 2_000_000e6) return;
+            _fund(owner, usdg, address(s.backer));
+            vm.prank(owner);
+            try s.backer.deposit(id, usdg) {} catch {}
+            vm.prank(owner);
+            try s.backer.mint(id, mintTokens, false, 0) {
+                ghostOwnOf[id] += mintTokens;
+                ghostOwnGear[g] += mintTokens;
+                _ceilingCheck();
+            } catch {
+                ++revertsOf["crossOwnSell"];
+                return;
+            }
+            bal = t.balanceOf(owner);
+            own = ghostOwnGear[g];
+            supply = t.totalSupply();
+            room = supply > own ? supply - own : 0;
+        }
+        if (bal <= room) return;
+        uint256 tokens = room + _bound(sellShare, 1, bal - room);
+        M7Pre memory pre = _m7Pre(g);
+        uint256 u0 = s.usdg.balanceOf(owner);
+        vm.prank(owner);
+        try s.minter.sell(g, tokens, 0, owner, _now64()) returns (uint256 out) {
+            ++backerSells;
+            _holderPaidThisCall = out;
+            _m7Post(g, pre, tokens, s.usdg.balanceOf(owner) - u0);
+        } catch (bytes memory e) {
+            ++revertsOf["crossOwnSell"];
+            bytes4 sel = _sel(e);
+            if (sel == IODMinter.UseQueue.selector) ++backerSellsRefused;
+            else if (sel != IODMinter.BelowMinimum.selector) _gated("crossOwnSell", e);
+        }
+    }
+
     struct M7Pre {
         uint256 room; // supply above the gear's own-minted backer debt: the tokens the reserve stands behind
         uint256 res;
@@ -681,7 +809,7 @@ contract SystemHandler is Test, Ghosts {
 
     function _m7Pre(bytes32 g) internal view returns (M7Pre memory p) {
         uint256 supply = _tok(g).totalSupply();
-        uint256 own = s.gov.backerOwnDebt(g);
+        uint256 own = ghostOwnGear[g]; // I4-1: the handler's own count, not the contract's
         p.room = supply > own ? supply - own : 0;
         p.res = s.gov.exitReserve();
         p.ins = IODInsurance(address(s.gov.insurance())).balance();
@@ -699,6 +827,7 @@ contract SystemHandler is Test, Ghosts {
         uint256 above = p.room >= burned ? burned : p.room;
         uint256 allowed = burned == 0 ? 0 : paid * above / burned + 1;
         if (drawn > allowed) ++m7DrawViolations;
+        if (above < burned) ++m7Crossing;
         uint256 lockNow = s.gov.backerLock(g);
         uint256 fromLock = p.lock > lockNow ? p.lock - lockNow : 0;
         if (lockNow > p.lock || fromLock > paid - (allowed > paid ? paid : allowed) + 1) ++m7LockViolations;
@@ -722,6 +851,7 @@ contract SystemHandler is Test, Ghosts {
                 ++revertsOf["backerRepay"];
                 _gated("backerRepay", e);
             }
+            _syncOwn();
             return;
         }
         tokens = _bound(tokens, 1, debt);
@@ -731,6 +861,7 @@ contract SystemHandler is Test, Ghosts {
         catch {
             ++revertsOf["backerRepay"];
         }
+        _syncOwn();
     }
 
     /// Anyone tops a vault up; never blocked (R4).
@@ -794,6 +925,7 @@ contract SystemHandler is Test, Ghosts {
         } catch {
             ++revertsOf["sealAndExecute"];
         }
+        _syncOwn();
     }
 
     // ============================================================================================ the Governor

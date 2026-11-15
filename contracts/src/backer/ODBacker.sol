@@ -61,6 +61,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         uint256 debtTokens;
         uint256 tollIndexSnapshot; // minter cumTollPerTokenWad at the last vault action
         uint256 batchId;
+        uint256 ownTokens; // I4-1: the part of debtTokens minted to the owner's wallet and still open
     }
 
     /// @notice Reverts when an address argument is zero.
@@ -133,10 +134,8 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     /// @inheritdoc IODBacker
     function setUplift(uint16 upliftBps, uint32 lead) external {
         if (upliftBps > MAX_UPLIFT_BPS || lead > MAX_UPLIFT_LEAD) revert InvalidParams();
-        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
-            if (!hasRole(ODRoles.GUARDIAN_ROLE, msg.sender)) revert NotAllowed();
-            if (upliftBps < _upliftBps || lead < _upliftLead) revert NotAllowed();
-        }
+        // I4-2: the uplift raises maintenance, so a raise can make a healthy vault sealable: admin (timelock) only
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) revert NotAllowed();
         _upliftBps = upliftBps;
         _upliftLead = lead;
         emit UpliftSet(upliftBps, lead);
@@ -240,7 +239,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (tokens == 0) return;
         minter.backerBurn(v.gearId, msg.sender, tokens);
         v.debtTokens -= tokens;
-        governor.onBackerRepay(v.gearId, tokens);
+        governor.onBackerRepay(v.gearId, tokens, _ownCleared(v));
         emit Repaid(vaultId, tokens, 0);
     }
 
@@ -277,7 +276,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             usdg.forceApprove(address(governor), cost);
             governor.fundCash(cost);
         }
-        governor.onBackerRepay(g, tokens);
+        governor.onBackerRepay(g, tokens, _ownCleared(v));
         emit CollateralMoved(vaultId, -int256(cost), v.collateralUsdg);
         emit Repaid(vaultId, tokens, cost);
     }
@@ -417,7 +416,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             emit CollateralMoved(vaultId, int256(x.surplus), x.surplus);
         }
         if (x.toGovernor != 0) usdg.safeTransfer(address(governor), x.toGovernor);
-        governor.absorbLiquidation(v.gearId, tokens, x.toGovernor);
+        governor.absorbLiquidation(v.gearId, tokens, _ownCleared(v), x.toGovernor);
         if (x.bonus != 0) usdg.safeTransfer(executor, x.bonus);
         emit Liquidated(batchId, vaultId, tokens, coll - x.surplus, x.bonus, x.badDebt);
         return true;
@@ -490,6 +489,11 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     {
         VaultData storage v = _vaults[vaultId];
         return (v.owner, v.gearId, v.collateralUsdg, v.debtTokens, _liveBatch(v.batchId));
+    }
+
+    /// @inheritdoc IODBacker
+    function vaultOwnDebt(uint256 vaultId) external view returns (uint256) {
+        return _vaults[vaultId].ownTokens;
     }
 
     /// @inheritdoc IODBacker
@@ -574,6 +578,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         } else {
             // supply first, then the book, so the Governor's net never dips by the new debt alone
             minter.backerMint(g, v.owner, tokens);
+            v.ownTokens += tokens;
             if (!governor.onBackerMint(g, tokens, false, value)) revert MintingClosed("GOVERNOR_CASH");
         }
         _requireRatio(v, cfg, r, cfg.collateralBps);
@@ -673,6 +678,18 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (r1 <= MIN_CLOSED_FOR_UPLIFT) return false;
         (, uint64 r2) = marketHours.nextLongClose(r1 - MIN_CLOSED_FOR_UPLIFT, MIN_CLOSED_FOR_UPLIFT);
         return r2 == r1;
+    }
+
+    /// I4-1: lowers the vault's own-minted debt to the debt left and returns the part cleared. Debt sold to the
+    /// Governor clears first, so the own-minted part (and the Governor's lock behind it) is the last to go: a repay or
+    /// a liquidation never clears more own-minted debt than this vault itself still carries.
+    function _ownCleared(VaultData storage v) private returns (uint256 cleared) {
+        uint256 left = v.debtTokens;
+        uint256 own = v.ownTokens;
+        if (own > left) {
+            cleared = own - left;
+            v.ownTokens = left;
+        }
     }
 
     function _feeOwed(VaultData storage v) private view returns (uint256 fee) {

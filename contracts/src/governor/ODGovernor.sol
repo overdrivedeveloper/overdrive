@@ -130,7 +130,8 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
             shockStockBps: 2500,
             shockEtfBps: 1500,
             shockCryptoBps: 3000,
-            shockPairBps: 2000
+            shockPairBps: 2000,
+            maxLockBps: 2000
         });
     }
 
@@ -208,7 +209,8 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// gear's static cap reverts CapExceeded. Minted to the owner's wallet (M-7): `proceedsUsdg` (the tokens' sale
     /// value) moves from free cash into the gear's lock, false when short; reverts CapExceeded when the gear's total
     /// backer debt x value (net if every holder exits) passes the static cap. The tokens join the gear's own-minted
-    /// debt (backerOwnDebt), the only debt that changes how a sell is paid.
+    /// debt (backerOwnDebt), the only debt that changes how a sell is paid. M-8: also false when the locks of all
+    /// gears would pass Params.maxLockBps of free cash plus locks, so own mints cannot park the Governor's free cash.
     function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg)
         external
         onlyBacker
@@ -216,15 +218,11 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
         returns (bool)
     {
         if (proceedsUsdg > _b.cash) return false;
+        if (!soldToGovernor && !ODGovernorRisk.lockOwn(_b, gearId, tokens, proceedsUsdg, _p.maxLockBps)) return false;
         _debt[gearId] += tokens;
         (uint256 open, uint256 cap, int256 net) = ODGovernorRisk.mintOpen(_ctx(), _debt, gearId, !soldToGovernor);
         if (net < 0 && open > cap) revert CapExceeded(gearId, open, cap);
-        if (!soldToGovernor) {
-            _b.cash -= proceedsUsdg;
-            _b.lock[gearId] += proceedsUsdg;
-            _b.locked += proceedsUsdg;
-            _b.own[gearId] += tokens;
-        } else if (proceedsUsdg != 0) {
+        if (soldToGovernor && proceedsUsdg != 0) {
             _b.cash -= proceedsUsdg;
             if (!IERC20(asset()).trySafeTransfer(msg.sender, proceedsUsdg)) {
                 _b.cash += proceedsUsdg;
@@ -237,21 +235,21 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     }
 
     /// @inheritdoc IODGovernor
-    /// @dev Releases the gear's lock to free cash, and its own-minted debt, pro rata to the debt repaid.
-    function onBackerRepay(bytes32 gearId, uint256 tokens) external onlyBacker nonReentrant {
-        _repay(gearId, tokens);
+    /// @dev Lowers the gear's own-minted debt by `ownTokens` and releases that share of its lock to free cash.
+    function onBackerRepay(bytes32 gearId, uint256 tokens, uint256 ownTokens) external onlyBacker nonReentrant {
+        _repay(gearId, tokens, ownTokens);
         _emitBook(gearId);
     }
 
     /// @inheritdoc IODGovernor
     /// @dev The collateral (USDG) has already arrived; it becomes tracked cash. Releases the lock like a repay.
-    function absorbLiquidation(bytes32 gearId, uint256 debtTokens, uint256 collateralUsdg)
+    function absorbLiquidation(bytes32 gearId, uint256 debtTokens, uint256 ownTokens, uint256 collateralUsdg)
         external
         onlyBacker
         nonReentrant
     {
         _received(collateralUsdg);
-        _repay(gearId, debtTokens);
+        _repay(gearId, debtTokens, ownTokens);
         _b.cash += collateralUsdg;
         _settleFees();
         emit Liquidation(gearId, debtTokens, collateralUsdg);
@@ -504,16 +502,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     /// @inheritdoc IODGovernor
     function setParams(Params calldata p) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (
-            p.stressBudgetBps == 0 || p.stressBudgetBps > 5000 || p.capScaleBps == 0 || p.capScaleBps > BPS
-                || p.exitReserveFloorBps > 5000 || p.maxHedgeEquityBps > 8000 || p.maxHedgeJumpBps > 5000
-                || p.hedgeMaxAge < 10 minutes || p.hedgeMaxAge > 1 days || p.equityMaxAge < 5 minutes
-                || p.equityMaxAge > 1 days || p.drawdownBps < 100 || p.drawdownBps > 5000 || p.withdrawDelay < 1 hours
-                || p.withdrawDelay > 30 days || !_shockOk(p.shockStockBps) || !_shockOk(p.shockEtfBps)
-                || !_shockOk(p.shockCryptoBps) || !_shockOk(p.shockPairBps)
-        ) revert InvalidParams();
-        _p = p;
-        emit ParamsSet(p);
+        ODGovernorRisk.setParams(_p, p);
     }
 
     // ================================================================================= views
@@ -928,17 +917,13 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     }
 
     /// Lowers the gear's backer debt by `tokens`; releases the same share of its lock and of its own-minted debt.
-    function _repay(bytes32 gearId, uint256 tokens) private {
-        ODGovernorRisk.repay(_b, _debt, gearId, tokens);
+    function _repay(bytes32 gearId, uint256 tokens, uint256 ownTokens) private {
+        ODGovernorRisk.repay(_b, _debt, gearId, tokens, ownTokens);
     }
 
     function _emitBook(bytes32 gearId) private {
         uint256 d = _debt[gearId];
         emit BookUpdated(gearId, int256(IERC20(registry.gear(gearId).token).totalSupply()) - int256(d), d);
-    }
-
-    function _shockOk(uint16 b) private pure returns (bool) {
-        return b != 0 && b <= 9000;
     }
 
     function _decimalsOffset() internal pure override returns (uint8) {

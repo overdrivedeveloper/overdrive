@@ -88,12 +88,17 @@ contract BackerHealthTest is BackerFixture {
         _mint(alice, s, 450e18, false);
     }
 
-    function test_SetUpliftGuardianOnlyRaises() public {
+    /// I4-2: the uplift raises maintenance, so neither a raise nor a cut is the guardian's: admin (timelock) only.
+    function test_SetUpliftAdminOnly() public {
         vm.prank(guardian);
         vm.expectRevert(abi.encodeWithSignature("NotAllowed()"));
         backer.setUplift(4000, 2 hours);
         vm.prank(guardian);
+        vm.expectRevert(abi.encodeWithSignature("NotAllowed()"));
         backer.setUplift(6000, 3 hours);
+        vm.prank(guardian);
+        vm.expectRevert(abi.encodeWithSignature("NotAllowed()"));
+        backer.setUplift(5000, 2 hours); // not even the current values
         vm.prank(admin);
         backer.setUplift(4000, 1 hours);
         (uint16 bps, uint32 lead) = backer.uplift();

@@ -20,6 +20,7 @@ interface IODGovernor is IERC4626 {
         uint16 shockEtfBps; // 1500
         uint16 shockCryptoBps; // 3000
         uint16 shockPairBps; // 2000, on the ratio
+        uint16 maxLockBps; // M-8: backer sale locks, all gears <= this x (free cash + locks) at an own mint (2000)
     }
 
     /// @notice Emitted when the book of a gear (net tokens and backer debt) changes.
@@ -210,7 +211,8 @@ interface IODGovernor is IERC4626 {
     /// @notice Books a backer mint, paying the proceeds when the tokens are sold to the Governor.
     /// @dev Backer only (NotBacker otherwise). A mint to the owner's wallet moves `proceedsUsdg` (the tokens' sale
     /// value) from free cash into the gear's backer sale lock and reverts CapExceeded when the gear's total backer debt
-    /// x value would pass its static cap. Both routes return false when free cash is short.
+    /// x value would pass its static cap. Both routes return false when free cash is short; a mint to the owner's
+    /// wallet also when the locks of all gears would pass Params.maxLockBps of free cash plus locks (M-8).
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param soldToGovernor True if the minted tokens were sold to the Governor.
@@ -220,16 +222,18 @@ interface IODGovernor is IERC4626 {
         external
         returns (bool paid);
     /// @notice Books a backer repayment of gear tokens.
-    /// @dev Backer only (NotBacker otherwise).
+    /// @dev Backer only (NotBacker otherwise). Only `ownTokens` lowers the gear's own-minted debt and releases its lock.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tokens Amount of gear tokens (18 decimals).
-    function onBackerRepay(bytes32 gearId, uint256 tokens) external;
+    /// @param ownTokens The part of `tokens` that was the vault's own-minted debt (minted to the owner's wallet).
+    function onBackerRepay(bytes32 gearId, uint256 tokens, uint256 ownTokens) external;
     /// @notice Absorbs a liquidated vault debt and its collateral into the book.
     /// @dev Backer only. The collateral arrives first.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param debtTokens Debt in gear tokens (18 decimals).
+    /// @param ownTokens The part of `debtTokens` that was the vault's own-minted debt (minted to the owner's wallet).
     /// @param collateralUsdg Collateral amount in USDG, in 6-decimal units.
-    function absorbLiquidation(bytes32 gearId, uint256 debtTokens, uint256 collateralUsdg) external; // collateral arrives first
+    function absorbLiquidation(bytes32 gearId, uint256 debtTokens, uint256 ownTokens, uint256 collateralUsdg) external; // collateral arrives first
     // risk and reserve
     /// @notice Refreshes the cached stress and equity for the given markets.
     /// @dev Permissionless.
@@ -321,8 +325,9 @@ interface IODGovernor is IERC4626 {
     /// @return usdg  Amount of USDG, in 6-decimal units.
     function backerLock(bytes32 gearId) external view returns (uint256 usdg);
     /// @notice Returns the gear's backer debt still open from mints to the owner's wallet (not sold to the Governor).
-    /// @dev Lowered pro rata to the gear's backer debt on every repay and liquidation (vault debt is not split by
-    /// kind). A sell is paid from the lock then free cash only for the tokens that take supply below this amount.
+    /// @dev The sum of every vault's own-minted debt (ODBacker.vaultOwnDebt): lowered only by the own-minted part a
+    /// vault itself repays or is liquidated for, never by a repay of debt sold to the Governor. A sell is paid from
+    /// the lock then free cash only for the tokens that take supply below this amount.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @return tokens  Amount of gear tokens (18 decimals).
     function backerOwnDebt(bytes32 gearId) external view returns (uint256 tokens);

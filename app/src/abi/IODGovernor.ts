@@ -15,6 +15,11 @@ export const IODGovernorAbi = [
         "internalType": "uint256"
       },
       {
+        "name": "ownTokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "collateralUsdg",
         "type": "uint256",
         "internalType": "uint256"
@@ -660,6 +665,11 @@ export const IODGovernorAbi = [
             "name": "shockPairBps",
             "type": "uint16",
             "internalType": "uint16"
+          },
+          {
+            "name": "maxLockBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }
@@ -1048,6 +1058,11 @@ export const IODGovernorAbi = [
       },
       {
         "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "ownTokens",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1495,6 +1510,11 @@ export const IODGovernorAbi = [
           },
           {
             "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxLockBps",
             "type": "uint16",
             "internalType": "uint16"
           }
@@ -2102,6 +2122,11 @@ export const IODGovernorAbi = [
           },
           {
             "name": "shockPairBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxLockBps",
             "type": "uint16",
             "internalType": "uint16"
           }

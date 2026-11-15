@@ -181,6 +181,57 @@ library ODGovernorRisk {
         capUsdWad = cfg.capUsdWad;
     }
 
+    /// A backer mint to the owner's wallet (M-7): moves `usdg`, the tokens' sale value, from free cash into the gear's
+    /// lock and adds the tokens to its own-minted debt. M-8: refused (false, nothing moved) when the locks of all gears
+    /// would then pass `maxLockBps` of free cash plus locks. The mint costs the owner nothing, so without this ceiling
+    /// own mints on unused gears could park all free cash, starving LP claims and pushing every holder sell onto the
+    /// exit reserve and insurance. The caller has checked `usdg <= b.cash`.
+    function lockOwn(Books storage b, bytes32 id, uint256 tokens, uint256 usdg, uint256 maxLockBps)
+        external
+        returns (bool)
+    {
+        uint256 locked = b.locked + usdg;
+        if (locked * 10_000 > (b.cash + b.locked) * maxLockBps) return false;
+        b.cash -= usdg;
+        b.lock[id] += usdg;
+        b.locked = locked;
+        b.own[id] += tokens;
+        return true;
+    }
+
+    /// IODGovernor.setParams: every field inside its hard range (InvalidParams otherwise), stored, ParamsSet emitted.
+    /// Here for the Governor's code size.
+    function setParams(IODGovernor.Params storage to, IODGovernor.Params calldata p) external {
+        if (
+            p.stressBudgetBps == 0 || p.stressBudgetBps > 5000 || p.capScaleBps == 0 || p.capScaleBps > 10_000
+                || p.exitReserveFloorBps > 5000 || p.maxHedgeEquityBps > 8000 || p.maxHedgeJumpBps > 5000
+                || p.hedgeMaxAge < 10 minutes || p.hedgeMaxAge > 1 days || p.equityMaxAge < 5 minutes
+                || p.equityMaxAge > 1 days || p.drawdownBps < 100 || p.drawdownBps > 5000 || p.withdrawDelay < 1 hours
+                || p.withdrawDelay > 30 days || !_shockOk(p.shockStockBps) || !_shockOk(p.shockEtfBps)
+                || !_shockOk(p.shockCryptoBps) || !_shockOk(p.shockPairBps) || p.maxLockBps > 5000
+        ) revert IODGovernor.InvalidParams();
+        to.stressBudgetBps = p.stressBudgetBps;
+        to.capScaleBps = p.capScaleBps;
+        to.exitReserveFloorBps = p.exitReserveFloorBps;
+        to.minExitReserveUsdg = p.minExitReserveUsdg;
+        to.maxHedgeEquityBps = p.maxHedgeEquityBps;
+        to.maxHedgeJumpBps = p.maxHedgeJumpBps;
+        to.hedgeMaxAge = p.hedgeMaxAge;
+        to.equityMaxAge = p.equityMaxAge;
+        to.drawdownBps = p.drawdownBps;
+        to.withdrawDelay = p.withdrawDelay;
+        to.shockStockBps = p.shockStockBps;
+        to.shockEtfBps = p.shockEtfBps;
+        to.shockCryptoBps = p.shockCryptoBps;
+        to.shockPairBps = p.shockPairBps;
+        to.maxLockBps = p.maxLockBps;
+        emit IODGovernor.ParamsSet(p);
+    }
+
+    function _shockOk(uint16 b) private pure returns (bool) {
+        return b != 0 && b <= 9000;
+    }
+
     // ------------------------------------------------------------------------------------------- payout
 
     /// Pays a sell of `tokens` for `usdg` (IODGovernor.onSell), supply read here, after the burn. The share for tokens
@@ -276,17 +327,21 @@ library ODGovernorRisk {
         above = usdg - below;
     }
 
-    /// Lowers the gear's backer debt by `tokens` (IODGovernor.onBackerRepay, absorbLiquidation) and releases the same
-    /// share of its lock to free cash and of its own-minted debt. Vault debt is not split by kind, so the share is
-    /// pro rata per gear; the own-minted part rounds toward staying open and never passes the debt.
-    function repay(Books storage b, mapping(bytes32 => uint256) storage debt, bytes32 id, uint256 tokens) external {
+    /// Lowers the gear's backer debt by `tokens` (IODGovernor.onBackerRepay, absorbLiquidation). I4-1: only
+    /// `ownTokens`, the own-minted debt the repaying vault itself cleared (ODBacker tracks it per vault), lowers the
+    /// gear's own-minted debt, and the lock is released to free cash in that proportion of the own-minted debt (Floor:
+    /// rounds toward staying locked; all of it when no own-minted debt is left). A repay of debt sold to the Governor
+    /// (`ownTokens` 0) releases nothing.
+    function repay(Books storage b, mapping(bytes32 => uint256) storage debt, bytes32 id, uint256 tokens, uint256 ownTokens)
+        external
+    {
         uint256 d = debt[id];
         uint256 lk = b.lock[id];
         uint256 own = b.own[id];
-        bool all = tokens >= d;
-        uint256 rel = all ? lk : Math.mulDiv(lk, tokens, d);
-        debt[id] = all ? 0 : d - tokens;
-        b.own[id] = all ? 0 : own - Math.mulDiv(own, tokens, d);
+        bool all = ownTokens >= own;
+        uint256 rel = all ? lk : Math.mulDiv(lk, ownTokens, own);
+        debt[id] = tokens >= d ? 0 : d - tokens;
+        b.own[id] = all ? 0 : own - ownTokens;
         b.lock[id] = lk - rel;
         b.locked -= rel;
         b.cash += rel;

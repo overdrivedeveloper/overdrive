@@ -53,9 +53,10 @@ contract Ind3BackerMintSellDrainTest is BackerFixture {
         assertEq(gov.exitReserve(), res0, "exit reserve untouched");
         assertEq(ins.balance(), ins0, "insurance untouched");
 
-        // The largest round size inside the cap, minted to the owner and sold: the reserve and insurance stay whole.
-        (uint256 value,) = minter.valuePerToken(sport);
-        uint256 inside = reg.gear(sport).capUsdWad * 9 / 10 / value * 1e18;
+        // A size inside the cap and inside the lock ceiling (M-8, fix round 7: all locks at most 20% of free cash plus
+        // locks; this line was 90% of the cap before the ceiling), minted to the owner and sold: the reserve and
+        // insurance stay whole.
+        uint256 inside = minter.quote(sport, false, false, cash0 * 19 / 100).amountIn;
         _mint(bob, v, inside, false);
         uint256 got = _sell(bob, sport, inside);
         emit log_named_uint("backer sale inside the cap (USDG)", got / 1e6);

@@ -46,6 +46,14 @@ abstract contract Ghosts {
     uint256 internal _holderPaidThisCall;
 
     // ---------------------------------------------------------------------------------------- M-7 below-zero sells
+    mapping(uint256 vaultId => uint256) public ghostOwnOf; // I4-1: wallet-minted debt still open, per vault
+    mapping(bytes32 gear => uint256) public ghostOwnGear; // ...and per gear (the sum)
+    uint256 public usdgRepays; // successful repayWithUsdg calls of the I4-1 step
+    uint256 public m7Crossing; // checked sells with a share below the wallet-minted debt (the branch M-7 exists for)
+    uint256 public liveChecked; // S18: holder sells wholly above the wallet-minted debt with the cash to pay them in reach
+    uint256 public liveViolations; // ...that were queued all the same
+    uint256 public ownMints; // successful mints to an owner's wallet
+    uint256 public lockCeilingViolations; // M-8: ...that left the locks above the ceiling
     uint256 public m7Checked; // successful minter sells (holder, backer, queue fill) checked
     uint256 public m7BelowZero; // ...that left the gear's net below zero
     uint256 public m7BelowZeroDirect; // ...of which wholly above the own-minted debt (paid like any sell)

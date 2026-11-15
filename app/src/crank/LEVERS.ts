@@ -41,7 +41,7 @@ export const NOT_LEVERS: { match: RegExp; reason: string }[] = [
   { match: /^IODFees\.notify$/, reason: "called by the minter and hook as fees arise" },
   { match: /^IODBacker\.(openVault|deposit|withdraw|mint|repay|repayWithUsdg)$/, reason: "backer vault owner actions" },
   { match: /^IODBacker\.(openVaultFor|mintFor|setOperator)$/, reason: "owner-approved operator actions (the agent router, todo 10) and the owner's operator switch" },
-  { match: /^IODBacker\.(setUplift|setMintPaused)$/, reason: "guardian raises the uplift or pauses mints; admin (timelock) lowers or unpauses" },
+  { match: /^IODBacker\.(setUplift|setMintPaused)$/, reason: "admin (timelock) sets the uplift and unpauses mints; the guardian only pauses mints" },
   { match: /^IODBacker\.setStake$/, reason: "admin (timelock) wiring of the bad-debt slash target (todo 09)" },
   { match: /^IODVolOracle\.(post|setBounds|setSigner|revokeSigner)$/, reason: "the vol engine posts sigma (15); admin sets bounds and signer" },
 ];

@@ -27,6 +27,13 @@ contract BackerLockTest is BackerFixture {
         ins.fund(INSURANCE);
         vm.stopPrank();
         _poke();
+        // These tests size their own mints against the gear cap, above the default lock ceiling (M-8: all locks at
+        // most 20% of free cash plus locks), so they run at the parameter's upper bound. The ceiling itself is
+        // tested in poc/Rescore4LockGrief.t.sol.
+        IODGovernor.Params memory gp = gov.getParams();
+        gp.maxLockBps = 5000;
+        vm.prank(admin);
+        gov.setParams(gp);
     }
 
     /// Tokens worth `bps` of the gear's static cap at the live value.

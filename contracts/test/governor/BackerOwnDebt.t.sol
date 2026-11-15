@@ -130,21 +130,43 @@ contract BackerOwnDebtTest is GovernorFixture {
         assertEq(gov.backerLock(id), 80e6);
     }
 
-    /// Repay lowers the own-minted debt and the lock pro rata to the gear's backer debt; all of both at zero debt.
-    function test_RepayLowersOwnMintedDebtProRata() public {
+    /// I4-1: a repay lowers the own-minted debt, and releases the lock, only by the own-minted part the backer reports
+    /// for it (the lock in that proportion of the own-minted debt). A repay of debt sold to the Governor moves neither.
+    function test_RepayLowersOwnMintedDebtOnlyByTheOwnPart() public {
         _own(100e18, 80e6);
         _direct(500e18, 500e6);
         uint256 cash = gov.freeCash();
         vm.prank(backerC);
-        gov.onBackerRepay(id, 300e18);
+        gov.onBackerRepay(id, 300e18, 0); // sold debt only
         assertEq(gov.backerDebt(id), 300e18);
+        assertEq(gov.backerOwnDebt(id), 100e18, "own-minted debt untouched");
+        assertEq(gov.backerLock(id), 80e6, "lock untouched");
+        assertEq(gov.freeCash(), cash);
+        vm.prank(backerC);
+        gov.onBackerRepay(id, 250e18, 50e18); // the last 200 sold, then 50 own-minted
+        assertEq(gov.backerDebt(id), 50e18);
         assertEq(gov.backerOwnDebt(id), 50e18);
         assertEq(gov.backerLock(id), 40e6);
         assertEq(gov.freeCash(), cash + 40e6);
         vm.prank(backerC);
-        gov.onBackerRepay(id, 300e18);
+        gov.absorbLiquidation(id, 50e18, 50e18, 0);
         assertEq(gov.backerOwnDebt(id), 0);
         assertEq(gov.backerLock(id), 0);
         assertEq(gov.freeCash(), cash + 80e6);
+    }
+
+    /// The lock release rounds toward staying locked, and an own part above what is open clears all of it, no more.
+    function test_RepayOwnPartRoundsAndClamps() public {
+        _own(3, 10);
+        uint256 cash = gov.freeCash();
+        vm.prank(backerC);
+        gov.onBackerRepay(id, 1, 1);
+        assertEq(gov.backerLock(id), 7, "10 x 1 / 3 floors to 3 released");
+        assertEq(gov.backerOwnDebt(id), 2);
+        vm.prank(backerC);
+        gov.onBackerRepay(id, 2, 5);
+        assertEq(gov.backerOwnDebt(id), 0);
+        assertEq(gov.backerLock(id), 0);
+        assertEq(gov.freeCash(), cash + 10);
     }
 }

@@ -72,8 +72,7 @@
   },
   {
    "access": [
-    "DEFAULT_ADMIN_ROLE",
-    "GUARDIAN_ROLE"
+    "DEFAULT_ADMIN_ROLE"
    ],
    "function": "setUplift"
   }
@@ -221,12 +220,6 @@
     "onlyMinter"
    ],
    "function": "onToll"
-  },
-  {
-   "access": [
-    "onlyMinter"
-   ],
-   "function": "pay"
   },
   {
    "access": [
