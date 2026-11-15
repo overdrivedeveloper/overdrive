@@ -180,7 +180,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     {
         _oweSpread(spreadUsdg);
         if (tokens != 0) _emitBook(gearId); // a bare payout (no tokens) books no gear
-        return ODGovernorRisk.paySell(_b, _debt, IERC20(asset()), insurance, registry, gearId, tokens, to, usdg);
+        return ODGovernorRisk.paySell(_b, IERC20(asset()), insurance, registry, gearId, tokens, to, usdg);
     }
 
     /// @inheritdoc IODGovernor
@@ -206,35 +206,33 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     // ================================================================================= backer hooks
 
     /// @inheritdoc IODGovernor
-    /// @dev `soldToGovernor`: the backer's minted tokens go to the Governor's account (no supply change), lowering
-    /// net; the proceeds come from free cash only (never the exit reserve), false when short. A net long beyond the
-    /// gear's static cap reverts CapExceeded. Minted to the owner's wallet (M-7): `proceedsUsdg` (the tokens' sale
-    /// value) moves from free cash into the gear's lock, false when short; reverts CapExceeded when the gear's total
-    /// backer debt x value (net if every holder exits) passes the static cap. The tokens join the gear's own-minted
-    /// debt (backerOwnDebt), the only debt that changes how a sell is paid. M-8: also false when the locks of all
-    /// gears would pass Params.maxLockBps of free cash plus locks, so own mints cannot park the Governor's free cash.
-    /// L-12: and false when `owner`'s open locks would pass Params.maxLockOwnerBps of that ceiling.
+    /// @dev `soldToGovernor` (I6-1): the backer's minted tokens go to the Governor's account (no supply change),
+    /// lowering net. No USDG moves: `proceedsUsdg` is booked as sale credit owed to the vault (saleCredit) and stays
+    /// in free cash until the debt is repaid or liquidated (settleSaleCredit); false when the credit of all vaults
+    /// would pass free cash. With zero tokens it is the bare payout of the liquidation reward floor, from free cash.
+    /// A net long beyond the gear's static cap reverts CapExceeded. Minted to the owner's wallet (M-7): `proceedsUsdg`
+    /// (the tokens' sale value) moves from free cash into the gear's lock, false when short; reverts CapExceeded when
+    /// the gear's total backer debt x value (net if every holder exits) passes the static cap. The tokens join the
+    /// gear's own-minted debt (backerOwnDebt), the only debt that changes how a sell is paid. M-8: also false when the
+    /// locks of all gears would pass Params.maxLockBps of free cash plus locks, so own mints cannot park the
+    /// Governor's free cash. L-12: and false when `owner`'s open locks would pass Params.maxLockOwnerBps of that
+    /// ceiling. The body is ODGovernorRisk.backerMint (code size).
     function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg, address owner)
         external
         onlyBacker
         nonReentrant
-        returns (bool)
+        returns (bool ok)
     {
-        if (proceedsUsdg > _b.cash) return false;
-        if (!soldToGovernor && !ODGovernorRisk.lockOwn(_b, _p, gearId, owner, tokens, proceedsUsdg)) return false;
-        _debt[gearId] += tokens;
-        (uint256 open, uint256 cap, int256 net) = ODGovernorRisk.mintOpen(_ctx(), _debt, gearId, !soldToGovernor);
-        if (net < 0 && open > cap) revert CapExceeded(gearId, open, cap);
-        if (soldToGovernor && proceedsUsdg != 0) {
-            _b.cash -= proceedsUsdg;
-            if (!IERC20(asset()).trySafeTransfer(msg.sender, proceedsUsdg)) {
-                _b.cash += proceedsUsdg;
-                _debt[gearId] -= tokens;
-                return false;
-            }
-        }
-        _emitBook(gearId);
-        return true;
+        ok = ODGovernorRisk.backerMint(
+            _b, _p, _debt, _ctx(), IERC20(asset()), gearId, tokens, soldToGovernor, proceedsUsdg, owner
+        );
+        if (ok) _emitBook(gearId);
+    }
+
+    /// @inheritdoc IODGovernor
+    /// @dev Free cash only, never the exit reserve or insurance; what free cash cannot pay stays owed to the vault.
+    function settleSaleCredit(uint256 payUsdg, uint256 cancelUsdg) external onlyBacker nonReentrant returns (uint256) {
+        return ODGovernorRisk.settleSale(_b, IERC20(asset()), payUsdg, cancelUsdg);
     }
 
     /// @inheritdoc IODGovernor
@@ -604,7 +602,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     /// @dev Mirrors onSell's payout split before the burn (QUOTE-1).
     function canPaySell(bytes32 gearId, uint256 tokens, uint256 usdg, uint256 cashDrain) public view returns (bool) {
-        return ODGovernorRisk.canPaySell(_b, _debt, insurance, registry, gearId, tokens, usdg, cashDrain);
+        return ODGovernorRisk.canPaySell(_b, insurance, registry, gearId, tokens, usdg, cashDrain);
     }
 
     /// @inheritdoc IODGovernor
@@ -655,6 +653,11 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
     /// @inheritdoc IODGovernor
     function freeCash() external view returns (uint256) {
         return _b.cash;
+    }
+
+    /// @inheritdoc IODGovernor
+    function saleCredit() external view returns (uint256) {
+        return _b.credit;
     }
 
     /// @inheritdoc IODGovernor
@@ -844,7 +847,7 @@ contract ODGovernor is ERC4626, AccessControl, ReentrancyGuardTransient, IODGove
 
     function _assetsWad(bool withHedge) private view returns (int256) {
         uint256 a = _b.cash + _b.reserve + _b.locked + (withHedge ? _hedgeTotal() : 0);
-        return int256(a * TO_WAD) - int256((uint256(_owedToll) + _owedSpread) * TO_WAD);
+        return int256(a * TO_WAD) - int256((uint256(_owedToll) + _owedSpread + _b.credit) * TO_WAD);
     }
 
     function _equityWad(int256 liability) private view returns (int256) {

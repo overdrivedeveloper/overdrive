@@ -245,6 +245,19 @@ interface IODBacker {
     /// @param vaultId Id of the vault.
     /// @return tokens  Amount of gear tokens (18 decimals).
     function vaultOwnDebt(uint256 vaultId) external view returns (uint256 tokens);
+    /// @notice Returns the total sale credit of all vaults: collateral held by the Governor, not by this contract.
+    /// @dev Equals the Governor's saleCredit. This contract holds totalCollateral - totalHeld (plus pending fees).
+    /// @return usdg  Amount of USDG, in 6-decimal units.
+    function totalHeld() external view returns (uint256 usdg);
+    /// @notice Returns the vault's sale credit: the part of its collateral that the Governor holds.
+    /// @dev The proceeds of a sale to the Governor never leave the Governor. They count as the vault's collateral and
+    /// cannot be withdrawn while held. `lockedUsdg` is the part still locked behind the debt sold to the Governor: it
+    /// falls in proportion as that debt is repaid or liquidated. The unlocked part is paid into this contract from
+    /// the Governor's free cash (at the repay, or at the next withdraw when free cash was short).
+    /// @param vaultId Id of the vault.
+    /// @return heldUsdg  Collateral held by the Governor, in 6-decimal units.
+    /// @return lockedUsdg  The part of it still locked behind sold debt, in 6-decimal units.
+    function vaultHeld(uint256 vaultId) external view returns (uint256 heldUsdg, uint256 lockedUsdg);
     /// @notice Returns the toll fee owed by a vault, charged at its next action.
     /// @param vaultId Id of the vault.
     /// @return usdg  Amount of USDG, in 6-decimal units.

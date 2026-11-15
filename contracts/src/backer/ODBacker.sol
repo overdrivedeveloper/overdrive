@@ -19,6 +19,7 @@ import {IODStake} from "../interfaces/IODStake.sol";
 import {ODRoles} from "../interfaces/ODRoles.sol";
 import {ODBackerMath as M} from "./ODBackerMath.sol";
 import {ODLiquidation as L} from "./ODLiquidation.sol";
+import {ODSaleCredit} from "./ODSaleCredit.sol";
 import {ODMinterPricing} from "../governor/ODMinterPricing.sol";
 
 /// @title ODBacker
@@ -61,6 +62,10 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         uint256 tollIndexSnapshot; // minter cumTollPerTokenWad at the last vault action
         uint256 batchId;
         uint256 ownTokens; // I4-1: the part of debtTokens minted to the owner's wallet and still open
+        // I6-1: the part of collateralUsdg that is sale credit held by the Governor (direct-sale proceeds never leave
+        // it), and the part of that still locked behind the debt sold to the Governor. Only USDG outside `held.usdg`
+        // can be withdrawn; the lock falls with the sold debt and the Governor then pays the rest from its free cash.
+        ODSaleCredit.Held held;
     }
 
     /// @notice Reverts when an address argument is zero.
@@ -89,6 +94,8 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     uint256 public vaultCount;
     uint256 public batchCount;
     uint256 public totalCollateral;
+    /// @inheritdoc IODBacker
+    uint256 public totalHeld;
     uint256 public pendingFees;
     bool public mintPaused;
     address public stake; // bad-debt slash target after insurance (todo 09); 0 = none
@@ -191,7 +198,8 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (to == address(0)) revert ZeroAddress();
         if (_liveBatch(v.batchId) != 0) revert InBatch(vaultId);
         _charge(vaultId, v);
-        if (amount > v.collateralUsdg) revert Undercollateralized(0, 0);
+        _settleHeld(v, 0, 0);
+        if (amount > v.collateralUsdg - v.held.usdg) revert Undercollateralized(0, 0);
         v.collateralUsdg -= amount;
         totalCollateral -= amount;
         if (v.debtTokens != 0) {
@@ -240,8 +248,10 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (tokens > v.debtTokens) tokens = v.debtTokens;
         if (tokens == 0) return;
         minter.backerBurn(v.gearId, msg.sender, tokens);
+        uint256 sold = v.debtTokens - v.ownTokens;
         v.debtTokens -= tokens;
         governor.onBackerRepay(v.gearId, tokens, _ownCleared(v), v.owner);
+        _settleHeld(v, sold, 0);
         emit Repaid(vaultId, tokens, 0);
     }
 
@@ -272,14 +282,18 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         }
         if (cost > maxCostUsdg) revert Slippage(cost, maxCostUsdg);
         if (cost > v.collateralUsdg) revert Undercollateralized(0, 0);
+        // I6-1: the cost comes out of the sale credit first (cancelled: that USDG is already the Governor's cash)
+        uint256 fromHeld = Math.min(cost, v.held.usdg);
+        uint256 sold = v.debtTokens - v.ownTokens;
         v.collateralUsdg -= cost;
         totalCollateral -= cost;
         v.debtTokens -= tokens;
-        if (cost != 0) {
-            usdg.forceApprove(address(governor), cost);
-            governor.fundCash(cost);
+        if (cost != fromHeld) {
+            usdg.forceApprove(address(governor), cost - fromHeld);
+            governor.fundCash(cost - fromHeld);
         }
         governor.onBackerRepay(g, tokens, _ownCleared(v), v.owner);
+        _settleHeld(v, sold, fromHeld);
         emit CollateralMoved(vaultId, -int256(cost), v.collateralUsdg);
         emit Repaid(vaultId, tokens, cost);
     }
@@ -421,6 +435,15 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             totalCollateral += x.surplus;
             emit CollateralMoved(vaultId, int256(x.surplus), x.surplus);
         }
+        {
+            // I6-1: sale credit pays the Governor's share first (cancelled, no transfer), then stays with the vault as
+            // its surplus; only the rest is asked of the Governor's free cash, and the bonus is less by what it lacks
+            (uint256 cancel, uint256 unpaid, uint256 out) =
+                ODSaleCredit.seize(v.held, governor, x.toGovernor, x.surplus);
+            x.toGovernor -= cancel;
+            x.bonus -= unpaid;
+            totalHeld -= out;
+        }
         if (x.toGovernor != 0) usdg.safeTransfer(address(governor), x.toGovernor);
         governor.absorbLiquidation(v.gearId, tokens, _ownCleared(v), x.toGovernor, v.owner);
         if (x.bonus != 0) usdg.safeTransfer(executor, x.bonus);
@@ -503,6 +526,11 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     }
 
     /// @inheritdoc IODBacker
+    function vaultHeld(uint256 vaultId) external view returns (uint256, uint256) {
+        return (_vaults[vaultId].held.usdg, _vaults[vaultId].held.locked);
+    }
+
+    /// @inheritdoc IODBacker
     function tollFeeOwed(uint256 vaultId) external view returns (uint256) {
         return _feeOwed(_known(vaultId));
     }
@@ -567,19 +595,20 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (r.buysPaused) revert MintingClosed(r.reason == 0 ? bytes32("BUYS_PAUSED") : r.reason);
         if (r.refP == 0) revert MintingClosed("REF_UNAVAILABLE");
         v.debtTokens += tokens;
-        // the sale value: paid out when sold to the Governor, held back in the Governor's lock when minted to the owner
+        // the sale value: credited (held by the Governor) when sold to the Governor, held back in the Governor's lock when minted to the owner
         uint256 value = M.proceedsUsdg(tokens, _perToken(cfg, g, r, false), _spreadBps(cfg, r));
         if (sell) {
             (bool paused, bytes32 why) = governor.buysPaused();
             if (paused) revert MintingClosed(why);
             proceeds = value;
             if (proceeds < minProceeds) revert Slippage(proceeds, minProceeds);
-            uint256 before = usdg.balanceOf(address(this));
-            if (!governor.onBackerMint(g, tokens, true, proceeds, address(0))) revert MintingClosed("GOVERNOR_CASH");
-            uint256 got = usdg.balanceOf(address(this)) - before;
-            if (got < proceeds) revert UsdgNotReceived(proceeds, got);
+            // I6-1: the proceeds stay in the Governor as sale credit: collateral of this vault, locked behind the debt
+            if (!governor.onBackerMint(g, tokens, true, proceeds, v.owner)) revert MintingClosed("GOVERNOR_CASH");
             v.collateralUsdg += proceeds;
+            v.held.usdg += proceeds;
+            v.held.locked += proceeds;
             totalCollateral += proceeds;
+            totalHeld += proceeds;
             emit CollateralMoved(vaultId, int256(proceeds), v.collateralUsdg);
         } else {
             // supply first, then the book, so the Governor's net never dips by the new debt alone
@@ -603,6 +632,13 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         uint256 fee = M.tollFee(v.debtTokens, cum, v.tollIndexSnapshot, _feeBps());
         if (cum > v.tollIndexSnapshot) v.tollIndexSnapshot = cum;
         if (fee > v.collateralUsdg) fee = v.collateralUsdg;
+        uint256 liquid = v.collateralUsdg - v.held.usdg;
+        if (fee > liquid) {
+            // I6-1: the rest of the fee comes out of the sale credit, as far as the Governor's free cash pays it
+            uint256 got = ODSaleCredit.payFee(v.held, governor, fee - liquid);
+            totalHeld -= got;
+            fee = liquid + got;
+        }
         if (fee == 0) return;
         v.collateralUsdg -= fee;
         totalCollateral -= fee;
@@ -706,6 +742,13 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             cleared = own - left;
             v.ownTokens = left;
         }
+    }
+
+    /// I6-1: settles the vault's sale credit after its sold debt (debt not minted to the owner's wallet) fell from
+    /// `soldBefore` and `cancel` of the credit paid a buy-back (ODSaleCredit.settle): the lock falls with the sold
+    /// debt and the Governor pays the unlocked part from its free cash, as far as that goes.
+    function _settleHeld(VaultData storage v, uint256 soldBefore, uint256 cancel) private {
+        totalHeld -= ODSaleCredit.settle(v.held, governor, v.debtTokens - v.ownTokens, soldBefore, cancel);
     }
 
     function _feeOwed(VaultData storage v) private view returns (uint256 fee) {

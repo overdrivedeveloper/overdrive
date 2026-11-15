@@ -291,6 +291,12 @@
   },
   {
    "access": [
+    "onlyBacker"
+   ],
+   "function": "settleSaleCredit"
+  },
+  {
+   "access": [
     "DEFAULT_ADMIN_ROLE"
    ],
    "function": "skim"

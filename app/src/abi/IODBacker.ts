@@ -614,6 +614,19 @@ export const IODBackerAbi = [
   },
   {
     "type": "function",
+    "name": "totalHeld",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "uplift",
     "inputs": [],
     "outputs": [
@@ -700,6 +713,30 @@ export const IODBackerAbi = [
     "outputs": [
       {
         "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "vaultHeld",
+    "inputs": [
+      {
+        "name": "vaultId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "heldUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedUsdg",
         "type": "uint256",
         "internalType": "uint256"
       }

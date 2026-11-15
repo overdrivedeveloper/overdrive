@@ -38,6 +38,10 @@ library ODGovernorRisk {
         // I4-5: keeper moves to the exit reserve in the current 24 h window
         uint64 moveWindow;
         uint192 moved;
+        // I6-1: USDG owed to backer vaults for debt sold to the Governor (direct sales). The proceeds never leave: they
+        // stay in `cash`, usable for holder payouts, and are booked here as owed (so NAV does not count them) until
+        // the vault's sold debt is repaid or liquidated (settleSale)
+        uint256 credit;
     }
 
     struct Ctx {
@@ -175,8 +179,8 @@ library ODGovernorRisk {
     /// M-7: open value and static cap checked at a backer mint. Sold to the Governor (`own` false): the live net, as
     /// gearOpen. Minted to the owner's wallet (`own` true): the worst case once every holder has exited, net = -(total
     /// backer debt), so later holder exits cannot push the gear past its cap.
-    function mintOpen(Ctx memory c, mapping(bytes32 => uint256) storage debt, bytes32 id, bool own)
-        external
+    function _mintOpen(Ctx memory c, mapping(bytes32 => uint256) storage debt, bytes32 id, bool own)
+        private
         view
         returns (uint256 openWad, uint256 capUsdWad, int256 net)
     {
@@ -195,14 +199,14 @@ library ODGovernorRisk {
     /// exit reserve and insurance. L-12: also refused when `owner`'s open locks (all gears, at their mint value) would
     /// pass `maxOwnerBps` of that ceiling, so one vault owner cannot take the whole ceiling and close own mints for
     /// every other backer. The caller has checked `usdg <= b.cash`.
-    function lockOwn(
+    function _lockOwn(
         Books storage b,
         IODGovernor.Params storage p,
         bytes32 id,
         address owner,
         uint256 tokens,
         uint256 usdg
-    ) external returns (bool) {
+    ) private returns (bool) {
         uint256 locked = b.locked + usdg;
         uint256 ceiling = (b.cash + b.locked) * p.maxLockBps; // x 10_000
         if (locked * 10_000 > ceiling) return false;
@@ -216,6 +220,63 @@ library ODGovernorRisk {
         b.ownerLock[owner][id] += usdg;
         b.ownerOwn[owner][id] += tokens;
         return true;
+    }
+
+    /// IODGovernor.onBackerMint, here for the Governor's code size. Sold to the Governor (`sold`, `tokens` > 0), I6-1:
+    /// no USDG moves. The proceeds `usdg` are booked as credit owed to the vault (Books.credit) and stay in free cash,
+    /// so a direct sale can neither empty free cash nor move money the exit reserve would have to replace; false when
+    /// the credit of all vaults would pass free cash. `sold` with zero tokens is the bare payout of the liquidation
+    /// reward floor: paid from free cash, false when short or when the transfer fails. Minted to the owner's wallet:
+    /// _lockOwn. Reverts CapExceeded when the gear's net long would pass its static cap (_mintOpen).
+    function backerMint(
+        Books storage b,
+        IODGovernor.Params storage p,
+        mapping(bytes32 => uint256) storage debt,
+        Ctx memory c,
+        IERC20 u,
+        bytes32 id,
+        uint256 tokens,
+        bool sold,
+        uint256 usdg,
+        address owner
+    ) external returns (bool) {
+        uint256 cash = b.cash;
+        bool credit = sold && tokens != 0;
+        if (usdg + (credit ? b.credit : 0) > cash) return false;
+        if (!sold && !_lockOwn(b, p, id, owner, tokens, usdg)) return false;
+        debt[id] += tokens;
+        (uint256 open, uint256 cap, int256 net) = _mintOpen(c, debt, id, !sold);
+        if (net < 0 && open > cap) revert IODGovernor.CapExceeded(id, open, cap);
+        if (credit) {
+            b.credit += usdg;
+            emit IODGovernor.SaleCreditBooked(id, owner, usdg, b.credit);
+        } else if (sold && usdg != 0) {
+            b.cash = cash - usdg;
+            if (!SafeERC20.trySafeTransfer(u, msg.sender, usdg)) {
+                b.cash = cash;
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// IODGovernor.settleSaleCredit: lowers the credit owed to backer vaults by `cancel` (USDG the Governor keeps: a
+    /// buy-back cost or seized collateral, already in free cash) and by what it pays out of `pay` to the caller (the
+    /// backer). Pays from free cash only, as far as it goes, never the exit reserve or insurance; the unpaid part stays
+    /// owed. Never reverts on a short Governor.
+    function settleSale(Books storage b, IERC20 u, uint256 pay, uint256 cancel) external returns (uint256 paid) {
+        uint256 cash = b.cash;
+        paid = pay < cash ? pay : cash;
+        if (paid != 0) {
+            b.cash = cash - paid;
+            if (!SafeERC20.trySafeTransfer(u, msg.sender, paid)) {
+                b.cash = cash;
+                paid = 0;
+            }
+        }
+        uint256 left = b.credit - paid - cancel;
+        b.credit = left;
+        emit IODGovernor.SaleCreditSettled(paid, cancel, left);
     }
 
     /// I4-5: free cash to the exit reserve. `metered` (the keeper): at most `bps` of free cash (as it stood before
@@ -287,13 +348,12 @@ library ODGovernorRisk {
     /// Pays a sell of `tokens` for `usdg` (IODGovernor.onSell), supply read here, after the burn. The share for tokens
     /// that took supply below the gear's own-minted backer debt comes from the gear's lock, then free cash, never the
     /// exit reserve or insurance; the rest (all of it when no such debt is open) from free cash, the exit reserve,
-    /// then ODInsurance cover. I4-1b (decision D32): a sell that leaves the gear's net below zero (supply after the
-    /// burn under the gear's total backer debt, own-minted or sold to the Governor) is paid from free cash only, never
-    /// from the exit reserve or insurance; short of free cash it is refused and goes to the queue. A sell that keeps
-    /// net at or above zero is paid as before. False when short or when the transfer fails (reverts when out of gas).
+    /// then ODInsurance cover. I6-1 (replaces the D32 rule): net below zero that only debt sold to the Governor
+    /// explains changes nothing here, because a direct sale no longer takes USDG out of the Governor (backerMint): the
+    /// money holders are owed is still in free cash or the exit reserve, so their sell is never refused for it.
+    /// False when short or when the transfer fails (reverts when out of gas).
     function paySell(
         Books storage b,
-        mapping(bytes32 => uint256) storage debt,
         IERC20 u,
         IODInsurance ins,
         IODGearRegistry reg,
@@ -306,12 +366,10 @@ library ODGovernorRisk {
         if (usdg == 0) return true;
         uint256 supply = _supply(reg, id, tokens);
         (uint256 fromLock, uint256 cashBelow, uint256 above) = _split(b, id, supply, tokens, usdg);
-        bool belowZero = tokens != 0 && supply < debt[id];
         uint256 cash = b.cash;
-        uint256 res = belowZero ? 0 : b.reserve; // the reserve this sell may use
+        uint256 res = b.reserve;
         if (cashBelow > cash) return false;
         if (cash - cashBelow + res < above) {
-            if (belowZero) return false;
             cash += _drawInsurance(u, ins, above - (cash - cashBelow) - res);
             b.cash = cash;
             if (cash - cashBelow + res < above) return false;
@@ -339,7 +397,6 @@ library ODGovernorRisk {
     /// (the trade's own fee settlement).
     function canPaySell(
         Books storage b,
-        mapping(bytes32 => uint256) storage debt,
         IODInsurance ins,
         IODGearRegistry reg,
         bytes32 id,
@@ -352,7 +409,6 @@ library ODGovernorRisk {
         (, uint256 cashBelow, uint256 above) = _split(b, id, supply, tokens, usdg);
         uint256 cash = b.cash > cashDrain ? b.cash - cashDrain : 0;
         if (cashBelow > cash) return false;
-        if (tokens != 0 && supply < debt[id]) return cash - cashBelow >= above; // I4-1b: free cash only
         uint256 have = cash - cashBelow + b.reserve;
         if (have >= above) return true;
         try ins.balance() returns (uint256 ib) {

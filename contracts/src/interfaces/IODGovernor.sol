@@ -116,6 +116,17 @@ interface IODGovernor is IERC4626 {
     /// @notice Emitted when surplus USDG is skimmed to the insurance fund.
     /// @param usdg Amount of USDG, in 6-decimal units.
     event Skimmed(uint256 usdg);
+    /// @notice Emitted when a backer's direct sale is booked as sale credit (the proceeds stay in the Governor).
+    /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
+    /// @param owner The vault owner.
+    /// @param usdg The sale proceeds booked as owed to the vault, in 6-decimal units.
+    /// @param creditUsdg Sale credit owed to all vaults after the booking, in 6-decimal units.
+    event SaleCreditBooked(bytes32 indexed gearId, address indexed owner, uint256 usdg, uint256 creditUsdg);
+    /// @notice Emitted when sale credit is settled: paid out to the backer contract, or kept by the Governor.
+    /// @param paidUsdg USDG paid from free cash to the backer contract, in 6-decimal units.
+    /// @param cancelledUsdg Credit cancelled with no payment (a buy-back cost or seized collateral), in 6-decimal units.
+    /// @param creditUsdg Sale credit owed to all vaults after the settlement, in 6-decimal units.
+    event SaleCreditSettled(uint256 paidUsdg, uint256 cancelledUsdg, uint256 creditUsdg);
     /// @notice Emitted when the Governor absorbs a liquidation.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param debtTokens Debt in gear tokens (18 decimals).
@@ -218,21 +229,33 @@ interface IODGovernor is IERC4626 {
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tollValueUsdWad The toll value usd, WAD (18 decimals).
     function onToll(bytes32 gearId, int256 tollValueUsdWad) external; // books toll; positive toll pays the toll fee (or owes it)
-    /// @notice Books a backer mint, paying the proceeds when the tokens are sold to the Governor.
-    /// @dev Backer only (NotBacker otherwise). A mint to the owner's wallet moves `proceedsUsdg` (the tokens' sale
-    /// value) from free cash into the gear's backer sale lock and reverts CapExceeded when the gear's total backer debt
-    /// x value would pass its static cap. Both routes return false when free cash is short; a mint to the owner's
-    /// wallet also when the locks of all gears would pass Params.maxLockBps of free cash plus locks (M-8), or when
-    /// `owner`'s open locks (all gears, at their mint value) would pass Params.maxLockOwnerBps of that ceiling (L-12).
+    /// @notice Books a backer mint: a sale to the Governor as sale credit, a mint to the owner's wallet as a lock.
+    /// @dev Backer only (NotBacker otherwise). Sold to the Governor (I6-1): no USDG leaves the Governor. The proceeds
+    /// are booked as sale credit owed to the vault (saleCredit), stay in free cash where they still pay holders, and
+    /// are paid to the backer contract only through settleSaleCredit once the debt is repaid or liquidated; false when
+    /// the credit of all vaults would pass free cash. With zero tokens (the liquidation reward floor) `proceedsUsdg`
+    /// is paid from free cash. A mint to the owner's wallet moves `proceedsUsdg` (the tokens' sale value) from free
+    /// cash into the gear's backer sale lock and reverts CapExceeded when the gear's total backer debt x value would
+    /// pass its static cap; false when free cash is short, when the locks of all gears would pass Params.maxLockBps
+    /// of free cash plus locks (M-8), or when `owner`'s open locks (all gears, at their mint value) would pass
+    /// Params.maxLockOwnerBps of that ceiling (L-12).
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param soldToGovernor True if the minted tokens were sold to the Governor.
-    /// @param proceedsUsdg USDG proceeds (sold) or USDG to lock (minted to the owner), in 6-decimal units.
+    /// @param proceedsUsdg USDG proceeds to credit (sold) or to lock (minted to the owner), in 6-decimal units.
     /// @param owner The vault owner (the party whose share of the lock ceiling a mint to the wallet uses).
-    /// @return paid  paid=True if the proceeds were paid or locked.
+    /// @return paid  paid=True if the proceeds were credited, paid or locked.
     function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg, address owner)
         external
         returns (bool paid);
+    /// @notice Settles sale credit: pays part of it to the backer contract and cancels part of it.
+    /// @dev Backer only (NotBacker otherwise). `payUsdg` is paid from free cash only, as far as free cash goes, never
+    /// from the exit reserve or insurance; the unpaid part stays owed. `cancelUsdg` is credit the Governor keeps (a
+    /// buy-back cost or seized collateral, already in its free cash). Reverts only if the two pass the credit owed.
+    /// @param payUsdg Credit to pay out to the backer contract, in 6-decimal units.
+    /// @param cancelUsdg Credit to cancel with no payment, in 6-decimal units.
+    /// @return paidUsdg USDG paid to the backer contract (at most `payUsdg`), in 6-decimal units.
+    function settleSaleCredit(uint256 payUsdg, uint256 cancelUsdg) external returns (uint256 paidUsdg);
     /// @notice Books a backer repayment of gear tokens.
     /// @dev Backer only (NotBacker otherwise). Only `ownTokens` lowers the gear's own-minted debt and releases its lock.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
@@ -350,6 +373,11 @@ interface IODGovernor is IERC4626 {
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @return usdg  Amount of USDG, in 6-decimal units.
     function backerLock(bytes32 gearId) external view returns (uint256 usdg);
+    /// @notice Returns the sale credit: USDG owed to backer vaults for debt they sold to the Governor.
+    /// @dev The proceeds of direct sales stay in free cash (they are counted in freeCash and still pay holders) and are
+    /// owed here until the debt is repaid or liquidated. NAV subtracts this amount.
+    /// @return usdg  Amount of USDG, in 6-decimal units.
+    function saleCredit() external view returns (uint256 usdg);
     /// @notice Returns the lock value one vault owner still holds open across all gears, at its mint value.
     /// @dev The meter of the owner's share of the lock ceiling (Params.maxLockOwnerBps). It falls only when the
     /// owner's own-minted debt is repaid or liquidated, not when a holder sell is paid from the lock.

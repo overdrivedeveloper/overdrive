@@ -1392,6 +1392,19 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "saleCredit",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "sendToHedger",
     "inputs": [
       {
@@ -1589,6 +1602,30 @@ export const IODGovernorAbi = [
       }
     ],
     "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settleSaleCredit",
+    "inputs": [
+      {
+        "name": "payUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "cancelUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "paidUsdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -2271,6 +2308,62 @@ export const IODGovernorAbi = [
         "type": "int256",
         "indexed": false,
         "internalType": "int256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SaleCreditBooked",
+    "inputs": [
+      {
+        "name": "gearId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "creditUsdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SaleCreditSettled",
+    "inputs": [
+      {
+        "name": "paidUsdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "cancelledUsdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "creditUsdg",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
