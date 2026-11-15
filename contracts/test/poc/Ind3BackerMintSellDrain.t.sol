@@ -31,6 +31,7 @@ contract Ind3BackerMintSellDrainTest is BackerFixture {
     /// sold leaves the reserve and insurance alone, and the ordinary holder still sells instantly.
     function test_M7_BackerMintThenSellCannotDrain() public {
         uint256 aliceTokens = _setUpBooks();
+        _oneOwnerMayHoldTheCeiling(); // one owner on purpose: the per-owner share (L-12) is not the subject here
         uint256 cash0 = gov.freeCash();
         uint256 res0 = gov.exitReserve();
         uint256 ins0 = ins.balance();

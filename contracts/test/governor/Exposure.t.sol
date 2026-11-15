@@ -28,7 +28,7 @@ contract ExposureTest is GovernorFixture {
         assertEq(open, 15_000e18);
         // A backer's debt nets out of the book.
         vm.prank(backerC);
-        gov.onBackerMint(s, 1_000e18, false, 0);
+        gov.onBackerMint(s, 1_000e18, false, 0, address(1));
         (d,,) = gov.exposure(TSLA);
         assertEq(d, -3_000e18);
     }

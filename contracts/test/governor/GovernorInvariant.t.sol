@@ -79,14 +79,16 @@ contract GovHandler is Test {
         uint256 tokens = bound(frac, 1, bal);
         uint256 cash = gov.freeCash();
         if (cash != 0) {
-            vm.prank(keeper);
-            gov.moveToExitReserve(cash);
+            vm.prank(keeper); // metered since I4-5: a tenth of free cash per 24 h window, refused past it
+            try gov.moveToExitReserve(cash / 10) {} catch {}
         }
         uint256 reserve = gov.exitReserve();
         proceeds = bound(proceeds, 0, reserve + 1_000e6);
         bool aboveFloor = reserve >= gov.exitReserveFloor();
+        bool keepsNet = gov.netTokens(id) >= int256(tokens);
         bool paid = minter.sell(id, alice, alice, tokens, proceeds, 0);
-        if (aboveFloor && proceeds <= reserve) {
+        // I4-1b (D32): the reserve stands behind a sell only while it keeps the gear's net at or above zero
+        if (aboveFloor && proceeds <= reserve && keepsNet) {
             ++sellsChecked;
             if (!paid) ++reserveFloorViolations;
         }

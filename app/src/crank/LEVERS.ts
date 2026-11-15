@@ -15,6 +15,7 @@ export const LEVERS: Record<string, LeverCaller> = {
   "IODGovernor.pokeRisk": { by: "crank", job: "risk-monitor" },
   "IODGovernor.setBuysPaused": { by: "crank", job: "risk-monitor" },
   "IODGovernor.moveToExitReserve": { by: "other", reason: "keeper-gated and sized by the hedger when it rebalances cash (todo 16); the crank never moves cash" },
+  "IODGovernor.moveFromExitReserve": { by: "other", reason: "admin (timelock) only: the way back from the exit reserve to free cash; the crank holds no admin role" },
   "IODOracleGuard.poke": { by: "crank", job: "poke" },
   "IODOracleGuard.setBuysPaused": { by: "other", reason: "guardian pause of one market; the crank only pauses through the Governor (R17) and alerts on this one" },
   "IODMarketHours.setSessionsWithKinds": { by: "crank", job: "sessions" },

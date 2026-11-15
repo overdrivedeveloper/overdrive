@@ -27,8 +27,8 @@ jobs:
         with:
           node-version: "24" # trusted publishing needs Node >= 22.14
           registry-url: "https://registry.npmjs.org"
-      - name: npm new enough for trusted publishing (>= 11.5.1)
-        run: npm install -g "npm@^11.5.1" && npm --version
+      - name: npm new enough for trusted publishing (>= 11.5.1), pinned to an exact version
+        run: npm install -g "npm@11.5.1" && npm --version
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4

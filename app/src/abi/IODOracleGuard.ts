@@ -160,6 +160,25 @@ export const IODOracleGuardAbi = [
   },
   {
     "type": "function",
+    "name": "liquidationBlock",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "reason",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "marketHours",
     "inputs": [],
     "outputs": [

@@ -18,10 +18,22 @@ grep -q "no all-green" "$tmp/out" || { echo "FAIL message missing"; fail=1; }
 mkdir -p .ci-local/green
 printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene"]}\n' "$tree" > .ci-local/green/x.json
 run env; rc=$?; check "refuses an incomplete stamp" 1
-printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene","semgrep","app","guard","scripts","python","web","sdk"]}\n' "$tree" > .ci-local/green/x.json
+printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene","semgrep","contracts","app","guard","scripts","python","web","sdk","slither"]}\n' "$tree" > .ci-local/green/x.json
 run env; rc=$?; check "accepts a full stamp for the tree" 0
-printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene","semgrep","app","guard","scripts","python","web","sdk"]}\n' "0000" > .ci-local/green/x.json
+# the old required set (no contracts, no slither) is a subset now
+printf '{"commit":"x",\n "tree": "%s",\n "scope": "subset",\n "jobs": ["hygiene","semgrep","app","guard","scripts","python","web","sdk"]}\n' "$tree" > .ci-local/green/x.json
+run env; rc=$?; check "refuses a subset stamp without contracts and slither" 1
+grep -q "subset does not count" "$tmp/out" || { echo "FAIL subset message missing"; fail=1; }
+# tool names in the stamp ("forge", "python") never stand in for a job; nor does "contracts" outside the jobs line
+printf '{"commit":"contracts slither",\n "tree": "%s",\n "jobs": ["hygiene","semgrep","app","guard","scripts","web","sdk"],\n "tools": {"python": "3", "forge": "1", "contracts": "x", "slither": "x"}}\n' "$tree" > .ci-local/green/x.json
+run env; rc=$?; check "refuses a stamp that names jobs only outside the jobs list" 1
+printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene","semgrep","contracts","app","guard","scripts","python","web","sdk","slither"]}\n' "$tree" > .ci-local/green/x.json
+run env; rc=$?; check "accepts the full stamp again" 0
+printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene","semgrep","contracts","app","guard","scripts","python","web","sdk","slither"]}\n' "0000" > .ci-local/green/x.json
 run env; rc=$?; check "refuses a stamp for another tree" 1
+printf '{"commit":"x",\n "tree": "%s",\n "jobs": ["hygiene"]}\n' "$tree" > .ci-local/green/x.json
+run env OD_REQUIRED_JOBS="hygiene"; rc=$?; check "a narrowed required set is honoured" 0
+grep -q "dropped: semgrep contracts" .ci-local/overrides.log && echo "ok   narrowed set logged" || { echo "FAIL narrowed set not logged"; fail=1; }
 run env OD_SKIP_CI_GATE="test emergency"; rc=$?; check "override allows" 0
 grep -q "test emergency" .ci-local/overrides.log && echo "ok   override logged" || { echo "FAIL override not logged"; fail=1; }
 printf 'refs/heads/gone 0000000000000000000000000000000000000000 refs/heads/gone %s\n' "$sha" | rm -f .ci-local/green/x.json

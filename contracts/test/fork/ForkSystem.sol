@@ -302,8 +302,10 @@ abstract contract ForkSystem is ODTest {
         c.alwaysOpen = x.token == address(0);
         c.pythId = x.pythId;
         c.twapPool = x.pool;
-        c.maxAgeOpen = x.maxAgeInSession;
-        c.maxAgeExtended = x.maxAgeInSession;
+        // held to the guard's hard cap on in-session age (I4-3)
+        uint32 inSession = x.maxAgeInSession > 3 days ? uint32(3 days) : x.maxAgeInSession;
+        c.maxAgeOpen = inSession;
+        c.maxAgeExtended = inSession;
         c.maxAgeClosed = 432000;
         c.refMaxAge = REF_MAX_AGE;
         c.twapWindow = 30 minutes;

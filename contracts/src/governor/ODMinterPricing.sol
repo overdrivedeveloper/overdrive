@@ -285,6 +285,21 @@ library ODMinterPricing {
     }
 
     /// @notice Value per token at `p` (or p0 when 0) with NF `nf`, rounded down.
+    /// ODBacker's value per token, WAD (here for the backer's code size). `high`: the higher of value(p) and
+    /// value(refP), Ceil (debt is never under-valued); otherwise the lower, Floor. `p` 0 reads as p0; `refP` 0 leaves
+    /// the feed value alone (the backer decides which actions may run without a reference, I4-3).
+    function backerValue(Gear gear, uint256 p0, uint256 unitWad, uint256 nf, uint256 p, uint256 refP, bool high)
+        external
+        pure
+        returns (uint256 v)
+    {
+        Math.Rounding rnd = high ? Math.Rounding.Ceil : Math.Rounding.Floor;
+        (v,) = ODIndex.value(gear, p == 0 ? p0 : p, p0, nf, unitWad, rnd);
+        if (refP == 0) return v;
+        (uint256 w,) = ODIndex.value(gear, refP, p0, nf, unitWad, rnd);
+        v = high ? Math.max(v, w) : Math.min(v, w);
+    }
+
     function valueAt(GearConfig memory cfg, uint256 p, uint256 nf) external pure returns (uint256 v, bool inDomain) {
         (v, inDomain) = ODIndex.value(cfg.gear, p == 0 ? cfg.p0 : p, cfg.p0, nf, cfg.unitWad, Math.Rounding.Floor);
     }

@@ -19,6 +19,8 @@ contract ODMarketHours is AccessControl, IODMarketHours {
     uint256 public constant MAX_SESSIONS = 64;
     uint256 public constant MAX_SESSION_LENGTH = 7 days - 1;
     uint256 public constant MAX_HORIZON = 30 days;
+    /// I4-5: the longest CLOSED stretch the keeper can write between two pushed windows (a long weekend is under 4 days).
+    uint256 public constant MAX_SESSION_GAP = 5 days;
     /// @notice Most boundaries `nextLongClose` walks (about four per day, so well over a month).
     uint256 public constant MAX_SCAN_STEPS = 256;
     /// @notice How far ahead `nextLongClose` looks.
@@ -52,6 +54,7 @@ contract ODMarketHours is AccessControl, IODMarketHours {
             if (i != 0) {
                 if (w.open < s[i - 1].open) revert SessionsUnsorted(i);
                 if (w.open < s[i - 1].close) revert SessionsOverlap(i);
+                if (uint256(w.open) - uint256(s[i - 1].close) > MAX_SESSION_GAP) revert SessionGapTooLong(i);
             }
         }
         if (count != 0 && uint256(s[count - 1].close) > block.timestamp + MAX_HORIZON) revert SessionTooFar(count - 1);

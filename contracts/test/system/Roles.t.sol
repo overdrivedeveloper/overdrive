@@ -106,6 +106,25 @@ contract RolesTest is DeployFixture {
         assertFalse(t.hasRole(t.CANCELLER_ROLE(), deployer));
     }
 
+    /// I4-5: the way back from the exit reserve is the timelock's alone; the keeper's move in is metered.
+    function test_ExitReserveReleaseIsTimelockOnly() public {
+        ODGovernor g = ODGovernor(d.governor);
+        address[5] memory others = [ownerSafe, guardianSafe, keeper, hedger, deployer];
+        for (uint256 i; i < others.length; ++i) {
+            vm.prank(others[i]);
+            vm.expectRevert(
+                abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, others[i], bytes32(0))
+            );
+            g.moveFromExitReserve(0);
+        }
+        vm.prank(address(_timelock()));
+        g.moveFromExitReserve(0);
+        vm.prank(guardianSafe);
+        vm.expectRevert();
+        g.moveToExitReserve(0);
+        assertTrue(g.getParams().maxReserveMoveBps <= 5000 && g.getParams().maxLockOwnerBps <= 10_000);
+    }
+
     /// D25: the minter holds no registry status role; settlement is one timelock batch (settleGear then SETTLED).
     function test_SettleBatchViaTimelock() public {
         assertFalse(IAccessControl(d.registry).hasRole(0x00, d.minter));

@@ -17,7 +17,6 @@ import {IODInsurance} from "../interfaces/IODInsurance.sol";
 import {IODFees} from "../interfaces/IODFees.sol";
 import {IODStake} from "../interfaces/IODStake.sol";
 import {ODRoles} from "../interfaces/ODRoles.sol";
-import {ODIndex} from "../math/ODIndex.sol";
 import {ODBackerMath as M} from "./ODBackerMath.sol";
 import {ODLiquidation as L} from "./ODLiquidation.sol";
 import {ODMinterPricing} from "../governor/ODMinterPricing.sol";
@@ -198,7 +197,10 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (v.debtTokens != 0) {
             GearConfig memory cfg = registry.gear(v.gearId);
             PriceReading memory r = _read(cfg);
-            if (!r.fresh && minter.settledValue(v.gearId) == 0) revert MintingClosed("STALE");
+            if (minter.settledValue(v.gearId) == 0) {
+                if (!r.fresh) revert MintingClosed("STALE");
+                _priced(r);
+            }
             _requireRatio(v, cfg, r, cfg.collateralBps);
         }
         usdg.safeTransfer(to, amount);
@@ -239,7 +241,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (tokens == 0) return;
         minter.backerBurn(v.gearId, msg.sender, tokens);
         v.debtTokens -= tokens;
-        governor.onBackerRepay(v.gearId, tokens, _ownCleared(v));
+        governor.onBackerRepay(v.gearId, tokens, _ownCleared(v), v.owner);
         emit Repaid(vaultId, tokens, 0);
     }
 
@@ -265,6 +267,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         } else {
             PriceReading memory r = _read(cfg);
             if (!_live(r)) revert MintingClosed("CLOSED");
+            _priced(r);
             cost = M.buyBackUsdg(tokens, _perToken(cfg, g, r, true), _spreadBps(cfg, r));
         }
         if (cost > maxCostUsdg) revert Slippage(cost, maxCostUsdg);
@@ -276,7 +279,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             usdg.forceApprove(address(governor), cost);
             governor.fundCash(cost);
         }
-        governor.onBackerRepay(g, tokens, _ownCleared(v));
+        governor.onBackerRepay(g, tokens, _ownCleared(v), v.owner);
         emit CollateralMoved(vaultId, -int256(cost), v.collateralUsdg);
         emit Repaid(vaultId, tokens, cost);
     }
@@ -293,7 +296,10 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     // ================================================================================================ liquidation
 
     /// @inheritdoc IODBacker
-    /// @dev Needs a live reading with refP > 0 on a feed round at most MAX_ROUND_AGE old. The batch keeps only vaults of
+    /// @dev I5-1: needs a live reading whose reference exists and agrees with the feed inside the guard's band, with
+    /// no continuity or split pause (IODOracleGuard.liquidationBlock on each leg): a reference that disagrees with the
+    /// feed never liquidates. I5-3: no separate round-age rule; the guard's per-market age limit and the agreeing
+    /// reference (itself fresh) stand for the round, so a quiet feed does not block a seal. The batch keeps only vaults of
     /// `gearId`, not in a live batch, below maintenance (with uplift) at the sealed value with collateral net of the
     /// toll fee owed. The sealed value is the high side of value(p) and value(refP), Ceil (debt never under-valued).
     function sealBatch(bytes32 gearId, uint256[] calldata vaultIds) external nonReentrant returns (uint256 batchId) {
@@ -303,10 +309,9 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         if (cfg.token == address(0)) revert NotBackable(gearId);
         if (minter.settledValue(gearId) != 0) revert SealRefused("SETTLED");
         try minter.accrue(gearId) {} catch {}
+        bytes32 why = _liqBlock(cfg);
+        if (why != 0) revert SealRefused(why);
         PriceReading memory r = _read(cfg);
-        if (!_live(r)) revert SealRefused("NOT_LIVE");
-        if (r.refP == 0) revert SealRefused("REF_UNAVAILABLE");
-        if (uint256(r.updatedAt) + MAX_ROUND_AGE < block.timestamp) revert SealRefused("STALE_ROUND");
         uint256 value = _perToken(cfg, gearId, r, true);
         uint256 maint = cfg.maintenanceBps + _upliftOf(cfg);
         batchId = ++batchCount;
@@ -330,7 +335,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
 
     /// @inheritdoc IODBacker
     /// @dev Only in [sealedAt + SEAL_DELAY, sealedAt + BATCH_TTL]. Voids the batch (vaults free) when the reading is not
-    /// live or the current high-side value drifted more than MAX_SEAL_DRIFT_BPS from the sealed value. Each vault is
+    /// live, the reference is missing or outside the band, a continuity or split pause is on (I5-1), or the current high-side value drifted more than MAX_SEAL_DRIFT_BPS from the sealed value. Each vault is
     /// liquidated in its own self-call under try/catch, so no vault (or its owner) can make the batch revert. No pause
     /// stops it: liquidations reduce risk. M-6: under MIN_VAULT_GAS before a vault, or a caught failure that was out of
     /// gas, reverts ExecuteOutOfGas (the batch stays open); the batch is done only when every vault returned cleanly
@@ -350,11 +355,12 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
         catch {
             _gasGuard(g0);
         }
-        PriceReading memory r = _read(cfg);
-        if (!_live(r) || r.refP == 0 || minter.settledValue(g) != 0) {
-            emit BatchVoided(batchId, "NOT_LIVE");
+        bytes32 why = minter.settledValue(g) != 0 ? bytes32("NOT_LIVE") : _liqBlock(cfg);
+        if (why != 0) {
+            emit BatchVoided(batchId, why);
             return 0;
         }
+        PriceReading memory r = _read(cfg);
         uint256 sealedV = b.sealedValueWad;
         uint256 nowV = _perToken(cfg, g, r, true);
         uint256 diff = nowV > sealedV ? nowV - sealedV : sealedV - nowV;
@@ -416,7 +422,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             emit CollateralMoved(vaultId, int256(x.surplus), x.surplus);
         }
         if (x.toGovernor != 0) usdg.safeTransfer(address(governor), x.toGovernor);
-        governor.absorbLiquidation(v.gearId, tokens, _ownCleared(v), x.toGovernor);
+        governor.absorbLiquidation(v.gearId, tokens, _ownCleared(v), x.toGovernor, v.owner);
         if (x.bonus != 0) usdg.safeTransfer(executor, x.bonus);
         emit Liquidated(batchId, vaultId, tokens, coll - x.surplus, x.bonus, x.badDebt);
         return true;
@@ -451,7 +457,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     function _governorPays(bytes32 g, uint256 amount) private returns (uint256 got) {
         uint256 before = usdg.balanceOf(address(this));
         uint256 g0 = gasleft();
-        try governor.onBackerMint(g, 0, true, amount) {}
+        try governor.onBackerMint(g, 0, true, amount, address(0)) {}
         catch {
             _gasGuard(g0);
         }
@@ -569,7 +575,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             proceeds = value;
             if (proceeds < minProceeds) revert Slippage(proceeds, minProceeds);
             uint256 before = usdg.balanceOf(address(this));
-            if (!governor.onBackerMint(g, tokens, true, proceeds)) revert MintingClosed("GOVERNOR_CASH");
+            if (!governor.onBackerMint(g, tokens, true, proceeds, address(0))) revert MintingClosed("GOVERNOR_CASH");
             uint256 got = usdg.balanceOf(address(this)) - before;
             if (got < proceeds) revert UsdgNotReceived(proceeds, got);
             v.collateralUsdg += proceeds;
@@ -579,7 +585,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
             // supply first, then the book, so the Governor's net never dips by the new debt alone
             minter.backerMint(g, v.owner, tokens);
             v.ownTokens += tokens;
-            if (!governor.onBackerMint(g, tokens, false, value)) revert MintingClosed("GOVERNOR_CASH");
+            if (!governor.onBackerMint(g, tokens, false, value, v.owner)) revert MintingClosed("GOVERNOR_CASH");
         }
         _requireRatio(v, cfg, r, cfg.collateralBps);
         emit Minted(vaultId, tokens, sell, proceeds);
@@ -625,12 +631,7 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
     {
         uint256 settled = minter.settledValue(g);
         if (settled != 0) return settled;
-        uint256 nf = minter.normState(g).nf;
-        Math.Rounding rnd = high ? Math.Rounding.Ceil : Math.Rounding.Floor;
-        (v,) = ODIndex.value(cfg.gear, r.p == 0 ? cfg.p0 : r.p, cfg.p0, nf, cfg.unitWad, rnd);
-        if (r.refP == 0) return v;
-        (uint256 w,) = ODIndex.value(cfg.gear, r.refP, cfg.p0, nf, cfg.unitWad, rnd);
-        v = high ? Math.max(v, w) : Math.min(v, w);
+        return ODMinterPricing.backerValue(cfg.gear, cfg.p0, cfg.unitWad, minter.normState(g).nf, r.p, r.refP, high);
     }
 
     /// Same lag floor as the minter (M-4, rescore 1): a mint-and-sell then repayWithUsdg (or the reverse) across a move
@@ -646,6 +647,21 @@ contract ODBacker is AccessControl, ReentrancyGuardTransient, IODBacker {
 
     function _read(GearConfig memory cfg) private view returns (PriceReading memory) {
         return cfg.marketB == bytes32(0) ? guard.read(cfg.marketA) : guard.readRatio(cfg.marketA, cfg.marketB);
+    }
+
+    /// I4-3: an action that takes value out of a vault at a price (collateral out with debt open, debt bought back
+    /// with collateral) never runs on the feed alone unless its round is recent: it needs a reference, or a live round
+    /// at most MAX_ROUND_AGE old. Exits that use no price stay open: repay with tokens, withdraw with no debt.
+    function _priced(PriceReading memory r) private view {
+        if (r.refP == 0 && (!_live(r) || block.timestamp - r.updatedAt > MAX_ROUND_AGE)) {
+            revert MintingClosed("REF_UNAVAILABLE");
+        }
+    }
+
+    /// I5-1: why a liquidation must not be priced now (either leg of a pair), zero when it may.
+    function _liqBlock(GearConfig memory cfg) private view returns (bytes32 why) {
+        why = guard.liquidationBlock(cfg.marketA);
+        if (why == 0 && cfg.marketB != bytes32(0)) why = guard.liquidationBlock(cfg.marketB);
     }
 
     function _live(PriceReading memory r) private pure returns (bool) {

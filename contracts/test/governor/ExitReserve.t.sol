@@ -18,7 +18,7 @@ contract ExitReserveTest is GovernorFixture {
         vm.prank(backerC);
         bytes32 id = _list(TSLA, NONE, Gear.SPORT, 1_000_000e18);
         vm.prank(backerC);
-        assertFalse(gov.onBackerMint(id, 1e18, true, 1));
+        assertFalse(gov.onBackerMint(id, 1e18, true, 1, address(1)));
         vm.prank(admin);
         gov.skim();
         vm.prank(keeper);
@@ -32,7 +32,7 @@ contract ExitReserveTest is GovernorFixture {
 
     function test_HedgerCannotTouchReserve() public {
         _deposit(lp, 10_000e6);
-        vm.prank(keeper);
+        vm.prank(admin); // the keeper is metered (I4-5)
         gov.moveToExitReserve(10_000e6);
         vm.prank(hedger);
         vm.expectRevert(abi.encodeWithSelector(IODGovernor.InsufficientCash.selector, 1e6, 0));

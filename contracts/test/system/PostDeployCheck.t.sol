@@ -7,6 +7,7 @@ import {ODDevToken} from "../../script/lib/SystemDeployer.sol";
 import {SystemConfig} from "../../script/lib/SystemConfig.sol";
 import {SystemDeployer} from "../../script/lib/SystemDeployer.sol";
 import {ODHook} from "overdrive/hook/ODHook.sol";
+import {ODOracleGuard} from "overdrive/oracle/ODOracleGuard.sol";
 import {ODGearRegistry} from "overdrive/gear/ODGearRegistry.sol";
 
 /// Rule R8: PostDeployCheck passes on a fresh deploy and names each broken check.
@@ -114,6 +115,15 @@ contract PostDeployCheckTest is DeployFixture {
         SystemConfig.Config memory c = _cfg();
         c.markets[1].cfg.twapPool = d.fees; // no v3 observations at all
         _expectWith(c, _d(), "ORC-CARD");
+    }
+
+    /// I5-2 / I4-4: a market with no reference source (no v3 pool and no Pyth id) fails the check.
+    function test_FailsOnMissingReference() public {
+        assertFalse(_has(_run(_cfg(), _d()), "REFERENCE"), "control: every market has a reference source");
+        SystemConfig.Config memory c = _cfg();
+        c.markets[0].cfg.twapPool = address(0);
+        c.markets[0].cfg.pythId = bytes32(0);
+        _expectWith(c, _d(), "REFERENCE");
     }
 
     function test_FailsOnCapAboveLaunch() public {

@@ -31,6 +31,13 @@ library ODGovernorRisk {
         uint256 locked;
         mapping(bytes32 gearId => uint256) lock;
         mapping(bytes32 gearId => uint256) own;
+        // L-12: the lock value each vault owner still holds open, at its mint value (the meter of the owner's share)
+        mapping(address owner => uint256) ownerLocked;
+        mapping(address owner => mapping(bytes32 gearId => uint256)) ownerLock;
+        mapping(address owner => mapping(bytes32 gearId => uint256)) ownerOwn;
+        // I4-5: keeper moves to the exit reserve in the current 24 h window
+        uint64 moveWindow;
+        uint192 moved;
     }
 
     struct Ctx {
@@ -185,18 +192,58 @@ library ODGovernorRisk {
     /// lock and adds the tokens to its own-minted debt. M-8: refused (false, nothing moved) when the locks of all gears
     /// would then pass `maxLockBps` of free cash plus locks. The mint costs the owner nothing, so without this ceiling
     /// own mints on unused gears could park all free cash, starving LP claims and pushing every holder sell onto the
-    /// exit reserve and insurance. The caller has checked `usdg <= b.cash`.
-    function lockOwn(Books storage b, bytes32 id, uint256 tokens, uint256 usdg, uint256 maxLockBps)
-        external
-        returns (bool)
-    {
+    /// exit reserve and insurance. L-12: also refused when `owner`'s open locks (all gears, at their mint value) would
+    /// pass `maxOwnerBps` of that ceiling, so one vault owner cannot take the whole ceiling and close own mints for
+    /// every other backer. The caller has checked `usdg <= b.cash`.
+    function lockOwn(
+        Books storage b,
+        IODGovernor.Params storage p,
+        bytes32 id,
+        address owner,
+        uint256 tokens,
+        uint256 usdg
+    ) external returns (bool) {
         uint256 locked = b.locked + usdg;
-        if (locked * 10_000 > (b.cash + b.locked) * maxLockBps) return false;
+        uint256 ceiling = (b.cash + b.locked) * p.maxLockBps; // x 10_000
+        if (locked * 10_000 > ceiling) return false;
+        uint256 mine = b.ownerLocked[owner] + usdg;
+        if (mine * 100_000_000 > ceiling * p.maxLockOwnerBps) return false;
         b.cash -= usdg;
         b.lock[id] += usdg;
         b.locked = locked;
         b.own[id] += tokens;
+        b.ownerLocked[owner] = mine;
+        b.ownerLock[owner][id] += usdg;
+        b.ownerOwn[owner][id] += tokens;
         return true;
+    }
+
+    /// I4-5: free cash to the exit reserve. `metered` (the keeper): at most `bps` of free cash (as it stood before
+    /// this window's moves) per 24 h window, ReserveMoveCap otherwise. InsufficientCash above free cash.
+    function toReserve(Books storage b, uint256 usdg, uint256 bps, bool metered) external {
+        if (usdg > b.cash) revert IODGovernor.InsufficientCash(usdg, b.cash);
+        if (metered) {
+            if (block.timestamp >= uint256(b.moveWindow) + 1 days) {
+                b.moveWindow = uint64(block.timestamp);
+                b.moved = 0;
+            }
+            uint256 moved = b.moved;
+            uint256 cap = (b.cash + moved) * bps / 10_000;
+            if (moved + usdg > cap) revert IODGovernor.ReserveMoveCap(usdg, cap > moved ? cap - moved : 0);
+            b.moved = uint192(moved + usdg);
+        }
+        b.cash -= usdg;
+        b.reserve += usdg;
+        emit IODGovernor.ExitReserveMoved(usdg, b.reserve);
+    }
+
+    /// I4-5: the way back, exit reserve to free cash (the Governor restricts it to the admin, the timelock).
+    function fromReserve(Books storage b, uint256 usdg) external {
+        uint256 r = b.reserve;
+        if (usdg > r) revert IODGovernor.InsufficientCash(usdg, r);
+        b.reserve = r - usdg;
+        b.cash += usdg;
+        emit IODGovernor.ExitReserveReleased(usdg, r - usdg);
     }
 
     /// IODGovernor.setParams: every field inside its hard range (InvalidParams otherwise), stored, ParamsSet emitted.
@@ -209,6 +256,7 @@ library ODGovernorRisk {
                 || p.equityMaxAge > 1 days || p.drawdownBps < 100 || p.drawdownBps > 5000 || p.withdrawDelay < 1 hours
                 || p.withdrawDelay > 30 days || !_shockOk(p.shockStockBps) || !_shockOk(p.shockEtfBps)
                 || !_shockOk(p.shockCryptoBps) || !_shockOk(p.shockPairBps) || p.maxLockBps > 5000
+                || p.maxLockOwnerBps > 10_000 || p.maxReserveMoveBps > 5000
         ) revert IODGovernor.InvalidParams();
         to.stressBudgetBps = p.stressBudgetBps;
         to.capScaleBps = p.capScaleBps;
@@ -225,6 +273,8 @@ library ODGovernorRisk {
         to.shockCryptoBps = p.shockCryptoBps;
         to.shockPairBps = p.shockPairBps;
         to.maxLockBps = p.maxLockBps;
+        to.maxLockOwnerBps = p.maxLockOwnerBps;
+        to.maxReserveMoveBps = p.maxReserveMoveBps;
         emit IODGovernor.ParamsSet(p);
     }
 
@@ -237,9 +287,13 @@ library ODGovernorRisk {
     /// Pays a sell of `tokens` for `usdg` (IODGovernor.onSell), supply read here, after the burn. The share for tokens
     /// that took supply below the gear's own-minted backer debt comes from the gear's lock, then free cash, never the
     /// exit reserve or insurance; the rest (all of it when no such debt is open) from free cash, the exit reserve,
-    /// then ODInsurance cover. False when short or when the transfer fails (reverts when out of gas).
+    /// then ODInsurance cover. I4-1b (decision D32): a sell that leaves the gear's net below zero (supply after the
+    /// burn under the gear's total backer debt, own-minted or sold to the Governor) is paid from free cash only, never
+    /// from the exit reserve or insurance; short of free cash it is refused and goes to the queue. A sell that keeps
+    /// net at or above zero is paid as before. False when short or when the transfer fails (reverts when out of gas).
     function paySell(
         Books storage b,
+        mapping(bytes32 => uint256) storage debt,
         IERC20 u,
         IODInsurance ins,
         IODGearRegistry reg,
@@ -250,11 +304,14 @@ library ODGovernorRisk {
     ) external returns (bool) {
         if (to == address(0)) return false;
         if (usdg == 0) return true;
-        (uint256 fromLock, uint256 cashBelow, uint256 above) = _split(b, id, _supply(reg, id, tokens), tokens, usdg);
+        uint256 supply = _supply(reg, id, tokens);
+        (uint256 fromLock, uint256 cashBelow, uint256 above) = _split(b, id, supply, tokens, usdg);
+        bool belowZero = tokens != 0 && supply < debt[id];
         uint256 cash = b.cash;
-        uint256 res = b.reserve;
+        uint256 res = belowZero ? 0 : b.reserve; // the reserve this sell may use
         if (cashBelow > cash) return false;
         if (cash - cashBelow + res < above) {
+            if (belowZero) return false;
             cash += _drawInsurance(u, ins, above - (cash - cashBelow) - res);
             b.cash = cash;
             if (cash - cashBelow + res < above) return false;
@@ -264,14 +321,14 @@ library ODGovernorRisk {
         b.lock[id] -= fromLock;
         b.locked -= fromLock;
         b.cash = cash - fromCash;
-        b.reserve = res - fromRes;
+        b.reserve -= fromRes;
         uint256 g0 = gasleft();
         if (!SafeERC20.trySafeTransfer(u, to, usdg)) {
             if (gasleft() <= g0 / 63) revert IODGovernor.PayOutOfGas();
             b.lock[id] += fromLock;
             b.locked += fromLock;
             b.cash = cash;
-            b.reserve = res;
+            b.reserve += fromRes;
             return false;
         }
         emit IODGovernor.PaidOut(to, usdg, fromRes != 0);
@@ -282,6 +339,7 @@ library ODGovernorRisk {
     /// (the trade's own fee settlement).
     function canPaySell(
         Books storage b,
+        mapping(bytes32 => uint256) storage debt,
         IODInsurance ins,
         IODGearRegistry reg,
         bytes32 id,
@@ -290,9 +348,11 @@ library ODGovernorRisk {
         uint256 cashDrain
     ) external view returns (bool) {
         uint256 supply = _supply(reg, id, tokens);
-        (, uint256 cashBelow, uint256 above) = _split(b, id, supply > tokens ? supply - tokens : 0, tokens, usdg);
+        supply = supply > tokens ? supply - tokens : 0;
+        (, uint256 cashBelow, uint256 above) = _split(b, id, supply, tokens, usdg);
         uint256 cash = b.cash > cashDrain ? b.cash - cashDrain : 0;
         if (cashBelow > cash) return false;
+        if (tokens != 0 && supply < debt[id]) return cash - cashBelow >= above; // I4-1b: free cash only
         uint256 have = cash - cashBelow + b.reserve;
         if (have >= above) return true;
         try ins.balance() returns (uint256 ib) {
@@ -331,10 +391,25 @@ library ODGovernorRisk {
     /// `ownTokens`, the own-minted debt the repaying vault itself cleared (ODBacker tracks it per vault), lowers the
     /// gear's own-minted debt, and the lock is released to free cash in that proportion of the own-minted debt (Floor:
     /// rounds toward staying locked; all of it when no own-minted debt is left). A repay of debt sold to the Governor
-    /// (`ownTokens` 0) releases nothing.
-    function repay(Books storage b, mapping(bytes32 => uint256) storage debt, bytes32 id, uint256 tokens, uint256 ownTokens)
-        external
-    {
+    /// (`ownTokens` 0) releases nothing. L-12: `owner`'s meter falls by the same share of what the owner locked on
+    /// the gear (its mint value), so the owner's share of the ceiling is free again once the own-minted debt is cleared.
+    function repay(
+        Books storage b,
+        mapping(bytes32 => uint256) storage debt,
+        bytes32 id,
+        uint256 tokens,
+        uint256 ownTokens,
+        address owner
+    ) external {
+        if (ownTokens != 0) {
+            uint256 oo = b.ownerOwn[owner][id];
+            uint256 ol = b.ownerLock[owner][id];
+            bool allMine = ownTokens >= oo;
+            uint256 back = allMine ? ol : Math.mulDiv(ol, ownTokens, oo);
+            b.ownerOwn[owner][id] = allMine ? 0 : oo - ownTokens;
+            b.ownerLock[owner][id] = ol - back;
+            b.ownerLocked[owner] -= back;
+        }
         uint256 d = debt[id];
         uint256 lk = b.lock[id];
         uint256 own = b.own[id];

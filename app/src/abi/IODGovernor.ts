@@ -23,6 +23,11 @@ export const IODGovernorAbi = [
         "name": "collateralUsdg",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -129,6 +134,25 @@ export const IODGovernorAbi = [
         "name": "gearId",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "backerLockOf",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -670,6 +694,16 @@ export const IODGovernorAbi = [
             "name": "maxLockBps",
             "type": "uint16",
             "internalType": "uint16"
+          },
+          {
+            "name": "maxLockOwnerBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxReserveMoveBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }
@@ -952,6 +986,19 @@ export const IODGovernorAbi = [
   },
   {
     "type": "function",
+    "name": "moveFromExitReserve",
+    "inputs": [
+      {
+        "name": "usdg",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "moveToExitReserve",
     "inputs": [
       {
@@ -1036,6 +1083,11 @@ export const IODGovernorAbi = [
         "name": "proceedsUsdg",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -1065,6 +1117,11 @@ export const IODGovernorAbi = [
         "name": "ownTokens",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -1517,6 +1574,16 @@ export const IODGovernorAbi = [
             "name": "maxLockBps",
             "type": "uint16",
             "internalType": "uint16"
+          },
+          {
+            "name": "maxLockOwnerBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxReserveMoveBps",
+            "type": "uint16",
+            "internalType": "uint16"
           }
         ]
       }
@@ -1865,6 +1932,25 @@ export const IODGovernorAbi = [
   },
   {
     "type": "event",
+    "name": "ExitReserveReleased",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "balanceAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "FeeOwed",
     "inputs": [
       {
@@ -2127,6 +2213,16 @@ export const IODGovernorAbi = [
           },
           {
             "name": "maxLockBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxLockOwnerBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "maxReserveMoveBps",
             "type": "uint16",
             "internalType": "uint16"
           }
@@ -2532,6 +2628,22 @@ export const IODGovernorAbi = [
     "type": "error",
     "name": "PayOutOfGas",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReserveMoveCap",
+    "inputs": [
+      {
+        "name": "asked",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "room",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",

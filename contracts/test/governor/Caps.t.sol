@@ -137,7 +137,7 @@ contract CapsTest is GovernorFixture {
         insured = bound(insured, 0, 50_000e6);
         x = bound(x, 0, 250_000e6);
         if (reserve != 0) {
-            vm.prank(keeper);
+            vm.prank(admin); // the keeper is metered (I4-5)
             gov.moveToExitReserve(reserve);
         }
         usdg.mint(address(this), insured);

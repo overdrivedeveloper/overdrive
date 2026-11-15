@@ -23,7 +23,7 @@ contract NavTest is GovernorFixture {
         _buy(rev, 4_000e18, 4_000e6);
         _buy(pair, 500e18, 500e6);
         vm.prank(backerC);
-        gov.onBackerMint(rev, 5_000e18, false, 0); // net REVERSE = -1,000: a Governor long
+        gov.onBackerMint(rev, 5_000e18, false, 0, address(1)); // net REVERSE = -1,000: a Governor long
         minter.setNf(sport, 0.9e18);
     }
 

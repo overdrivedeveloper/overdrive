@@ -104,6 +104,7 @@ contract Rescore4LockGriefTest is BackerFixture {
     /// room returns when own-minted debt is repaid.
     function test_R4_CeilingEdgeAndRelease() public {
         _books();
+        _oneOwnerMayHoldTheCeiling(); // the edge of the ceiling itself; the per-owner share has its own test (L-12)
         uint256 total = gov.freeCash();
         uint256 v = _open(bob, cruise, 3_000_000e6);
         uint256 tokens = minter.quote(cruise, false, false, total / 5).amountIn;

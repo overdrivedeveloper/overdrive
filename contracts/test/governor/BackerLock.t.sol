@@ -32,6 +32,7 @@ contract BackerLockTest is BackerFixture {
         // tested in poc/Rescore4LockGrief.t.sol.
         IODGovernor.Params memory gp = gov.getParams();
         gp.maxLockBps = 5000;
+        gp.maxLockOwnerBps = 10_000; // one owner in these tests; the per-owner share has its own (L-12)
         vm.prank(admin);
         gov.setParams(gp);
     }

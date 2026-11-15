@@ -44,6 +44,13 @@ interface IODOracleGuard {
     /// @param market Market id (bytes32 symbol key).
     /// @param paused True to pause, false to unpause.
     function setBuysPaused(bytes32 market, bool paused) external; // guardian may pause; only admin unpauses
+    /// @notice Says why a liquidation must not be priced on a market right now, or zero when it may.
+    /// @dev Fail closed for liquidation: "NOT_LIVE" (halted, closed or unknown session), "CONTINUITY", "SPLIT_PENDING",
+    /// "REF_UNAVAILABLE" (no reference) or "REF_BAND" (the reference is outside refBandBps of the feed). Reverts only
+    /// with MarketUnknown.
+    /// @param market Market id (bytes32 symbol key).
+    /// @return reason  Zero when a liquidation may be priced, else the reason.
+    function liquidationBlock(bytes32 market) external view returns (bytes32 reason);
     /// @notice Reads the price of a market.
     /// @dev Reverts only with MarketUnknown.
     /// @param market Market id (bytes32 symbol key).

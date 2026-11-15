@@ -305,6 +305,17 @@ export const IODMarketHoursAbi = [
   },
   {
     "type": "error",
+    "name": "SessionGapTooLong",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "SessionKindsLength",
     "inputs": [
       {

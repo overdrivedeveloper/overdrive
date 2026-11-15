@@ -106,7 +106,7 @@ contract VaultTest is GovernorFixture {
 
     function test_PartialClaimKeepsRemainder() public {
         uint256 shares = _deposit(lp, 100_000e6);
-        vm.prank(keeper);
+        vm.prank(admin); // the keeper is metered (I4-5)
         gov.moveToExitReserve(80_000e6);
         vm.prank(lp);
         uint256 t = gov.requestWithdraw(shares);
@@ -131,7 +131,7 @@ contract VaultTest is GovernorFixture {
 
     function test_ClaimNeverTouchesExitReserve() public {
         uint256 shares = _deposit(lp, 10_000e6);
-        vm.prank(keeper);
+        vm.prank(admin); // the keeper is metered (I4-5)
         gov.moveToExitReserve(10_000e6);
         vm.prank(lp);
         uint256 t = gov.requestWithdraw(shares);

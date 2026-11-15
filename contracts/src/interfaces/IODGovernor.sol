@@ -21,6 +21,8 @@ interface IODGovernor is IERC4626 {
         uint16 shockCryptoBps; // 3000
         uint16 shockPairBps; // 2000, on the ratio
         uint16 maxLockBps; // M-8: backer sale locks, all gears <= this x (free cash + locks) at an own mint (2000)
+        uint16 maxLockOwnerBps; // L-12: one vault owner's open locks <= this x that ceiling (2500, at most 10000)
+        uint16 maxReserveMoveBps; // I4-5: keeper moves to the exit reserve per 24 h <= this x free cash (1000, at most 5000)
     }
 
     /// @notice Emitted when the book of a gear (net tokens and backer debt) changes.
@@ -37,6 +39,10 @@ interface IODGovernor is IERC4626 {
     /// @param amount The amount, in the units of the asset concerned.
     /// @param balanceAfter The balance after.
     event ExitReserveMoved(uint256 amount, uint256 balanceAfter);
+    /// @notice Emitted when the admin moves USDG from the exit reserve back to free cash.
+    /// @param amount The amount, in the units of the asset concerned.
+    /// @param balanceAfter The exit reserve balance after.
+    event ExitReserveReleased(uint256 amount, uint256 balanceAfter);
     /// @notice Emitted when the hedger posts the hedge state of a market.
     /// @param market Market id (bytes32 symbol key).
     /// @param hedgeDeltaWad The hedge delta, WAD (18 decimals).
@@ -135,6 +141,10 @@ interface IODGovernor is IERC4626 {
     /// @param needed Amount needed.
     /// @param available The available.
     error InsufficientCash(uint256 needed, uint256 available);
+    /// @notice Reverts when a keeper move to the exit reserve passes the share allowed per 24 h window.
+    /// @param asked Amount asked for.
+    /// @param room Amount still allowed in the current window.
+    error ReserveMoveCap(uint256 asked, uint256 room);
     /// @notice Reverts when the account is not an allowed depositor.
     /// @param account The account concerned.
     error DepositorNotAllowed(address account);
@@ -212,13 +222,15 @@ interface IODGovernor is IERC4626 {
     /// @dev Backer only (NotBacker otherwise). A mint to the owner's wallet moves `proceedsUsdg` (the tokens' sale
     /// value) from free cash into the gear's backer sale lock and reverts CapExceeded when the gear's total backer debt
     /// x value would pass its static cap. Both routes return false when free cash is short; a mint to the owner's
-    /// wallet also when the locks of all gears would pass Params.maxLockBps of free cash plus locks (M-8).
+    /// wallet also when the locks of all gears would pass Params.maxLockBps of free cash plus locks (M-8), or when
+    /// `owner`'s open locks (all gears, at their mint value) would pass Params.maxLockOwnerBps of that ceiling (L-12).
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param soldToGovernor True if the minted tokens were sold to the Governor.
     /// @param proceedsUsdg USDG proceeds (sold) or USDG to lock (minted to the owner), in 6-decimal units.
+    /// @param owner The vault owner (the party whose share of the lock ceiling a mint to the wallet uses).
     /// @return paid  paid=True if the proceeds were paid or locked.
-    function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg)
+    function onBackerMint(bytes32 gearId, uint256 tokens, bool soldToGovernor, uint256 proceedsUsdg, address owner)
         external
         returns (bool paid);
     /// @notice Books a backer repayment of gear tokens.
@@ -226,23 +238,37 @@ interface IODGovernor is IERC4626 {
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param ownTokens The part of `tokens` that was the vault's own-minted debt (minted to the owner's wallet).
-    function onBackerRepay(bytes32 gearId, uint256 tokens, uint256 ownTokens) external;
+    /// @param owner The vault owner (the own-minted part frees that owner's share of the lock ceiling).
+    function onBackerRepay(bytes32 gearId, uint256 tokens, uint256 ownTokens, address owner) external;
     /// @notice Absorbs a liquidated vault debt and its collateral into the book.
     /// @dev Backer only. The collateral arrives first.
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @param debtTokens Debt in gear tokens (18 decimals).
     /// @param ownTokens The part of `debtTokens` that was the vault's own-minted debt (minted to the owner's wallet).
     /// @param collateralUsdg Collateral amount in USDG, in 6-decimal units.
-    function absorbLiquidation(bytes32 gearId, uint256 debtTokens, uint256 ownTokens, uint256 collateralUsdg) external; // collateral arrives first
+    /// @param owner The vault owner (the own-minted part frees that owner's share of the lock ceiling).
+    function absorbLiquidation(
+        bytes32 gearId,
+        uint256 debtTokens,
+        uint256 ownTokens,
+        uint256 collateralUsdg,
+        address owner
+    ) external; // collateral arrives first
     // risk and reserve
     /// @notice Refreshes the cached stress and equity for the given markets.
     /// @dev Permissionless.
     /// @param markets List of market ids.
     function pokeRisk(bytes32[] calldata markets) external; // permissionless
     /// @notice Moves free cash into the exit reserve.
-    /// @dev Admin or keeper only.
+    /// @dev Admin or keeper only. The keeper is held to Params.maxReserveMoveBps of free cash per 24 h window
+    /// (ReserveMoveCap); the admin is not.
     /// @param usdg Amount of USDG, in 6-decimal units.
     function moveToExitReserve(uint256 usdg) external; // admin or keeper, from free cash
+    /// @notice Moves USDG from the exit reserve back to free cash.
+    /// @dev Admin (timelock) only. Reverts InsufficientCash above the reserve balance. Free cash that arrives settles
+    /// fees owed, as fundCash does.
+    /// @param usdg Amount of USDG, in 6-decimal units.
+    function moveFromExitReserve(uint256 usdg) external; // admin (timelock)
     /// @notice Pulls USDG into the exit reserve.
     /// @dev Anyone may call; the fees router uses it.
     /// @param usdg Amount of USDG, in 6-decimal units.
@@ -324,6 +350,12 @@ interface IODGovernor is IERC4626 {
     /// @param gearId Id of the gear (the registry key derived from its market pair and kind).
     /// @return usdg  Amount of USDG, in 6-decimal units.
     function backerLock(bytes32 gearId) external view returns (uint256 usdg);
+    /// @notice Returns the lock value one vault owner still holds open across all gears, at its mint value.
+    /// @dev The meter of the owner's share of the lock ceiling (Params.maxLockOwnerBps). It falls only when the
+    /// owner's own-minted debt is repaid or liquidated, not when a holder sell is paid from the lock.
+    /// @param owner The vault owner.
+    /// @return usdg  Amount of USDG, in 6-decimal units.
+    function backerLockOf(address owner) external view returns (uint256 usdg);
     /// @notice Returns the gear's backer debt still open from mints to the owner's wallet (not sold to the Governor).
     /// @dev The sum of every vault's own-minted debt (ODBacker.vaultOwnDebt): lowered only by the own-minted part a
     /// vault itself repays or is liquidated for, never by a repay of debt sold to the Governor. A sell is paid from

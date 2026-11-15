@@ -186,6 +186,12 @@
   },
   {
    "access": [
+    "DEFAULT_ADMIN_ROLE"
+   ],
+   "function": "moveFromExitReserve"
+  },
+  {
+   "access": [
     "DEFAULT_ADMIN_ROLE",
     "KEEPER_ROLE"
    ],

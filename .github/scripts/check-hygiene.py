@@ -76,6 +76,12 @@ for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
         m = re.match(r"\s*-?\s*uses:\s*([^\s#]+)", line)
         if m and not m.group(1).startswith("./") and not re.search(r"@[0-9a-f]{40}$", m.group(1)):
             bad(f"{rel}:{line_no}: action '{m.group(1)}' is not pinned to a commit SHA")
+        # I5-4: a tool installed globally in a workflow carries an exact version (no range, no tag, no bare name)
+        for spec in re.findall(r"npm (?:install|i) (?:-g|--global)((?:\s+\"?[@\w./^~<>=*-]+\"?)+)", line):
+            for pkg in spec.split():
+                pkg = pkg.strip('"')
+                if not re.fullmatch(r"(@[\w.-]+/)?[\w.-]+@\d+\.\d+\.\d+", pkg):
+                    bad(f"{rel}:{line_no}: global npm install '{pkg}' is not pinned to an exact version")
 
 # ---- runtime pins agree everywhere
 ci_text = (ROOT / ".github" / "workflows" / "ci.yml").read_text()

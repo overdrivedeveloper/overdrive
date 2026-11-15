@@ -404,6 +404,7 @@ contract SystemInvariantTest is HookFixture {
     function invariant_HolderSellLiveness() public view {
         assertEq(h.liveViolations(), 0, "S18: a covered holder sell was queued");
         assertEq(h.lockCeilingViolations(), 0, "S18: an own mint passed the lock ceiling");
+        assertEq(h.netBelowZeroDraws(), 0, "S19: the reserve or insurance funded a sell that left net below zero");
     }
 
     /// forge-config: default.invariant.runs = 16

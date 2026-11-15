@@ -257,6 +257,11 @@ abstract contract SystemChecks is DeploymentFile {
             if (lo != m.volFloorBps || hi != m.volCeilingBps) {
                 _fail(a, "MARKET_CONFIG", string.concat(m.symbol, " vol bounds"));
             }
+            // I5-2 / I4-4: a market with no reference source can never open buys, fill a queued sell or seal a batch.
+            // (Whether a configured Pyth id is being pushed is a live fact, watched by the crank, not a deploy fact.)
+            if (m.cfg.twapPool == address(0) && m.cfg.pythId == bytes32(0)) {
+                _fail(a, "REFERENCE", string.concat(m.symbol, " has no reference source (no v3 pool, no Pyth id)"));
+            }
             if (m.cfg.twapPool != address(0) && ODTwapReader.oldestObservationAge(m.cfg.twapPool) < m.cfg.twapWindow) {
                 _fail(a, "ORC-CARD", string.concat(m.symbol, " v3 pool observations shorter than the TWAP window"));
             }

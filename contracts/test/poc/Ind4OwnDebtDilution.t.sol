@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IODMinter} from "overdrive/interfaces/IODMinter.sol";
 import {BackerFixture} from "../backer/BackerFixture.sol";
 import {IODGovernor} from "overdrive/interfaces/IODGovernor.sol";
 
@@ -31,6 +32,7 @@ contract Ind4OwnDebtDilutionTest is BackerFixture {
         // own mint is 39% of it, so these tests run at the parameter's upper bound (the only line added to the file).
         IODGovernor.Params memory gp = gov.getParams();
         gp.maxLockBps = 5000;
+        gp.maxLockOwnerBps = 10_000; // one owner on purpose: the per-owner share (L-12) is not the subject here
         vm.prank(admin);
         gov.setParams(gp);
     }
@@ -48,6 +50,16 @@ contract Ind4OwnDebtDilutionTest is BackerFixture {
             uint256 v = _open(bob, gs[i], 3_000_000e6);
             _mint(bob, v, want * 1e18 / value, true);
         }
+    }
+
+    /// I4-1b (D32): a sell that leaves net below zero is paid from free cash (and its lock) only, so the share of the
+    /// owner's sale above the own-minted debt (at most the holder's supply) needs free cash; give it that much.
+    function _cashFor(uint256 amount) internal {
+        usdg.mint(lp, amount);
+        vm.startPrank(lp);
+        usdg.approve(address(gov), amount);
+        gov.fundCash(amount);
+        vm.stopPrank();
     }
 
     function _run(uint256 cycles) internal returns (uint256 res0, uint256 ins0, uint256 aliceTokens, uint256 x) {
@@ -85,6 +97,7 @@ contract Ind4OwnDebtDilutionTest is BackerFixture {
         uint256 target = (gov.freeCash() + res0 + ins0) * 99 / 100;
         uint256 sellTokens = minter.quote(sport, false, false, target).amountIn;
         assertLe(sellTokens, x, "sale is inside the owner's minted wallet tokens");
+        _cashFor(holderShare);
         uint256 got = _sell(bob, sport, sellTokens);
         emit log_named_uint("backer wallet sale paid (USDG)", got / 1e6);
         emit log_named_uint("exit reserve after (USDG)", gov.exitReserve() / 1e6);
@@ -92,29 +105,41 @@ contract Ind4OwnDebtDilutionTest is BackerFixture {
         emit log_named_uint("free cash after (USDG)", gov.freeCash() / 1e6);
         emit log_named_int("sport net (tokens)", gov.netTokens(sport) / 1e18);
         emit log_named_uint("sport cap (USD)", reg.gear(sport).capUsdWad / 1e18);
-        emit log_string(minter.quote(sport, false, true, aliceTokens).queued ? "holder sell: QUEUED" : "holder sell: instant");
+        emit log_string(minter.quote(sport, false, true, aliceTokens).queued
+                ? "holder sell: QUEUED"
+                : "holder sell: instant");
         // The only supply not minted to an owner's wallet is the holder's: at most its share may come from the reserve.
-        assertLe((res0 - gov.exitReserve()) + (ins0 - ins.balance()), holderShare, "reserve + insurance paid backer-minted supply");
+        assertLe(
+            (res0 - gov.exitReserve()) + (ins0 - ins.balance()),
+            holderShare,
+            "reserve + insurance paid backer-minted supply"
+        );
     }
 
     /// Control, passes: with no dilution the same sale is paid from the lock and leaves the reserve and insurance whole.
     function test_I4_1_control_NoDilution() public {
         (uint256 res0, uint256 ins0, uint256 aliceTokens, uint256 x) = _run(0);
         uint256 holderShare = minter.quote(sport, false, true, aliceTokens).amountOut * 102 / 100;
+        _cashFor(holderShare);
         uint256 got = _sell(bob, sport, x);
         assertGt(got, 0);
-        emit log_named_uint("control: reserve + insurance drawn (USDG)", ((res0 - gov.exitReserve()) + (ins0 - ins.balance())) / 1e6);
-        assertLe((res0 - gov.exitReserve()) + (ins0 - ins.balance()), holderShare, "only the holder share may come from the reserve");
+        emit log_named_uint(
+            "control: reserve + insurance drawn (USDG)", ((res0 - gov.exitReserve()) + (ins0 - ins.balance())) / 1e6
+        );
+        assertLe(
+            (res0 - gov.exitReserve()) + (ins0 - ins.balance()),
+            holderShare,
+            "only the holder share may come from the reserve"
+        );
     }
 
-    /// I4-1b, accepted (SECURITY.md, Accepted risks): no mint to a wallet. One actor buys as a holder (paid in full),
-    /// sells debt straight to the Governor (checked against the live net, which the bought tokens hold up), then sells
-    /// the bought tokens. Those tokens are ordinary holder supply, so the sell is paid like any holder's: free cash, the
-    /// exit reserve, insurance. This is the path `DirectSaleBelowZero.t.sol` keeps on purpose. What bounds it:
-    /// the reserve and insurance pay no more than the payout of tokens that were bought and paid for; the actor gets
-    /// back less than they paid in; the gear ends past its cap by at most the value of the holder supply that left;
-    /// and the vault behind the debt still holds at least the initial ratio in collateral.
-    function test_I4_1b_AcceptedRisk_HolderExitAfterDirectSale_IsBounded() public {
+    /// I4-1b, closed (decision D32; flipped from the accepted-risk test, which measured 148,445 of 150,000 USDG of
+    /// reserve plus insurance drawn for a cost of 2,932). No mint to a wallet: one actor buys as a holder (paid in
+    /// full), sells debt straight to the Governor (checked against the live net, which the bought tokens hold up),
+    /// then sells the bought tokens. That sell leaves the gear's net below zero, so it is paid from free cash only:
+    /// with free cash short it is refused UseQueue and neither the exit reserve nor insurance moves. The part of the
+    /// holding that keeps net at or above zero still exits through the reserve, as any holder's does.
+    function test_I4_1b_HolderExitAfterDirectSale_DrawsNoReserveOrInsurance() public {
         _books();
         (uint256 value,) = minter.valuePerToken(sport);
         uint256 cap = reg.gear(sport).capUsdWad;
@@ -132,29 +157,55 @@ contract Ind4OwnDebtDilutionTest is BackerFixture {
         }
         uint256 v = _open(bob, sport, 3_000_000e6);
         _mint(bob, v, h + cap * 90 / 100 / value * 1e18, true);
-        (, uint256 openBefore) = gov.capOf(sport);
-        assertLe(openBefore, cap, "the direct sale itself stays inside the cap");
         assertEq(gov.backerOwnDebt(sport), 0, "no own-minted debt: this is not the M-7 route");
         _drainFreeCash();
         uint256 res0 = gov.exitReserve();
         uint256 ins0 = ins.balance();
+        assertEq(res0 + ins0, RESERVE + INSURANCE);
         uint256 target = (gov.freeCash() + res0 + ins0) * 99 / 100;
         uint256 sellTokens = minter.quote(sport, false, false, target).amountIn;
         if (sellTokens > h) sellTokens = h;
-        uint256 got = _sell(bob, sport, sellTokens);
-        uint256 paidIn = spent * sellTokens / h;
-        uint256 drawn = (res0 - gov.exitReserve()) + (ins0 - ins.balance());
-        (, uint256 open) = gov.capOf(sport);
-        emit log_named_uint("bought as a holder (USDG)", spent / 1e6);
-        emit log_named_uint("paid in for the tokens sold (USDG)", paidIn / 1e6);
-        emit log_named_uint("payout of the tokens sold (USDG)", got / 1e6);
-        emit log_named_uint("reserve + insurance drawn (USDG)", drawn / 1e6);
-        emit log_named_uint("sport open value after (USD)", open / 1e18);
-        emit log_named_uint("sport cap (USD)", cap / 1e18);
-        emit log_named_uint("vault ratio after (bps)", _ratio(v));
-        assertLe(drawn, got, "reserve + insurance paid more than the payout of paid-for holder tokens");
-        assertLt(got, paidIn, "the round trip paid the actor");
-        assertLe(open, cap + sellTokens * value / 1e18 * 101 / 100, "past the cap by more than the supply that left");
-        assertGe(_ratio(v), reg.gear(sport).collateralBps, "the debt is no longer backed at the initial ratio");
+        assertLt(gov.netTokens(sport), int256(sellTokens), "the sell leaves net below zero");
+
+        // the auditor's step 3: the quote says queued, the sell is refused, nothing is drawn
+        assertTrue(minter.quote(sport, false, true, sellTokens).queued, "quote: queued");
+        vm.prank(bob);
+        vm.expectRevert(IODMinter.UseQueue.selector);
+        minter.sell(sport, sellTokens, 0, bob, uint64(vm.getBlockTimestamp()));
+        assertEq(gov.exitReserve(), res0, "exit reserve untouched");
+        assertEq(ins.balance(), ins0, "insurance untouched");
+
+        // splitting the sell does not help: pieces are paid from what free cash is left and then refused the same
+        // way, and the reserve and insurance never move
+        uint256 piece = sellTokens / 50;
+        for (uint256 i; i < 60; ++i) {
+            vm.prank(bob);
+            (bool sold,) = address(minter)
+                .call(abi.encodeCall(minter.sell, (sport, piece, 0, bob, uint64(vm.getBlockTimestamp()))));
+            assertEq(gov.exitReserve(), res0, "exit reserve untouched by a piece");
+            assertEq(ins.balance(), ins0, "insurance untouched by a piece");
+            if (!sold) break;
+            assertLt(i, 49, "pieces kept being paid");
+        }
+        vm.prank(bob);
+        vm.expectRevert(IODMinter.UseQueue.selector);
+        minter.sell(sport, piece, 0, bob, uint64(vm.getBlockTimestamp()));
+
+        // the exit that remains: the queue, filled from free cash when it returns; still nothing from the reserve
+        vm.prank(bob);
+        uint256 ticket = minter.queueSell(sport, piece, 0, bob);
+        vm.expectRevert(abi.encodeWithSelector(IODMinter.NotFillable.selector, ticket));
+        minter.fillQueued(ticket);
+        usdg.mint(lp, 200_000e6);
+        vm.startPrank(lp);
+        usdg.approve(address(gov), 200_000e6);
+        gov.fundCash(200_000e6);
+        vm.stopPrank();
+        uint256 b0 = usdg.balanceOf(bob);
+        minter.fillQueued(ticket);
+        assertGt(usdg.balanceOf(bob), b0, "the queued sell is paid once free cash is there");
+        assertEq(gov.exitReserve(), res0, "exit reserve untouched by the fill");
+        assertEq(ins.balance(), ins0, "insurance untouched by the fill");
+        assertGe(_ratio(v), reg.gear(sport).collateralBps, "the debt is still backed at the initial ratio");
     }
 }

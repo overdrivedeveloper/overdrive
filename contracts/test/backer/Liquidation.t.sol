@@ -60,15 +60,19 @@ contract LiquidationTest is BackerFixture {
         assertEq(inBatch, b);
     }
 
-    function test_SealRefusesStaleRound() public {
+    /// I5-3: no round-age rule at seal. A round the guard calls fresh (26 h here) seals when the fresh reference
+    /// agrees inside the band; past the guard's own limit the market is halted and nothing seals.
+    function test_SealAcceptsAnOldRoundTheGuardCallsFresh() public {
         uint256 id = _sportVault(alice);
         _crash();
-        // 16 minutes without a new feed round: the reading is still fresh (26 h), the round is not
         vm.warp(vm.getBlockTimestamp() + 16 minutes);
         _ref(TSLA, 300e18);
-        vm.expectRevert(abi.encodeWithSelector(IODBacker.SealRefused.selector, bytes32("STALE_ROUND")));
+        uint256 snap = vm.snapshotState();
         _seal(sport, id);
-        _price(TSLA, 300e18);
+        vm.revertToState(snap);
+        vm.warp(vm.getBlockTimestamp() + 26 hours);
+        _ref(TSLA, 300e18);
+        vm.expectRevert(abi.encodeWithSelector(IODBacker.SealRefused.selector, bytes32("NOT_LIVE")));
         _seal(sport, id);
     }
 

@@ -118,6 +118,14 @@ abstract contract BackerFixture is SystemFixture {
         return address(backer);
     }
 
+    /// The lock ceiling as it was before L-12 (one owner may hold all of it), for tests of the ceiling itself.
+    function _oneOwnerMayHoldTheCeiling() internal {
+        IODGovernor.Params memory gp = gov.getParams();
+        gp.maxLockOwnerBps = 10_000;
+        vm.prank(admin);
+        gov.setParams(gp);
+    }
+
     function _open(address who, bytes32 id, uint256 amount) internal returns (uint256 vaultId) {
         usdg.mint(who, amount);
         vm.startPrank(who);

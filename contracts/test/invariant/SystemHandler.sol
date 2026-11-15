@@ -371,7 +371,8 @@ contract SystemHandler is Test, Ghosts {
         // M-7: the reserve stands behind all supply above the backer debt minted to owners' wallets; the share of a
         // sell that takes supply below that debt is paid from the backer sale lock then free cash, so R1 speaks while
         // the sell keeps supply >= backerOwnDebt. Net below zero from sales to the Governor alone does not excuse it.
-        bool keepsNet = t.totalSupply() >= s.gov.backerOwnDebt(g) + (exactIn ? amount : q.amountIn);
+        // I4-1b (D32): and only while the sell keeps net at or above zero against all backer debt.
+        bool keepsNet = t.totalSupply() >= s.gov.backerDebt(g) + (exactIn ? amount : q.amountIn);
         bool r1 = qok && aboveFloor && r.p != 0 && r.refP != 0 && payout != 0 && payout <= reserve
             && s.minter.settledValue(g) == 0 && keepsNet;
         // The hook takes the input tokens out of the PoolManager before the swapper settles, so a hook sell needs the
@@ -659,7 +660,7 @@ contract SystemHandler is Test, Ghosts {
             if (!sellToGovernor) {
                 ghostOwnOf[id] += tokens;
                 ghostOwnGear[g] += tokens;
-                _ceilingCheck();
+                _ceilingCheck(owner);
             }
         } catch {
             ++revertsOf["backerMint"];
@@ -736,17 +737,25 @@ contract SystemHandler is Test, Ghosts {
         return payout != 0 && tokensIn != 0 && r.p != 0 && r.refP != 0 && s.minter.settledValue(g) == 0
             && _tok(g).totalSupply() >= ghostOwnGear[g] + tokensIn
             && payout + s.gov.feeOwed()
-                <= s.gov.freeCash() + s.gov.exitReserve() + IODInsurance(address(s.gov.insurance())).balance();
+                <= s.gov.freeCash()
+                    // I4-1b: the reserve and insurance stand only behind a sell that keeps net at or above zero
+                    + (_tok(g).totalSupply() >= s.gov.backerDebt(g) + tokensIn
+                            ? s.gov.exitReserve() + IODInsurance(address(s.gov.insurance())).balance()
+                            : 0);
     }
 
     /// M-8: right after a successful own mint the locks of all gears are within maxLockBps of free cash plus locks.
-    function _ceilingCheck() internal {
+    /// L-12: and the minting owner's open locks are within maxLockOwnerBps of that ceiling.
+    function _ceilingCheck(address owner) internal {
         uint256 locks;
         for (uint256 i; i < gearIds.length; ++i) {
             locks += s.gov.backerLock(gearIds[i]);
         }
         ++ownMints;
-        if (locks * 10_000 > (s.gov.freeCash() + locks) * s.gov.getParams().maxLockBps) ++lockCeilingViolations;
+        IODGovernor.Params memory gp = s.gov.getParams();
+        uint256 ceiling = (s.gov.freeCash() + locks) * gp.maxLockBps;
+        if (locks * 10_000 > ceiling) ++lockCeilingViolations;
+        if (s.gov.backerLockOf(owner) * 100_000_000 > ceiling * gp.maxLockOwnerBps) ++lockCeilingViolations;
     }
 
     /// Rescore 4: the state S17 exists for, reached on purpose. The owner of a vault mints to their wallet a little
@@ -773,7 +782,7 @@ contract SystemHandler is Test, Ghosts {
             try s.backer.mint(id, mintTokens, false, 0) {
                 ghostOwnOf[id] += mintTokens;
                 ghostOwnGear[g] += mintTokens;
-                _ceilingCheck();
+                _ceilingCheck(owner);
             } catch {
                 ++revertsOf["crossOwnSell"];
                 return;
@@ -799,6 +808,8 @@ contract SystemHandler is Test, Ghosts {
             else if (sel != IODMinter.BelowMinimum.selector) _gated("crossOwnSell", e);
         }
     }
+
+    uint256 public netBelowZeroDraws; // I4-1b: sells that left net below zero and drew the reserve or insurance
 
     struct M7Pre {
         uint256 room; // supply above the gear's own-minted backer debt: the tokens the reserve stands behind
@@ -832,6 +843,7 @@ contract SystemHandler is Test, Ghosts {
         uint256 fromLock = p.lock > lockNow ? p.lock - lockNow : 0;
         if (lockNow > p.lock || fromLock > paid - (allowed > paid ? paid : allowed) + 1) ++m7LockViolations;
         if (s.gov.netTokens(g) < 0) {
+            if (drawn != 0) ++netBelowZeroDraws; // I4-1b: such a sell is paid from free cash (and its lock) only
             ++m7BelowZero;
             if (above == burned) ++m7BelowZeroDirect;
         }

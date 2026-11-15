@@ -24,6 +24,9 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
     uint32 public constant DEFAULT_MAX_AGE_CLOSED = 5 days;
     uint32 public constant MIN_MAX_AGE_CLOSED = 2 days;
     uint32 public constant MAX_MAX_AGE_CLOSED = 14 days;
+    /// I4-3: no in-session feed round older than this is ever read as live, whatever the admin sets. Three days covers
+    /// a quiet feed across a normal weekend into Monday's session; a longer gap reads HALTED until the next round.
+    uint32 public constant MAX_MAX_AGE_OPEN = 3 days;
     uint16 public constant MAX_REF_BAND_BPS = 2000;
     uint256 public constant SPLIT_CLASS_BPS = 500;
     uint256 public constant MAX_P = 1e33;
@@ -123,7 +126,8 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
     function setMarket(bytes32 market, MarketConfig calldata cfg) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (market == bytes32(0)) revert InvalidConfig();
         if (
-            cfg.maxAgeOpen == 0 || (!cfg.alwaysOpen && cfg.maxAgeExtended == 0) || cfg.maxAgeClosed < MIN_MAX_AGE_CLOSED
+            cfg.maxAgeOpen == 0 || cfg.maxAgeOpen > MAX_MAX_AGE_OPEN || cfg.maxAgeExtended > MAX_MAX_AGE_OPEN
+                || (!cfg.alwaysOpen && cfg.maxAgeExtended == 0) || cfg.maxAgeClosed < MIN_MAX_AGE_CLOSED
                 || cfg.maxAgeClosed > MAX_MAX_AGE_CLOSED || cfg.refBandBps == 0 || cfg.refBandBps > MAX_REF_BAND_BPS
                 || cfg.continuityBps == 0 || cfg.continuityBps > BPS
         ) revert InvalidConfig();
@@ -235,6 +239,21 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
     /// @return  The derived values.
     function derivedConfig(bytes32 market) external view returns (Derived memory) {
         return _derived[market];
+    }
+
+    /// @inheritdoc IODOracleGuard
+    /// @dev I5-1. Each test is made on the market's own state, so a manual pause or a disabled market (which come
+    /// first in `reason`) never hides a disagreeing reference. A manual pause or a disabled market alone blocks
+    /// nothing here: liquidations reduce risk.
+    function liquidationBlock(bytes32 market) external view returns (bytes32) {
+        Eval memory e = _evaluate(market);
+        MarketState storage st = _st[market];
+        if (!e.live) return "NOT_LIVE"; // HALTED, CLOSED, UNKNOWN
+        if (st.contPaused || e.jump) return REASON_CONTINUITY;
+        if (e.splitCond || block.timestamp < st.splitPauseUntil) return REASON_SPLIT;
+        if (e.r.refP == 0) return REASON_REF_UNAVAILABLE;
+        if (!_within(e.r.p, e.r.refP, _cfg[market].refBandBps)) return REASON_REF_BAND;
+        return bytes32(0);
     }
 
     // ------------------------------------------------------------------ state update

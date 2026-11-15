@@ -1,23 +1,5 @@
 [
  {
-  "id": "fcbc623f62d941856aefb69770a4057c16d9877e785be3d2a27ec1097cd94518",
-  "check": "weak-prng",
-  "impact": "High",
-  "confidence": "Medium",
-  "description": "ODGovernor._refresh(int256) (src/governor/ODGovernor.sol#869-881) uses a weak PRNG: \"slot = day % RING (src/governor/ODGovernor.sol#878)\" \n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L869-L881",
-  "triage": "false positive or accepted by design: Not randomness: day % RING is the index of a fixed ring buffer of daily snapshots."
- },
- {
-  "id": "0a26d0cfa0b5c263a5a4e77b8e77398519c748fa86cb35bd8acb7481705b8833",
-  "check": "reentrancy-balance",
-  "impact": "High",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#545-579):\n\tExternal call allowing reentrancy:\n\t- ! governor.onBackerMint(g,tokens,true,proceeds) (src/backer/ODBacker.sol#566)\n\tBalance read before the call:\n\t- before = usdg.balanceOf(address(this)) (src/backer/ODBacker.sol#565)\n\tPossible stale balance used after the call in a condition:\n\t- got < proceeds (src/backer/ODBacker.sol#568)\n\t\t- stale variable `got`\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L545-L579",
-  "triage": "false positive or accepted by design: ODBuyBurn.execute and ODBacker._mint are nonReentrant; the stale balance is only compared against a floor that reverts the whole call, so a reentrant top-up can only make the call revert."
- },
- {
   "id": "476d3ab8c04efecf6ae23f82f2074efc58926a6760393bd1c11ffbd9b90254a3",
   "check": "reentrancy-balance",
   "impact": "High",
@@ -90,15 +72,6 @@
   "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
  },
  {
-  "id": "8869e8a1c68549b24f251a479158fcf86dfbccd9befe4f4a1f974d2bfe7ca133",
-  "check": "divide-before-multiply",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32) (src/governor/ODGovernorRisk.sol#158-176) performs a multiplication on the result of a division:\n\t- gamma += (p * (p - int256(WAD)) / int256(WAD)) * val / int256(WAD) (src/governor/ODGovernorRisk.sol#173)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L158-L176",
-  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
- },
- {
   "id": "89ebd4d8b1034a434a08aefbe349ba6eedeb5cf1952fcdf4881c0d093b544124",
   "check": "divide-before-multiply",
   "impact": "Medium",
@@ -144,15 +117,6 @@
   "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
  },
  {
-  "id": "00565e8cb0852885f50ca8a7dd8666bfa3597a825ab0994b042534d65b65b85f",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#449-458) uses a dangerous strict equality:\n\t- aggregator == feed || aggregator.code.length == 0 (src/oracle/ODOracleGuard.sol#454)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L449-L458",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
   "id": "09f22d71e8124975f9e98eac2888e2367a055ea7d6aa33497c782fa3eef47c88",
   "check": "incorrect-equality",
   "impact": "Medium",
@@ -168,42 +132,6 @@
   "confidence": "High",
   "description": "ODMinterPricing.context(ODMinterPricing.Deps,bytes32,NormState,uint64,uint256,uint128) (src/governor/ODMinterPricing.sol#76-121) uses a dangerous strict equality:\n\t- c.nfNew == c.nf (src/governor/ODMinterPricing.sol#116)\n",
   "first_markdown_element": "src/governor/ODMinterPricing.sol#L76-L121",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "1f6aa46bb087d126ad9fd2119e70f8862a6f22b64fc16d4cfa58c4e517641244",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODGovernor.onBuy(bytes32,uint256,uint256,uint256) (src/governor/ODGovernor.sol#152-163) uses a dangerous strict equality:\n\t- reason == STRESS (src/governor/ODGovernor.sol#157)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L152-L163",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "258f38fd888bfa2d51eab5d1351e591f584685c53310b9c4621cda8195de22d1",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#449-458) uses a dangerous strict equality:\n\t- ! okA || agg == 0 || agg > type()(uint160).max (src/oracle/ODOracleGuard.sol#452)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L449-L458",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "2f8a3859b2db31bb520e02d558771843dd16b16651731897b23f34cb8c478e8d",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODGovernor._pauseReason(uint256) (src/governor/ODGovernor.sol#781-787) uses a dangerous strict equality:\n\t- _eqAt == 0 || block.timestamp > uint256(_eqAt) + _p.equityMaxAge (src/governor/ODGovernor.sol#783)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L781-L787",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "33de806eefbe322f70c7b087cad92b8199f8a33146a8e1036375a515dfe6a20b",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#182-192) uses a dangerous strict equality:\n\t- rb.p == 0 (src/oracle/ODOracleGuard.sol#185)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L182-L192",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -225,15 +153,6 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "530ee3e502bf7d2accd543d904c99268383439638227f508bea4d90364216dda",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#661-674) uses a dangerous strict equality:\n\t- r2 == r1 (src/backer/ODBacker.sol#673)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L661-L674",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
   "id": "58350782c2d57d8897eee4055ff0159001306ef600b75f7c8abcc9e53464f403",
   "check": "incorrect-equality",
   "impact": "Medium",
@@ -243,75 +162,12 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "69ae2992b33478890aa6009dd288bdd16e4711f3daddebb388e1f7d9c0d81a70",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODBacker.batchWindow(uint256) (src/backer/ODBacker.sol#522-526) uses a dangerous strict equality:\n\t- s == 0 (src/backer/ODBacker.sol#524)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L522-L526",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
   "id": "6f927f21bc3c3bf4249544b586d17b18b0f261b81e43a49686aa03fdcbadc373",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
   "description": "ODMinterPricing.context(ODMinterPricing.Deps,bytes32,NormState,uint64,uint256,uint128) (src/governor/ODMinterPricing.sol#76-121) uses a dangerous strict equality:\n\t- s.lastAccrual == block.timestamp (src/governor/ODMinterPricing.sol#102)\n",
   "first_markdown_element": "src/governor/ODMinterPricing.sol#L76-L121",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "711a8e30bab51523e0a41e531b04c206e2bffb93eb017699460cc4ac5fdff7a2",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#312-406) uses a dangerous strict equality:\n\t- p == 0 || p > MAX_P (src/oracle/ODOracleGuard.sol#347)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L312-L406",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "73cc1ad7000386dcbd970c90a65f6b62d82f7dbd46dba4ad7b2ab5741c422000",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#243-293) uses a dangerous strict equality:\n\t- next == 0 && (e.kind == Session.OPEN || e.kind == Session.EXTENDED) (src/oracle/ODOracleGuard.sol#286)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L243-L293",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "77ffce1aa77740807d351dda83046549b3c295dc0d3beb4684375af7894e8ad6",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODBacker.sealBatch(bytes32,uint256[]) (src/backer/ODBacker.sol#300-330) uses a dangerous strict equality:\n\t- b.vaultIds.length == 0 (src/backer/ODBacker.sol#328)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L300-L330",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "7cb6c223c0abd7bbc6bd172b2bafaf116da6f021f4199d52ca16155284f83cd6",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#312-406) uses a dangerous strict equality:\n\t- e.kind == Session.OPEN (src/oracle/ODOracleGuard.sol#342)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L312-L406",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "7da8d0b965583ff9dd6074dcfeae5c265e618f956ccfb2fb05470bcc1ac42211",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#661-674) uses a dangerous strict equality:\n\t- k == Session.UNKNOWN (src/backer/ODBacker.sol#665)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L661-L674",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "8314303e9edda43ae9ca8227357db000b484586abbf7ce2f6c5d7df6cadd2831",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#312-406) uses a dangerous strict equality:\n\t- inSession = e.kind == Session.OPEN || e.kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#317)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L312-L406",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -333,75 +189,12 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "a078b1028407f84f76de4fb798349ea308b0425f4699249f8e47f58c1ece9407",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#583-611) uses a dangerous strict equality:\n\t- mult == 0 (src/oracle/ODOracleGuard.sol#607)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L583-L611",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "a2c3e4093a1df9b386d449ebf89644ed3c653a26a50c6922470575697bb62516",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#312-406) uses a dangerous strict equality:\n\t- r.refP == 0 (src/oracle/ODOracleGuard.sol#395)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L312-L406",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "a6ca33220e702e6bfe35194b4eb237815d7fa53cf25d5d6b8d711c191a9fc12b",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#630-638) uses a dangerous strict equality:\n\t- target.code.length == 0 (src/oracle/ODOracleGuard.sol#631)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L630-L638",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "a938525caec32f9035d76ee45d3a200d559dbd8cc8cacb2fbd7208ee9ed18167",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#182-192) uses a dangerous strict equality:\n\t- ra.refP == 0 || rb.refP == 0 (src/oracle/ODOracleGuard.sol#186)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L182-L192",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
   "id": "b3b67e8039101157b7a89c99338108eceeee9c28f94af073727162f67e74d6a3",
   "check": "incorrect-equality",
   "impact": "Medium",
   "confidence": "High",
   "description": "ODStake._accrue() (src/stake/ODStake.sol#403-412) uses a dangerous strict equality:\n\t- activeShares == 0 (src/stake/ODStake.sol#408)\n",
   "first_markdown_element": "src/stake/ODStake.sol#L403-L412",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "d2a5027741f0f98c09ba16dbfd1a4eaeb93e98dadf174d043b1012f09ca39c46",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODGovernor.onBuy(bytes32,uint256,uint256,uint256) (src/governor/ODGovernor.sol#152-163) uses a dangerous strict equality:\n\t- reason == CAP (src/governor/ODGovernor.sol#156)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L152-L163",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "d2ca2250ed52bd6b082beb91009cafc0ff67ce69b49308946c7660a9121383a4",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._validatePool(MarketConfig) (src/oracle/ODOracleGuard.sol#461-476) uses a dangerous strict equality:\n\t- baseIsToken0 == (address(uint160(t1)) == cfg.stockToken) (src/oracle/ODOracleGuard.sol#470)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L461-L476",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "ddab7acc4478606a9126307f819e3fba2aee3e2e5197daa3637efcafc19382df",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard._derivedHalt(MarketConfig,uint8) (src/oracle/ODOracleGuard.sol#516-530) uses a dangerous strict equality:\n\t- kind == Session.OPEN || kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#526)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L516-L530",
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
@@ -423,102 +216,12 @@
   "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
  },
  {
-  "id": "f7466ff8df3f26ad23add8fb0bb338fb748be682a9e0c186d80c0ff10b2036a4",
-  "check": "incorrect-equality",
-  "impact": "Medium",
-  "confidence": "High",
-  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#243-293) uses a dangerous strict equality:\n\t- e.r.session == Session.HALTED (src/oracle/ODOracleGuard.sol#278)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L243-L293",
-  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
- },
- {
-  "id": "0819b0457fa885fb0ffe72b29f4fad3bc147bc02780ff5b1af78ebd22a3238d4",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.executeBatch(uint256) (src/backer/ODBacker.sol#339-380):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#350-353)\n\t- ok = this.liquidateVault(batchId,b.vaultIds[i],msg.sender,maint) (src/backer/ODBacker.sol#371-378)\n\tState variables written after the call(s):\n\t- b.done = false (src/backer/ODBacker.sol#377)\n\tODBacker._batches (src/backer/ODBacker.sol#99) can be used in cross function reentrancies:\n\t- ODBacker._liveBatch(uint256) (src/backer/ODBacker.sol#692-697)\n\t- ODBacker.batch(uint256) (src/backer/ODBacker.sol#517-519)\n\t- ODBacker.batchWindow(uint256) (src/backer/ODBacker.sol#522-526)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L339-L380",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "09a4282c0dc4b9e9e18024e33b7f7f1e2e42525b935a84de1b4a61953b3a82ea",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#545-579):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#553)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#554)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\tState variables written after the call(s):\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#554)\n\t\t- v.tollIndexSnapshot = cum (src/backer/ODBacker.sol#591)\n\t\t- v.collateralUsdg -= fee (src/backer/ODBacker.sol#594)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n\t- v.debtTokens += tokens (src/backer/ODBacker.sol#559)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L545-L579",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "0f3c1f85f948be9bf3ab428b7c3982e1545ea36908c4084eb573dce52560c648",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#401)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\tState variables written after the call(s):\n\t- v.debtTokens = 0 (src/backer/ODBacker.sol#406)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n\t- v.collateralUsdg = 0 (src/backer/ODBacker.sol#407)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n\t- totalCollateral -= coll (src/backer/ODBacker.sol#408)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#583-599)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L394-L424",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "156e17bf7122e2f4085035e29d1b777207e9265b3097c3a0a14b00c7f4bf2d5e",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.withdraw(uint256,uint256,address) (src/backer/ODBacker.sol#191-207):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#195)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\tState variables written after the call(s):\n\t- totalCollateral -= amount (src/backer/ODBacker.sol#198)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#583-599)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L191-L207",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "1bd580ef49ccd1cac1876a24105ec33ec41a65dd350f7b4fab2a7d9715621b73",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#401)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#411)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#431-434)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#442-445)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#413)\n\t\t- governor.onBackerMint(g,0,true,amount) (src/backer/ODBacker.sol#455-458)\n\tState variables written after the call(s):\n\t- v.collateralUsdg = x.surplus (src/backer/ODBacker.sol#415)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n\t- totalCollateral += x.surplus (src/backer/ODBacker.sol#416)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#583-599)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L394-L424",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "24133a04339265769604cf88a879bf561164d342c14ca38b303911f470b0cffa",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.deposit(uint256,uint256) (src/backer/ODBacker.sol#179-186):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#181)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\tState variables written after the call(s):\n\t- totalCollateral += amount (src/backer/ODBacker.sol#184)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#583-599)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L179-L186",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "3c01bda23eec93dcca0aa0929ae143d235fc21dea5a0a200e3793f90b8443f55",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.repayWithUsdg(uint256,uint256,uint256) (src/backer/ODBacker.sol#251-283):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#258)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#259)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\tState variables written after the call(s):\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#259)\n\t\t- v.tollIndexSnapshot = cum (src/backer/ODBacker.sol#591)\n\t\t- v.collateralUsdg -= fee (src/backer/ODBacker.sol#594)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n\t- totalCollateral -= cost (src/backer/ODBacker.sol#274)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#583-599)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L251-L283",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
   "id": "4bb221273e050ea6edb69f0d894548e2523bc6c0e6d1a0c8626506533cc46529",
   "check": "reentrancy-no-eth",
   "impact": "Medium",
   "confidence": "Medium",
   "description": "Reentrancy in ODStake.slash(uint256) (src/stake/ODStake.sol#230-263):\n\tExternal calls:\n\t- adapter.swapExactIn(address(ovrd),address(usdg),poolFee,amount,minOut,msg.sender) (src/stake/ODStake.sol#251-261)\n\tState variables written after the call(s):\n\t- totalAssets -= sold (src/stake/ODStake.sol#255)\n\tODStake.totalAssets (src/stake/ODStake.sol#78) can be used in cross function reentrancies:\n\t- ODStake._slashable() (src/stake/ODStake.sol#414-417)\n\t- ODStake.assetsOf(uint256) (src/stake/ODStake.sol#312-319)\n\t- ODStake.totalAssets (src/stake/ODStake.sol#78)\n",
   "first_markdown_element": "src/stake/ODStake.sol#L230-L263",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "698f7b38f21a60b729a11ddc2fb87107487f4313f857debb76caca6ef3a05639",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODGovernor._settleFees() (src/governor/ODGovernor.sol#916-919):\n\tExternal calls:\n\t- _settleOne(TOLL) (src/governor/ODGovernor.sol#917)\n\t\t- fees.notify(kind,bytes32(0),amt) (src/governor/ODGovernor.sol#930)\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#918)\n\t\t- fees.notify(kind,bytes32(0),amt) (src/governor/ODGovernor.sol#930)\n\tState variables written after the call(s):\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#918)\n\t\t- _cash -= amt (src/governor/ODGovernor.sol#927)\n\tODGovernor._cash (src/governor/ODGovernor.sol#51) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.canPay(uint256) (src/governor/ODGovernor.sol#609-617)\n\t- ODGovernor.freeCash() (src/governor/ODGovernor.sol#665-667)\n\t- ODGovernor.trackedCash() (src/governor/ODGovernor.sol#670-672)\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#918)\n\t\t- _owedSpread = uint128(owed - amt) (src/governor/ODGovernor.sol#929)\n\tODGovernor._owedSpread (src/governor/ODGovernor.sol#54) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.feeOwed() (src/governor/ODGovernor.sol#696-698)\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#918)\n\t\t- _owedToll = uint128(owed - amt) (src/governor/ODGovernor.sol#928)\n\tODGovernor._owedToll (src/governor/ODGovernor.sol#53) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.feeOwed() (src/governor/ODGovernor.sol#696-698)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L916-L919",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "732fc47dd971f2ed68d503a96e8eb2f42d93206b2bdeafa1e876f2fabf7456aa",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.repay(uint256,uint256) (src/backer/ODBacker.sol#235-245):\n\tExternal calls:\n\t- minter.accrue(v.gearId) (src/backer/ODBacker.sol#237)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#238)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\tState variables written after the call(s):\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#238)\n\t\t- v.tollIndexSnapshot = cum (src/backer/ODBacker.sol#591)\n\t\t- v.collateralUsdg -= fee (src/backer/ODBacker.sol#594)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L235-L245",
   "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
  },
  {
@@ -529,42 +232,6 @@
   "description": "Reentrancy in ODFees._settle(bytes32,uint256) (src/fees/ODFees.sol#231-244):\n\tExternal calls:\n\t- paid = _pay(bucket,to,total) (src/fees/ODFees.sol#236)\n\t\t- (ok,None) = to.call(data) (src/fees/ODFees.sol#258)\n\t\t- (ok_scope_0,ret) = address(usdg).call(abi.encodeCall(IERC20.transfer,(to,amount))) (src/fees/ODFees.sol#262)\n\tState variables written after the call(s):\n\t- held[bucket] = rest (src/fees/ODFees.sol#240)\n\tODFees.held (src/fees/ODFees.sol#67) can be used in cross function reentrancies:\n\t- ODFees.held (src/fees/ODFees.sol#67)\n",
   "first_markdown_element": "src/fees/ODFees.sol#L231-L244",
   "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "9d955f6c3ea9f46fae7d92f2e23aa97702bffbe0d0ace0299f1e2fb3227937fb",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODGovernor.pay(address,uint256) (src/governor/ODGovernor.sol#177-201):\n\tExternal calls:\n\t- got = _drawInsurance(usdg - cash - res) (src/governor/ODGovernor.sol#183)\n\t\t- insurance.cover(usdg) (src/governor/ODGovernor.sol#937)\n\tState variables written after the call(s):\n\t- _cash = cash (src/governor/ODGovernor.sol#185)\n\tODGovernor._cash (src/governor/ODGovernor.sol#51) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.canPay(uint256) (src/governor/ODGovernor.sol#609-617)\n\t- ODGovernor.freeCash() (src/governor/ODGovernor.sol#665-667)\n\t- ODGovernor.trackedCash() (src/governor/ODGovernor.sol#670-672)\n\t- _cash = cash - fromCash (src/governor/ODGovernor.sol#190)\n\tODGovernor._cash (src/governor/ODGovernor.sol#51) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.canPay(uint256) (src/governor/ODGovernor.sol#609-617)\n\t- ODGovernor.freeCash() (src/governor/ODGovernor.sol#665-667)\n\t- ODGovernor.trackedCash() (src/governor/ODGovernor.sol#670-672)\n\t- _cash = cash (src/governor/ODGovernor.sol#195)\n\tODGovernor._cash (src/governor/ODGovernor.sol#51) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.canPay(uint256) (src/governor/ODGovernor.sol#609-617)\n\t- ODGovernor.freeCash() (src/governor/ODGovernor.sol#665-667)\n\t- ODGovernor.trackedCash() (src/governor/ODGovernor.sol#670-672)\n\t- _reserve = res - fromRes (src/governor/ODGovernor.sol#191)\n\tODGovernor._reserve (src/governor/ODGovernor.sol#52) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.canPay(uint256) (src/governor/ODGovernor.sol#609-617)\n\t- ODGovernor.exitReserve() (src/governor/ODGovernor.sol#653-655)\n\t- _reserve = res (src/governor/ODGovernor.sol#196)\n\tODGovernor._reserve (src/governor/ODGovernor.sol#52) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#844-847)\n\t- ODGovernor.canPay(uint256) (src/governor/ODGovernor.sol#609-617)\n\t- ODGovernor.exitReserve() (src/governor/ODGovernor.sol#653-655)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L177-L201",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "b816b74ea7af4d4c832d81d3a1f18dfb4890fca165584e68b3aa0fa39f95769a",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#545-579):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#553)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#554)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\t- ! governor.onBackerMint(g,tokens,true,proceeds) (src/backer/ODBacker.sol#566)\n\tState variables written after the call(s):\n\t- v.collateralUsdg += proceeds (src/backer/ODBacker.sol#569)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#706-709)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#486-493)\n\t- totalCollateral += proceeds (src/backer/ODBacker.sol#570)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#583-599)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L545-L579",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "cc54dd9ad62a9cb7d3394ac4d012819c2b9b2dec8abb42b05bb4adc7e76a8ce5",
-  "check": "reentrancy-no-eth",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODMinter.settleGear(bytes32) (src/governor/ODMinter.sol#273-283):\n\tExternal calls:\n\t- _commit(c) (src/governor/ODMinter.sol#276)\n\t\t- governor.onToll(c.id,c.tollValue) (src/governor/ODMinter.sol#461)\n\tState variables written after the call(s):\n\t- _settled[gearId] = v (src/governor/ODMinter.sol#280)\n\tODMinter._settled (src/governor/ODMinter.sol#50) can be used in cross function reentrancies:\n\t- ODMinter._load(bytes32) (src/governor/ODMinter.sol#467-469)\n\t- ODMinter.normState(bytes32) (src/governor/ODMinter.sol#346-355)\n\t- ODMinter.settledValue(bytes32) (src/governor/ODMinter.sol#375-377)\n\t- ODMinter.tollPerDay(bytes32) (src/governor/ODMinter.sol#358-362)\n\t- ODMinter.valuePerToken(bytes32) (src/governor/ODMinter.sol#333-339)\n",
-  "first_markdown_element": "src/governor/ODMinter.sol#L273-L283",
-  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
- },
- {
-  "id": "0c98a62be5b369c9246d59dfdb2eba40f06bf413cd610ddb94cbd92e3657ac01",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODGovernor._check(bytes32,uint256) (src/governor/ODGovernor.sol#762-779) ignores return value by (open,staticCap,None) = ODGovernorRisk.gearOpen(c,_debt,gearId,addTokens) (src/governor/ODGovernor.sol#770)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L762-L779",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
  },
  {
   "id": "10409605cc59bdf4c6329fe0c930c37ddc127d211757a998cb4efa93a88dde6c",
@@ -582,15 +249,6 @@
   "confidence": "Medium",
   "description": "ODPaymaster.validatePaymasterUserOp(PackedUserOperation,bytes32,uint256) (src/agent/ODPaymaster.sol#185-230) ignores return value by (recovered,err,None) = ECDSA.tryRecover(digest,pd) (src/agent/ODPaymaster.sol#202)\n",
   "first_markdown_element": "src/agent/ODPaymaster.sol#L185-L230",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "265edcd969ffb53a9feb7c5232702a352b67e052025c5891302c36410e2c853e",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker.repay(uint256,uint256) (src/backer/ODBacker.sol#235-245) ignores return value by minter.accrue(v.gearId) (src/backer/ODBacker.sol#237)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L235-L245",
   "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
  },
  {
@@ -621,24 +279,6 @@
   "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
  },
  {
-  "id": "6ad48d6a17620d9a7dbda6a1663fb731eb4420857b414dea8f8f442e92f4b317",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODGovernor.maxDeposit(address) (src/governor/ODGovernor.sol#566-574) ignores return value by (high) = this.navBand() (src/governor/ODGovernor.sol#568-573)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L566-L574",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "6e0c0159c317c8d9d0d50699eea81027d7f2a9a0d50bb31ada10a4ed91b8a214",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#661-674) ignores return value by (None,r1) = marketHours.nextLongClose(t,1) (src/backer/ODBacker.sol#670)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L661-L674",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
   "id": "711fd28be512ec2a984aed8fef36336a374426d62f2c952016ced2bfd0a9cafc",
   "check": "unused-return",
   "impact": "Medium",
@@ -648,48 +288,12 @@
   "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
  },
  {
-  "id": "80f2e5dfa70e7c87bd32b8134f6d4d2e33db1fd46949bbe8ba89792044b1e650",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker.repayWithUsdg(uint256,uint256,uint256) (src/backer/ODBacker.sol#251-283) ignores return value by minter.accrue(g) (src/backer/ODBacker.sol#258)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L251-L283",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "8b592a26faddb89ff08bc646121d2aeece0b383aebd3e3c237c014b35d47b83a",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#545-579) ignores return value by governor.onBackerMint(g,tokens,false,0) (src/backer/ODBacker.sol#575)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L545-L579",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
   "id": "96c46a87e6990e2faf323298fe55b1ff2d4693a54f1b8f38a86bf806cb1a241c",
   "check": "unused-return",
   "impact": "Medium",
   "confidence": "Medium",
   "description": "ODGearRegistry.listGear(bytes32,bytes32,Gear,uint128,uint128,uint16,string) (src/gear/ODGearRegistry.sol#94-157) ignores return value by factory.deploy(id,minter_,name,symbol) (src/gear/ODGearRegistry.sol#156)\n",
   "first_markdown_element": "src/gear/ODGearRegistry.sol#L94-L157",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "977763bef15f496f0a8ce249b5cbafe4561d36a30575a7fb522578efb33f99c1",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#545-579) ignores return value by minter.accrue(g) (src/backer/ODBacker.sol#553)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L545-L579",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "a6e4ba071de6bf6570b77d7212723ba043f25ca095bceb8619cb89dec773a08a",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._recover(uint256) (src/backer/ODBacker.sol#427-448) ignores return value by IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#442-445)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L427-L448",
   "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
  },
  {
@@ -708,78 +312,6 @@
   "confidence": "Medium",
   "description": "ODHook.initializeGearPool(bytes32) (src/hook/ODHook.sol#104-111) ignores return value by poolManager.initialize(key,INIT_SQRT_PRICE_X96) (src/hook/ODHook.sol#109)\n",
   "first_markdown_element": "src/hook/ODHook.sol#L104-L111",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "aeabe9f832a8006ab15bc68d0399e09ebd53fb39eee5cf1745ea67ce6f355ec7",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker.executeBatch(uint256) (src/backer/ODBacker.sol#339-380) ignores return value by minter.accrue(g) (src/backer/ODBacker.sol#350-353)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L339-L380",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "bf4c4e61bef06446085167fe459a0fe0cb533cb2131425264e42e45b52b6f6c7",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODGovernor.capOf(bytes32) (src/governor/ODGovernor.sol#646-650) ignores return value by (openWad,staticCap,None) = ODGovernorRisk.gearOpen(_ctx(),_debt,gearId,0) (src/governor/ODGovernor.sol#648)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L646-L650",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "c2020e54ebf5023855aaff3a6d5b39f8ce1b68fb45b91772de6cd85dcfbe3eb0",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) ignores return value by (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#261-263)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "c56e27ba643248714ac13390bb380634078bc1cc1ddf31beec145e4ddd4e6355",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._recover(uint256) (src/backer/ODBacker.sol#427-448) ignores return value by insurance.cover(gap) (src/backer/ODBacker.sol#431-434)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L427-L448",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "cfa6a2a4c2200f2633b27ff62ad6ed09b207cb03a7979de898eb6631b2038a14",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODGovernor._drawInsurance(uint256) (src/governor/ODGovernor.sol#934-942) ignores return value by insurance.cover(usdg) (src/governor/ODGovernor.sol#937)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L934-L942",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "d7dcac532b6a67428ee8e50560a9bd535c7d72943b121c1b50f17e7f147a6810",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._governorPays(bytes32,uint256) (src/backer/ODBacker.sol#452-461) ignores return value by governor.onBackerMint(g,0,true,amount) (src/backer/ODBacker.sol#455-458)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L452-L461",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "e4376bfeed891b1cfe8bc84f3b1118f23768b5e2a20fc5ebc66da149af199498",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker.sealBatch(bytes32,uint256[]) (src/backer/ODBacker.sol#300-330) ignores return value by minter.accrue(gearId) (src/backer/ODBacker.sol#306)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L300-L330",
-  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
- },
- {
-  "id": "f0a0847a77d9b1826caeede9db101aa1a0f1ca98025c5530b2c767a09e79e843",
-  "check": "unused-return",
-  "impact": "Medium",
-  "confidence": "Medium",
-  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#661-674) ignores return value by (None,r2) = marketHours.nextLongClose(r1 - MIN_CLOSED_FOR_UPLIFT,MIN_CLOSED_FOR_UPLIFT) (src/backer/ODBacker.sol#672)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L661-L674",
   "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
  },
  {
@@ -810,15 +342,6 @@
   "triage": "false positive or accepted by design: pending is reset to zero then set to the rounding remainder in the same function; the first write is the intended clear."
  },
  {
-  "id": "442fea101cd18b9d0178ffff1a7c0cd9198fa9214b9c66929fd495ba19a8511b",
-  "check": "missing-zero-check",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODOracleGuard.constructor(address,address,address,address,address).sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#111) lacks a zero-check on :\n\t\t- sequencerFeed = sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#117)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L111",
-  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
- },
- {
   "id": "707472297fb575f239c862fd48025b0d04fb4324adc84e1895cd1da7745a1dcb",
   "check": "missing-zero-check",
   "impact": "Low",
@@ -837,15 +360,6 @@
   "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
  },
  {
-  "id": "ab0ec1a8a56d9bd27b1b00cad2e8aa6f8c069c53e1ee47494b064011b900e6d9",
-  "check": "missing-zero-check",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODOracleGuard.constructor(address,address,address,address,address).pyth_ (src/oracle/ODOracleGuard.sol#111) lacks a zero-check on :\n\t\t- pyth = pyth_ (src/oracle/ODOracleGuard.sol#116)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L111",
-  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
- },
- {
   "id": "ad2318df24556942c98e16539285910f8b7101df6f9806b0242efa9ffe828ff8",
   "check": "missing-zero-check",
   "impact": "Low",
@@ -855,147 +369,12 @@
   "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
  },
  {
-  "id": "dd411ea1b8ba67f8f34fcee1e80fe3cf664360abf0835d5f20df1162191dfa98",
-  "check": "missing-zero-check",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODBacker.setStake(address).stake_ (src/backer/ODBacker.sol#146) lacks a zero-check on :\n\t\t- stake = stake_ (src/backer/ODBacker.sol#147)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L146",
-  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
- },
- {
-  "id": "09106d4d5843687ef1cdeb7c2a2c87807cd938901100db89752b5b31dfbb774a",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: r = c.guard.readRatio(cfg.marketA,cfg.marketB) (src/governor/ODGovernorRisk.sol#265-266)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "1792810c5be649b9018b298cd731bc360d9882867006074d595cd0e444d7c125",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: r = c.guard.readRatio(cfg.marketA,cfg.marketB) (src/governor/ODGovernorRisk.sol#265-266)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "1cd88a9f821ca8a136bfdd3f84aaeef09684d095aa17bd02ec792353f22e23af",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#261-263)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
   "id": "2ba9c705dbd627513a38019fb05e51c5a059e9d81a8046f5bcf97eefde0a60d7",
   "check": "calls-loop",
   "impact": "Low",
   "confidence": "Medium",
   "description": "ODFees._pay(bytes32,address,uint256) (src/fees/ODFees.sol#249-269) has external calls inside a loop: before = usdg.balanceOf(address(this)) (src/fees/ODFees.sol#251)\n\tCalls stack containing the loop:\n\t\tODFees.distribute()\n\t\tODFees._settle(bytes32,uint256)\n",
   "first_markdown_element": "src/fees/ODFees.sol#L249-L269",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "2e27b153c1948924f536aa088c7a85b9872a5a9516b21fcd27c2ea21de00b305",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: r = c.guard.read(cfg.marketA) (src/governor/ODGovernorRisk.sol#265-266)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "32d239efa7797a477e645511e4ac7ab63d3189cb4fb60d8edcb4527fb0791414",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32) (src/governor/ODGovernorRisk.sol#158-176) has external calls inside a loop: net = int256(IERC20(cfg.token).totalSupply()) - int256(debt[ids[i]]) (src/governor/ODGovernorRisk.sol#166)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L158-L176",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "682c58b2a7e557bf765553229d0caee5dc0e91eabe537d42e90662f18826978c",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32) (src/governor/ODGovernorRisk.sol#158-176) has external calls inside a loop: cfg = c.registry.gear(ids[i]) (src/governor/ODGovernorRisk.sol#165)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L158-L176",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "6bbbf57295921ae03a520241e2993e4ed990705c4251221a4f2283594d855386",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#261-263)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "6ca20084f2b58c3a3044c8b1d39d17c93776057975ee7559aed80b8bda2d7c99",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._nf(address,bytes32) (src/governor/ODGovernorRisk.sol#276-283) has external calls inside a loop: s = IODMinter(minter).normState(id) (src/governor/ODGovernorRisk.sol#278-282)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n\t\tODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L276-L283",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "6f5228a79fac001aa8034cd9efea04e1bcc4c22c559181e7110059dea1c9d3fc",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: r = c.guard.read(cfg.marketA) (src/governor/ODGovernorRisk.sol#265-266)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "720d5f8b46a5e2311547cf769ceea054f11cf05ca135795cf5674b9700a5b62c",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256) (src/governor/ODGovernorRisk.sol#183-221) has external calls inside a loop: supply = IERC20(cfg.token).totalSupply() (src/governor/ODGovernorRisk.sol#198)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L183-L221",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "7d7b5babfa93789b09538cfe01bf3a1328acbe951270a6c7bea5e0822bbec17e",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256)) (src/governor/ODGovernorRisk.sol#122-138) has external calls inside a loop: supply = IERC20(cfg.token).totalSupply() (src/governor/ODGovernorRisk.sol#127)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L122-L138",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "8c22275cfb371ec54ef323bbac0fc73284da4a218cbe086a210d61b8206b60c5",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256)) (src/governor/ODGovernorRisk.sol#122-138) has external calls inside a loop: cfg = c.registry.gear(id) (src/governor/ODGovernorRisk.sol#126)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L122-L138",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "8d8bdd61ccc2246fef94b54ab29bb94f50a342e75a14c56c188b33fda4a17be1",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#261-263)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "a013331f00ec74efb646602c50de1ac70acd6e64b324a07dc3f2e9d273a30cb2",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._nf(address,bytes32) (src/governor/ODGovernorRisk.sol#276-283) has external calls inside a loop: s = IODMinter(minter).normState(id) (src/governor/ODGovernorRisk.sol#278-282)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n\t\tODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L276-L283",
   "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
  },
  {
@@ -1008,57 +387,12 @@
   "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
  },
  {
-  "id": "b45de9250b08fd95a96473825b5c0b4eed8aa28939711c7e1ca154558ebebf1c",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#630-638) has external calls inside a loop: (ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#633)\n\tCalls stack containing the loop:\n\t\tODOracleGuard.haltedSince(bytes32)\n\t\tODOracleGuard._derivedHalt(MarketConfig,uint8)\n\t\tODOracleGuard._sessionKind(uint256)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L630-L638",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
   "id": "c2a1d084a3dcbd2a587954585ca9fefb14b593a871b7158ffcaee903a301eb01",
   "check": "calls-loop",
   "impact": "Low",
   "confidence": "Medium",
   "description": "ODFees._pay(bytes32,address,uint256) (src/fees/ODFees.sol#249-269) has external calls inside a loop: (ok,None) = to.call(data) (src/fees/ODFees.sol#258)\n\tCalls stack containing the loop:\n\t\tODFees.distribute()\n\t\tODFees._settle(bytes32,uint256)\n",
   "first_markdown_element": "src/fees/ODFees.sol#L249-L269",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "c6682ed714c89c5eb873110d9029de7418fe1ea9fed122dd4341f6203e23e1a4",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODBacker._cum(bytes32) (src/backer/ODBacker.sol#681-683) has external calls inside a loop: minter.normState(g).cumTollPerTokenWad (src/backer/ODBacker.sol#682)\n\tCalls stack containing the loop:\n\t\tODBacker.sealBatch(bytes32,uint256[])\n\t\tODBacker._feeOwed(ODBacker.VaultData)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L681-L683",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "c737df8db96a0e2965224cdcb8f2b6c15c12382997233b008867e663edbb304f",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: r = c.guard.read(cfg.marketA) (src/governor/ODGovernorRisk.sol#265-266)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "c9a3d68442c5fdb0e4dbde08d882192a35237a986f8c95f7065d6258b915b953",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256) (src/governor/ODGovernorRisk.sol#183-221) has external calls inside a loop: cfg = c.registry.gear(ids[i]) (src/governor/ODGovernorRisk.sol#195)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L183-L221",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "ca84e23ee6fef1491c04e4dba12ce17a5c6ebc583ea6d5487e2d5c40a74cc659",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODBacker._feeBps() (src/backer/ODBacker.sol#685-690) has external calls inside a loop: b = IODFees(fees).tollFeeBps() (src/backer/ODBacker.sol#687-689)\n\tCalls stack containing the loop:\n\t\tODBacker.sealBatch(bytes32,uint256[])\n\t\tODBacker._feeOwed(ODBacker.VaultData)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L685-L690",
   "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
  },
  {
@@ -1071,66 +405,12 @@
   "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
  },
  {
-  "id": "d0b80948aed7d2082e2d4c609c30c9c2587cb8ce02248901f48a34b147d7692f",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#255-274) has external calls inside a loop: r = c.guard.readRatio(cfg.marketA,cfg.marketB) (src/governor/ODGovernorRisk.sol#265-266)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L255-L274",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "d317abb9224a7bc819878b05386bcb53cb9b955e213a9478e5a99f8e7e23023e",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODMinter._commit(ODMinterPricing.Ctx) (src/governor/ODMinter.sol#452-465) has external calls inside a loop: governor.onToll(c.id,c.tollValue) (src/governor/ODMinter.sol#461)\n\tCalls stack containing the loop:\n\t\tODMinter.accrueMany(bytes32[])\n",
-  "first_markdown_element": "src/governor/ODMinter.sol#L452-L465",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "e1773c48933823896d7036cb0c84f7d13ae710cacbd0cee6d9e4a822433c20d2",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256)) (src/governor/ODGovernorRisk.sol#122-138) has external calls inside a loop: id = c.registry.gearIdAt(i) (src/governor/ODGovernorRisk.sol#125)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L122-L138",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "e17c0a5714a50292e28d6598e4c4409512ab1f20eddc9ae094c3f0e37a06ede0",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODBacker.executeBatch(uint256) (src/backer/ODBacker.sol#339-380) has external calls inside a loop: ok = this.liquidateVault(batchId,b.vaultIds[i],msg.sender,maint) (src/backer/ODBacker.sol#371-378)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L339-L380",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
-  "id": "ffcb6239804ff6b3c4df4a390695a65a75003f433b628dbc5019469e5574f926",
-  "check": "calls-loop",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODGovernorRisk._nf(address,bytes32) (src/governor/ODGovernorRisk.sol#276-283) has external calls inside a loop: s = IODMinter(minter).normState(id) (src/governor/ODGovernorRisk.sol#278-282)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n\t\tODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool)\n",
-  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L276-L283",
-  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
- },
- {
   "id": "060483e1e2006cd5621c0ebc99fb9f6b70a91e50995ab405785b6b6be12f5969",
   "check": "reentrancy-benign",
   "impact": "Low",
   "confidence": "Medium",
   "description": "Reentrancy in ODMinter.queueSell(bytes32,uint256,uint256,address) (src/governor/ODMinter.sol#178-199):\n\tExternal calls:\n\t- IODGear(token).burn(msg.sender,tokens) (src/governor/ODMinter.sol#188)\n\t- IODGear(token).mint(address(this),tokens) (src/governor/ODMinter.sol#189)\n\tState variables written after the call(s):\n\t- _tickets[ticket] = Ticket({gearId:gearId,owner:msg.sender,recipient:recipient,tokens:uint128(tokens),minUsdgOut:uint128(minUsdgOut)}) (src/governor/ODMinter.sol#191-197)\n\t- ticket = ++ ticketCount (src/governor/ODMinter.sol#190)\n",
   "first_markdown_element": "src/governor/ODMinter.sol#L178-L199",
-  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
- },
- {
-  "id": "43a4ffbe94ccdcddcf9e96ab7ebb7ccc2f770424eeeb35be8bd2538ffe44bfe4",
-  "check": "reentrancy-benign",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.sealBatch(bytes32,uint256[]) (src/backer/ODBacker.sol#300-330):\n\tExternal calls:\n\t- minter.accrue(gearId) (src/backer/ODBacker.sol#306)\n\tState variables written after the call(s):\n\t- b.gearId = gearId (src/backer/ODBacker.sol#315)\n\t- b.sealedValueWad = value (src/backer/ODBacker.sol#316)\n\t- b.sealedAt = uint64(block.timestamp) (src/backer/ODBacker.sol#317)\n\t- b.feedUpdatedAt = r.updatedAt (src/backer/ODBacker.sol#318)\n\t- b.vaultIds.push(id) (src/backer/ODBacker.sol#326)\n\t- v.batchId = batchId (src/backer/ODBacker.sol#325)\n\t- batchId = ++ batchCount (src/backer/ODBacker.sol#313)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L300-L330",
   "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
  },
  {
@@ -1152,24 +432,6 @@
   "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
  },
  {
-  "id": "d0dfed26480db010ee2a70380df020404fa9525dde4528d987734e4447fab7d2",
-  "check": "reentrancy-benign",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODGovernor.deposit(uint256,address) (src/governor/ODGovernor.sol#396-414):\n\tExternal calls:\n\t- _settleFees() (src/governor/ODGovernor.sol#412)\n\t\t- fees.notify(kind,bytes32(0),amt) (src/governor/ODGovernor.sol#930)\n\tState variables written after the call(s):\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _eqAt = uint64(block.timestamp) (src/governor/ODGovernor.sol#874)\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _eqSharePrice = sp (src/governor/ODGovernor.sol#875)\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _eqWad = e (src/governor/ODGovernor.sol#873)\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _ring[slot] = (day << 224) | sp (src/governor/ODGovernor.sol#880)\n",
-  "first_markdown_element": "src/governor/ODGovernor.sol#L396-L414",
-  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
- },
- {
-  "id": "2f30234cc116b2e743e8144925a50500d8758944cbbcea9eddbc161c44d224d5",
-  "check": "reentrancy-events",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#401)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#411)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#431-434)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#442-445)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#413)\n\t\t- governor.onBackerMint(g,0,true,amount) (src/backer/ODBacker.sol#455-458)\n\t- governor.absorbLiquidation(v.gearId,tokens,x.toGovernor) (src/backer/ODBacker.sol#420)\n\tEvent emitted after the call(s):\n\t- Liquidated(batchId,vaultId,tokens,coll - x.surplus,x.bonus,x.badDebt) (src/backer/ODBacker.sol#422)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L394-L424",
-  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
- },
- {
   "id": "77e7f3717534a9c27d9e2ee70cd87f030d771e65e2ddafe3af0b85465d383c23",
   "check": "reentrancy-events",
   "impact": "Low",
@@ -1179,57 +441,840 @@
   "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
  },
  {
-  "id": "f66e3f9461578a41aba73c347d59409a90411575bc90d6f101b8456cd3ea004a",
+  "id": "8f415b826babc308d9483154826ab85ebfd6abf8db210d19503e717212775eef",
+  "check": "weak-prng",
+  "impact": "High",
+  "confidence": "Medium",
+  "description": "ODGovernor._refresh(int256) (src/governor/ODGovernor.sol#870-882) uses a weak PRNG: \"slot = day % RING (src/governor/ODGovernor.sol#879)\" \n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L870-L882",
+  "triage": "false positive or accepted by design: Not randomness: day % RING is the index of a fixed ring buffer of daily snapshots."
+ },
+ {
+  "id": "372342fcf1601c227f19466e297dd5def8acecd4cd8908e473ded89dd67fc1f7",
+  "check": "divide-before-multiply",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32) (src/governor/ODGovernorRisk.sol#438-456) performs a multiplication on the result of a division:\n\t- gamma += (p * (p - int256(WAD)) / int256(WAD)) * val / int256(WAD) (src/governor/ODGovernorRisk.sol#453)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L438-L456",
+  "triage": "false positive or accepted by design: Intentional fixed-point steps (ln, exp, ceilDiv, calendar, pro-rata splits whose rounding dust rolls forward); rounding direction is covered by fuzz and invariant tests."
+ },
+ {
+  "id": "1ff87b8ada74bd7f8ead15150f22e4979afca0c79e6c3df0ee6a7c603e8eb0af",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODGovernor.onBuy(bytes32,uint256,uint256,uint256) (src/governor/ODGovernor.sol#155-166) uses a dangerous strict equality:\n\t- reason == CAP (src/governor/ODGovernor.sol#159)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L155-L166",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "4b3d6a76c8be4af93737d15c37e5b0613abcc401698709560a4f352d16c54cb5",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- e.kind == Session.OPEN (src/oracle/ODOracleGuard.sol#361)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "549f86431702dcbbbecbad96bd48e81daac67c3d636faf804011cdd9071147c2",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#684-697) uses a dangerous strict equality:\n\t- k == Session.UNKNOWN (src/backer/ODBacker.sol#688)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L684-L697",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "6386a6627626f1bfe5a2849d6068907b15bf7b9844dd72702de6e13c460de1b4",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#468-477) uses a dangerous strict equality:\n\t- aggregator == feed || aggregator.code.length == 0 (src/oracle/ODOracleGuard.sol#473)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L468-L477",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "67c27a5c9a62fae1800bb09e0c943eba3a8370f5766235f6b875f45c8604752d",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODBacker.batchWindow(uint256) (src/backer/ODBacker.sol#532-536) uses a dangerous strict equality:\n\t- s == 0 (src/backer/ODBacker.sol#534)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L532-L536",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "6ac14a774cbeb62b4355b5a939704178269139253b57da177d1c2ca77c4540ab",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#602-630) uses a dangerous strict equality:\n\t- mult == 0 (src/oracle/ODOracleGuard.sol#626)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L602-L630",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "7435be6017b1f56d36d01a369becbd1ca7b8a0a0b665d19a28ad5d33ce6f9099",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODGovernor.onBuy(bytes32,uint256,uint256,uint256) (src/governor/ODGovernor.sol#155-166) uses a dangerous strict equality:\n\t- reason == STRESS (src/governor/ODGovernor.sol#160)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L155-L166",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "775b24d68f66244c3b98713c267c686cdde24f71457a9b2175ea6f91cbdb8321",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- inSession = e.kind == Session.OPEN || e.kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#336)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "7a4e178e28bc1bcbd560c3ec5b0b327bb2d30a7c26755854a35f74bc3c139605",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- p == 0 || p > MAX_P (src/oracle/ODOracleGuard.sol#366)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "7b4ec270afbb9d51aa3027444bc2f3ca83c1f96a31b1119018a9697b98a60c10",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODBacker.sealBatch(bytes32,uint256[]) (src/backer/ODBacker.sol#305-334) uses a dangerous strict equality:\n\t- b.vaultIds.length == 0 (src/backer/ODBacker.sol#332)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L305-L334",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "9afb7e98402f3bcbff71f157a8e7e1a8ade7858a82ce23d6304fc47e8aff9609",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._validateFeed(address) (src/oracle/ODOracleGuard.sol#468-477) uses a dangerous strict equality:\n\t- ! okA || agg == 0 || agg > type()(uint160).max (src/oracle/ODOracleGuard.sol#471)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L468-L477",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "9c5fb4c8791514897359e66ae264eebab1733a7cf337a43c5a195ba020886b8b",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#186-196) uses a dangerous strict equality:\n\t- rb.p == 0 (src/oracle/ODOracleGuard.sol#189)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L186-L196",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "a896c84e5a05e10dce30da83edc753f6802f1eb047ad7db9585259fed3701478",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard.readRatio(bytes32,bytes32) (src/oracle/ODOracleGuard.sol#186-196) uses a dangerous strict equality:\n\t- ra.refP == 0 || rb.refP == 0 (src/oracle/ODOracleGuard.sol#190)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L186-L196",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "ae01f2c34b4b0ea0d527edb5efdb247660613f05c11445cfab10066c524b7614",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._derivedHalt(MarketConfig,uint8) (src/oracle/ODOracleGuard.sol#535-549) uses a dangerous strict equality:\n\t- kind == Session.OPEN || kind == Session.EXTENDED (src/oracle/ODOracleGuard.sol#545)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L535-L549",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "bd2eed96092c107bfbccf74718a2e860a2ec44947b531d8d8ed63e33baa09df9",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#262-312) uses a dangerous strict equality:\n\t- next == 0 && (e.kind == Session.OPEN || e.kind == Session.EXTENDED) (src/oracle/ODOracleGuard.sol#305)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L262-L312",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "bffaf2994a8868a482467f77feaa98f4c98ad3bac408938368e7cbbccbb6b60d",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#649-657) uses a dangerous strict equality:\n\t- target.code.length == 0 (src/oracle/ODOracleGuard.sol#650)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L649-L657",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "d5108a5e177fcc52fc0b116d1055274c898c520b1c8429a7cb57dd5c7545ca05",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._evaluate(bytes32) (src/oracle/ODOracleGuard.sol#331-425) uses a dangerous strict equality:\n\t- r.refP == 0 (src/oracle/ODOracleGuard.sol#414)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L331-L425",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "f26846633fb59c0b63efbc035ef5ccbeb8a55fcb4dbb64fbab27565e34d4a69a",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard.poke(bytes32) (src/oracle/ODOracleGuard.sol#262-312) uses a dangerous strict equality:\n\t- e.r.session == Session.HALTED (src/oracle/ODOracleGuard.sol#297)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L262-L312",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "f548f3c40b879f8f54a6486b5a208d1b7b4ebd1e4b2afce643fc83365cdfe117",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODGovernor._pauseReason(uint256) (src/governor/ODGovernor.sol#782-788) uses a dangerous strict equality:\n\t- _eqAt == 0 || block.timestamp > uint256(_eqAt) + _p.equityMaxAge (src/governor/ODGovernor.sol#784)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L782-L788",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "f56e557d07b4e0025db8e35a6fee400036295831e118a0c8fba295a3d41670e3",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard._validatePool(MarketConfig) (src/oracle/ODOracleGuard.sol#480-495) uses a dangerous strict equality:\n\t- baseIsToken0 == (address(uint160(t1)) == cfg.stockToken) (src/oracle/ODOracleGuard.sol#489)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L480-L495",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "fd11a2b519cda84bd8e7554fc9c3003282589ca54708ab843e2359b9e431dc31",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#684-697) uses a dangerous strict equality:\n\t- r2 == r1 (src/backer/ODBacker.sol#696)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L684-L697",
+  "triage": "false positive or accepted by design: Equality on a value that is exact by construction (zero checks on balances, supplies, counters, timestamps set by this contract); no attacker can nudge it by donating."
+ },
+ {
+  "id": "4fdd63588f3434cb27558bf391c13be27c89b994ac553efa42d464b9d3b6cdf3",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODMinter.settleGear(bytes32) (src/governor/ODMinter.sol#273-283):\n\tExternal calls:\n\t- _commit(c) (src/governor/ODMinter.sol#276)\n\t\t- governor.onToll(c.id,c.tollValue) (src/governor/ODMinter.sol#460)\n\tState variables written after the call(s):\n\t- _settled[gearId] = v (src/governor/ODMinter.sol#280)\n\tODMinter._settled (src/governor/ODMinter.sol#50) can be used in cross function reentrancies:\n\t- ODMinter._load(bytes32) (src/governor/ODMinter.sol#466-468)\n\t- ODMinter.normState(bytes32) (src/governor/ODMinter.sol#346-355)\n\t- ODMinter.settledValue(bytes32) (src/governor/ODMinter.sol#375-377)\n\t- ODMinter.tollPerDay(bytes32) (src/governor/ODMinter.sol#358-362)\n\t- ODMinter.valuePerToken(bytes32) (src/governor/ODMinter.sol#333-339)\n",
+  "first_markdown_element": "src/governor/ODMinter.sol#L273-L283",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "65af2cae22531c3e5aed6fee21821a121376cbdae59b78da4a31d13e6852f1e1",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.executeBatch(uint256) (src/backer/ODBacker.sol#343-385):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#354-357)\n\t- ok = this.liquidateVault(batchId,b.vaultIds[i],msg.sender,maint) (src/backer/ODBacker.sol#376-383)\n\tState variables written after the call(s):\n\t- b.done = false (src/backer/ODBacker.sol#382)\n\tODBacker._batches (src/backer/ODBacker.sol#99) can be used in cross function reentrancies:\n\t- ODBacker._liveBatch(uint256) (src/backer/ODBacker.sol#727-732)\n\t- ODBacker.batch(uint256) (src/backer/ODBacker.sol#527-529)\n\t- ODBacker.batchWindow(uint256) (src/backer/ODBacker.sol#532-536)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L343-L385",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "7f64ace1d6bb0e5bcc81bfa7ea31d4f1b767c346ab922257c932b021d582e19f",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.withdraw(uint256,uint256,address) (src/backer/ODBacker.sol#189-208):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#193)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\tState variables written after the call(s):\n\t- totalCollateral -= amount (src/backer/ODBacker.sol#196)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#596-612)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L189-L208",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "f37d2e1a930c1929eedf51b040ebb69ded968082768fb8fcc146548b176cfaa6",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.deposit(uint256,uint256) (src/backer/ODBacker.sol#177-184):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#179)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\tState variables written after the call(s):\n\t- totalCollateral += amount (src/backer/ODBacker.sol#182)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#596-612)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L177-L184",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "1c6817c21f10048a571d964fd750b4afe8cc2be2a998fee46d6a5eb0d7b5d9a2",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODGovernor.maxDeposit(address) (src/governor/ODGovernor.sol#557-565) ignores return value by (high) = this.navBand() (src/governor/ODGovernor.sol#559-564)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L557-L565",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "59dc81cd8f04cf3126b65fcdb647e6a69c18bf7169ba0d368ddee365e39aa82f",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker.sealBatch(bytes32,uint256[]) (src/backer/ODBacker.sol#305-334) ignores return value by minter.accrue(gearId) (src/backer/ODBacker.sol#311)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L305-L334",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "5db59b4b405cf9514909556697610d6eb6e8a9e27e3e14c0b1bea0c63926b1dc",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#684-697) ignores return value by (None,r2) = marketHours.nextLongClose(r1 - MIN_CLOSED_FOR_UPLIFT,MIN_CLOSED_FOR_UPLIFT) (src/backer/ODBacker.sol#695)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L684-L697",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "60b2baddca7cb6ee195b53e749e7244cbc2c351e0714fad5ef557ac63e1fd6fb",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker._recover(uint256) (src/backer/ODBacker.sol#432-453) ignores return value by IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#447-450)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L432-L453",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "71abbe757ddd54dc3ca8e8cce678c4a1980a4f0247c57681daf7788d5d5d08b8",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#555-592) ignores return value by minter.accrue(g) (src/backer/ODBacker.sol#563)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L555-L592",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "75cf4aa56ed7925a97fe840da90a7b5f19357ecde7af40db0517737ca66d0f53",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) ignores return value by (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#541-543)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "77fb3f98fe162232aecceda529c9df3f12fbd4a3fb34f4baaab7555e9c563c92",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker.repayWithUsdg(uint256,uint256,uint256) (src/backer/ODBacker.sol#252-285) ignores return value by minter.accrue(g) (src/backer/ODBacker.sol#259)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L252-L285",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "78bd82f1d82e5751f961477d20bcaa38aeb9b374dcc50c82834ec18fc3b73ba2",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker.executeBatch(uint256) (src/backer/ODBacker.sol#343-385) ignores return value by minter.accrue(g) (src/backer/ODBacker.sol#354-357)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L343-L385",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "82990e7e9ec450a7cc017ce09eb3af1fe5325c985f2016d8218f263a7393de2b",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker._marketUplift(bytes32) (src/backer/ODBacker.sol#684-697) ignores return value by (None,r1) = marketHours.nextLongClose(t,1) (src/backer/ODBacker.sol#693)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L684-L697",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "970450809ee480ea8048e8c37c6f375d850bb3748f0e21d2db99446a3c2b89d2",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODGovernor.capOf(bytes32) (src/governor/ODGovernor.sol#637-641) ignores return value by (openWad,staticCap,None) = ODGovernorRisk.gearOpen(_ctx(),_debt,gearId,0) (src/governor/ODGovernor.sol#639)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L637-L641",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "a56705dc7ca6c3787232e4a918a666d3f15827f17715564252e5ef7294faa518",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker.repay(uint256,uint256) (src/backer/ODBacker.sol#236-246) ignores return value by minter.accrue(v.gearId) (src/backer/ODBacker.sol#238)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L236-L246",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "b3594b44d3106cae7e08c9d2b5d68ac6a0ab2282d4d3c08592a2d5ec3ac86beb",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker._recover(uint256) (src/backer/ODBacker.sol#432-453) ignores return value by insurance.cover(gap) (src/backer/ODBacker.sol#436-439)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L432-L453",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "cd338dbf8a1c5610533c8c634f04a59800901bc105d6562854c1b5e0cc50fb9b",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODGovernor._check(bytes32,uint256) (src/governor/ODGovernor.sol#763-780) ignores return value by (open,staticCap,None) = ODGovernorRisk.gearOpen(c,_debt,gearId,addTokens) (src/governor/ODGovernor.sol#771)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L763-L780",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "41048226955fa6f3a2f8c2ccafb6e06156eaeb298d55efe76b121f9c970a0a36",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODBacker.setStake(address).stake_ (src/backer/ODBacker.sol#144) lacks a zero-check on :\n\t\t- stake = stake_ (src/backer/ODBacker.sol#145)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L144",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "672d59f94c9ccc65da65599134cf9f8d716946347b07c8a8c3966f05763f0d52",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard.constructor(address,address,address,address,address).sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#114) lacks a zero-check on :\n\t\t- sequencerFeed = sequencerFeedOrZero (src/oracle/ODOracleGuard.sol#120)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L114",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "d97fdaca9c094e0283cc9b74150370230fcabfe23e6f258a74c8f4e4c2021875",
+  "check": "missing-zero-check",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard.constructor(address,address,address,address,address).pyth_ (src/oracle/ODOracleGuard.sol#114) lacks a zero-check on :\n\t\t- pyth = pyth_ (src/oracle/ODOracleGuard.sol#119)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L114",
+  "triage": "false positive or accepted by design: Zero is a valid value here (optional sequencer feed, optional Pyth, stake set later by the admin) or the argument is set once by the deployer script and checked by the post-deploy check."
+ },
+ {
+  "id": "0fb8cc557052aa73edeaa21b98b63c544b63fe3a23cfdbeb9d27d50381903669",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: r = c.guard.read(cfg.marketA) (src/governor/ODGovernorRisk.sol#545-546)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "2304e6e1d6d9a5c9b5e03fa48493e65a820c91d72a37f89e25a1763ddf476806",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODBacker._feeBps() (src/backer/ODBacker.sol#720-725) has external calls inside a loop: b = IODFees(fees).tollFeeBps() (src/backer/ODBacker.sol#722-724)\n\tCalls stack containing the loop:\n\t\tODBacker.sealBatch(bytes32,uint256[])\n\t\tODBacker._feeOwed(ODBacker.VaultData)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L720-L725",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "235531864bf9e14b8c7b5adeee38226ed1fe674e6e99dc7fd5c1383a65e419c5",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._nf(address,bytes32) (src/governor/ODGovernorRisk.sol#556-563) has external calls inside a loop: s = IODMinter(minter).normState(id) (src/governor/ODGovernorRisk.sol#558-562)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n\t\tODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L556-L563",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "2ce67ab523858ccb2b9952132a687ec6988b79b1fe64eefc70924aac49b3a356",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#541-543)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "328f0a35a68e77d533e22896c8e949e571b91f8ad63e68f0a0a84f5848faf13d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODBacker.executeBatch(uint256) (src/backer/ODBacker.sol#343-385) has external calls inside a loop: ok = this.liquidateVault(batchId,b.vaultIds[i],msg.sender,maint) (src/backer/ODBacker.sol#376-383)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L343-L385",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "382628fe400c8e565dbf7346bbf44a134289d43c2a774df32d67c40df109b4ab",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: r = c.guard.readRatio(cfg.marketA,cfg.marketB) (src/governor/ODGovernorRisk.sol#545-546)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "3992736235701bf919cc34da630c34800928410abff1ee2bb2fcbf8d7d0c07e4",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256)) (src/governor/ODGovernorRisk.sol#143-159) has external calls inside a loop: cfg = c.registry.gear(id) (src/governor/ODGovernorRisk.sol#147)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L143-L159",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "50ea3a84fc1f5786315b4144d122d40e1add2eab891c7d4e8e325cf03dc0ec3b",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: r = c.guard.readRatio(cfg.marketA,cfg.marketB) (src/governor/ODGovernorRisk.sol#545-546)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "547d12a5c03e0d946c0115ffdad85f9a5c3bdf3b76cabd9a87576fbc074b934c",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256) (src/governor/ODGovernorRisk.sol#463-501) has external calls inside a loop: supply = IERC20(cfg.token).totalSupply() (src/governor/ODGovernorRisk.sol#478)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L463-L501",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "5f5fa4f99ada08d9482157e31c17425aac52c7bb8e292b5e52d0c5f616dae8e8",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._nf(address,bytes32) (src/governor/ODGovernorRisk.sol#556-563) has external calls inside a loop: s = IODMinter(minter).normState(id) (src/governor/ODGovernorRisk.sol#558-562)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n\t\tODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L556-L563",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "604b834aee9c95bc07d92642f51a5b64725e54be1aa2cbabffc5ab66b2634179",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256)) (src/governor/ODGovernorRisk.sol#143-159) has external calls inside a loop: supply = IERC20(cfg.token).totalSupply() (src/governor/ODGovernorRisk.sol#148)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L143-L159",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "6cbc74bf82cb89ddaea5eeff8e9633b00725cfc30f7753850124bf579844e085",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32) (src/governor/ODGovernorRisk.sol#438-456) has external calls inside a loop: net = int256(IERC20(cfg.token).totalSupply()) - int256(debt[ids[i]]) (src/governor/ODGovernorRisk.sol#446)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L438-L456",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "775f800e5f24b082b7b27e8a813df4582464efcb720b16ba342858347697a12d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: r = c.guard.read(cfg.marketA) (src/governor/ODGovernorRisk.sol#545-546)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "8e60a2da1fa8b59e9de26c232f4efda5825faf047b71e7d4fe715544581054d3",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#541-543)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256))\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "95f2cb92e3bdeebcdde27805878d2302178ccdf7a53f3f735c4b190308f22ec1",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256) (src/governor/ODGovernorRisk.sol#463-501) has external calls inside a loop: cfg = c.registry.gear(ids[i]) (src/governor/ODGovernorRisk.sol#475)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L463-L501",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "c0425a5ad90b00d897ca7f944fa3778f96a734e1e57657483561091afe2b6c93",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.book(ODGovernorRisk.Ctx,mapping(bytes32 => uint256)) (src/governor/ODGovernorRisk.sol#143-159) has external calls inside a loop: id = c.registry.gearIdAt(i) (src/governor/ODGovernorRisk.sol#146)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L143-L159",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "c31a7a0fbbfd2735043d08a03bbec923fd38a58298d497c153ce59a4c23184e3",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODBacker._cum(bytes32) (src/backer/ODBacker.sol#716-718) has external calls inside a loop: minter.normState(g).cumTollPerTokenWad (src/backer/ODBacker.sol#717)\n\tCalls stack containing the loop:\n\t\tODBacker.sealBatch(bytes32,uint256[])\n\t\tODBacker._feeOwed(ODBacker.VaultData)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L716-L718",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "c324fc5bb1e71179e9360db56978ba3612fd786f190541fa49f4e59ed273ee31",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._nf(address,bytes32) (src/governor/ODGovernorRisk.sol#556-563) has external calls inside a loop: s = IODMinter(minter).normState(id) (src/governor/ODGovernorRisk.sol#558-562)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n\t\tODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L556-L563",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "d1fb99bf8519b7e5545ad90294ef53afc7e7c6212df0f801f723af7471ca2052",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#649-657) has external calls inside a loop: (ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#652)\n\tCalls stack containing the loop:\n\t\tODOracleGuard.haltedSince(bytes32)\n\t\tODOracleGuard._derivedHalt(MarketConfig,uint8)\n\t\tODOracleGuard._sessionKind(uint256)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L649-L657",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "d88a85b420b2f7b69511c171b2b0d8a3432b88550b389222ac044d87bb5d9de1",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODMinter._commit(ODMinterPricing.Ctx) (src/governor/ODMinter.sol#451-464) has external calls inside a loop: governor.onToll(c.id,c.tollValue) (src/governor/ODMinter.sol#460)\n\tCalls stack containing the loop:\n\t\tODMinter.accrueMany(bytes32[])\n",
+  "first_markdown_element": "src/governor/ODMinter.sol#L451-L464",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "ddf92d9ce9716f4e26b9a9e8dd632152df4443cb8d231af686e4b7a479540a0c",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: r = c.guard.read(cfg.marketA) (src/governor/ODGovernorRisk.sol#545-546)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "ed43f01e5b457c70ec7316f2da32db5dbcca310303676837c3cbe08fb0bcaefb",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: (fv) = IODMinter(c.minter).valuePerToken(id) (src/governor/ODGovernorRisk.sol#541-543)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "ee669045550a8db5003448a739e309233348cc30df606cbc55c9ff932d4ac32d",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._values(ODGovernorRisk.Ctx,bytes32,GearConfig,bool) (src/governor/ODGovernorRisk.sol#535-554) has external calls inside a loop: r = c.guard.readRatio(cfg.marketA,cfg.marketB) (src/governor/ODGovernorRisk.sol#545-546)\n\tCalls stack containing the loop:\n\t\tODGovernorRisk.marketLoss(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32,ODGovernorRisk.Shock,bytes32,uint256)\n\t\tODGovernorRisk._addShocks(int256[4],ODGovernorRisk.Ctx,bytes32,GearConfig,int256,int256)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L535-L554",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "fca4849029616b990beadd3a8128b126e744eced83c00cb7a0d0c51096b0b364",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk.exposure(ODGovernorRisk.Ctx,mapping(bytes32 => uint256),bytes32) (src/governor/ODGovernorRisk.sol#438-456) has external calls inside a loop: cfg = c.registry.gear(ids[i]) (src/governor/ODGovernorRisk.sol#445)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L438-L456",
+  "triage": "false positive or accepted by design: Loops call only fixed, admin-set, audited contracts (gear tokens, minter, oracle); every batch size is capped (MAX_BATCH 50, toll batch 45) and gas is measured on the fork."
+ },
+ {
+  "id": "7365bcb428950e69c9915a2f6ea1b110f3415603fc21768d102825e79a4b44c6",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODGovernor.deposit(uint256,address) (src/governor/ODGovernor.sol#396-414):\n\tExternal calls:\n\t- _settleFees() (src/governor/ODGovernor.sol#412)\n\t\t- fees.notify(kind,bytes32(0),amt) (src/governor/ODGovernor.sol#931)\n\tState variables written after the call(s):\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _eqAt = uint64(block.timestamp) (src/governor/ODGovernor.sol#875)\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _eqSharePrice = sp (src/governor/ODGovernor.sol#876)\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _eqWad = e (src/governor/ODGovernor.sol#874)\n\t- _refresh(_equityWad(b.mid)) (src/governor/ODGovernor.sol#413)\n\t\t- _ring[slot] = (day << 224) | sp (src/governor/ODGovernor.sol#881)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L396-L414",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "eb4033a4f102f4964ad15b55ad984cce757a619aa0447f818e15c439f3ec53a7",
+  "check": "reentrancy-benign",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.sealBatch(bytes32,uint256[]) (src/backer/ODBacker.sol#305-334):\n\tExternal calls:\n\t- minter.accrue(gearId) (src/backer/ODBacker.sol#311)\n\tState variables written after the call(s):\n\t- b.gearId = gearId (src/backer/ODBacker.sol#319)\n\t- b.sealedValueWad = value (src/backer/ODBacker.sol#320)\n\t- b.sealedAt = uint64(block.timestamp) (src/backer/ODBacker.sol#321)\n\t- b.feedUpdatedAt = r.updatedAt (src/backer/ODBacker.sol#322)\n\t- b.vaultIds.push(id) (src/backer/ODBacker.sol#330)\n\t- v.batchId = batchId (src/backer/ODBacker.sol#329)\n\t- batchId = ++ batchCount (src/backer/ODBacker.sol#317)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L305-L334",
+  "triage": "false positive or accepted by design: State written after the call is a cache or counter that a reentrant call cannot exploit; the function is nonReentrant or role gated."
+ },
+ {
+  "id": "09342658bf09965b23de7759c5087c22b1b863b635e6dea9df815e4ca6bd4746",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard._sequencerDown() (src/oracle/ODOracleGuard.sol#633-647) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#636-637)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L633-L647",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "4a3c32c505036d83d977d3a305bd943503ad75c008605fa351deca16ae0490fd",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODMinter._discount(address) (src/governor/ODMinter.sol#494-502) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = s.staticcall{gas: STAKE_READ_GAS}(abi.encodeWithSignature(feeDiscountOf(address),account)) (src/governor/ODMinter.sol#497-498)\n",
+  "first_markdown_element": "src/governor/ODMinter.sol#L494-L502",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "4ff0e09905317b7ea0b72f44623d74edf6925cb2e2fb2ff854b4f113369be9ed",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard._readFeed(address,uint8) (src/oracle/ODOracleGuard.sol#554-579) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#559-561)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L554-L579",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "96ac36345efaa80ebed76e7bbac14d63ac14bbbf0a34d634b53d81022ff8ace8",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#602-630) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = pyth.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(getPriceUnsafe(bytes32),cfg.pythId)) (src/oracle/ODOracleGuard.sol#604-605)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L602-L630",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "e6a2d98e3a5598dc80b271a4eee76272fef68367802bf40f9ca32d47fb214ae5",
+  "check": "return-bomb",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#649-657) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#652)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L649-L657",
+  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+ },
+ {
+  "id": "0427f99544f060dadb8c448ebca41975d520a749ee18abdc23d242bb180242f2",
+  "check": "reentrancy-balance",
+  "impact": "High",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#555-592):\n\tExternal call allowing reentrancy:\n\t- ! governor.onBackerMint(g,tokens,true,proceeds,address(0)) (src/backer/ODBacker.sol#578)\n\tBalance read before the call:\n\t- before = usdg.balanceOf(address(this)) (src/backer/ODBacker.sol#577)\n\tPossible stale balance used after the call in a condition:\n\t- got < proceeds (src/backer/ODBacker.sol#580)\n\t\t- stale variable `got`\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L555-L592",
+  "triage": "false positive or accepted by design: ODBuyBurn.execute and ODBacker._mint are nonReentrant; the stale balance is only compared against a floor that reverts the whole call, so a reentrant top-up can only make the call revert."
+ },
+ {
+  "id": "3d2ce1f7d99b34a67f75ef5d91bd28794dcbcb7ca32f6f4dfcb3ff96f2652055",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#555-592):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#563)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#564)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\tState variables written after the call(s):\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#564)\n\t\t- v.tollIndexSnapshot = cum (src/backer/ODBacker.sol#604)\n\t\t- v.collateralUsdg -= fee (src/backer/ODBacker.sol#607)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n\t- v.debtTokens += tokens (src/backer/ODBacker.sol#569)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L555-L592",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "3e3fdf8418ce698c03be2a0b6a30a57e6842d3912c5a3f5169d9b06d80d15211",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.repay(uint256,uint256) (src/backer/ODBacker.sol#236-246):\n\tExternal calls:\n\t- minter.accrue(v.gearId) (src/backer/ODBacker.sol#238)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#239)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\tState variables written after the call(s):\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#239)\n\t\t- v.tollIndexSnapshot = cum (src/backer/ODBacker.sol#604)\n\t\t- v.collateralUsdg -= fee (src/backer/ODBacker.sol#607)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L236-L246",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "469915d57c99b191b21270fe7ec0b8988ec83a66f83dd8f5090ef7440a861dd8",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#406)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\tState variables written after the call(s):\n\t- v.debtTokens = 0 (src/backer/ODBacker.sol#411)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n\t- v.collateralUsdg = 0 (src/backer/ODBacker.sol#412)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n\t- totalCollateral -= coll (src/backer/ODBacker.sol#413)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#596-612)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L399-L429",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "606fb4b713937d776abc2ed512ddc24e5a480d2ee06d47bd3d183880d9790931",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.repayWithUsdg(uint256,uint256,uint256) (src/backer/ODBacker.sol#252-285):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#259)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#260)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\tState variables written after the call(s):\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#260)\n\t\t- v.tollIndexSnapshot = cum (src/backer/ODBacker.sol#604)\n\t\t- v.collateralUsdg -= fee (src/backer/ODBacker.sol#607)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n\t- totalCollateral -= cost (src/backer/ODBacker.sol#276)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#596-612)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L252-L285",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "b2c246a4a9dff96b195f32b92420c8aa9e222f3ae1a3f19743b0cee6460be263",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#555-592):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#563)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#564)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- ! governor.onBackerMint(g,tokens,true,proceeds,address(0)) (src/backer/ODBacker.sol#578)\n\tState variables written after the call(s):\n\t- v.collateralUsdg += proceeds (src/backer/ODBacker.sol#581)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n\t- totalCollateral += proceeds (src/backer/ODBacker.sol#582)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#596-612)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L555-L592",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "ef1ea8f27291fe5afe7ca63a574c89817ca21202ee5207c22b8328e03f83bd1a",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODGovernor._settleFees() (src/governor/ODGovernor.sol#917-920):\n\tExternal calls:\n\t- _settleOne(TOLL) (src/governor/ODGovernor.sol#918)\n\t\t- fees.notify(kind,bytes32(0),amt) (src/governor/ODGovernor.sol#931)\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#919)\n\t\t- fees.notify(kind,bytes32(0),amt) (src/governor/ODGovernor.sol#931)\n\tState variables written after the call(s):\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#919)\n\t\t- _b.cash -= amt (src/governor/ODGovernor.sol#928)\n\tODGovernor._b (src/governor/ODGovernor.sol#52) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#845-848)\n\t- ODGovernor.backerLock(bytes32) (src/governor/ODGovernor.sol#661-663)\n\t- ODGovernor.backerLockOf(address) (src/governor/ODGovernor.sol#666-668)\n\t- ODGovernor.backerOwnDebt(bytes32) (src/governor/ODGovernor.sol#671-673)\n\t- ODGovernor.canPaySell(bytes32,uint256,uint256,uint256) (src/governor/ODGovernor.sol#606-608)\n\t- ODGovernor.exitReserve() (src/governor/ODGovernor.sol#644-646)\n\t- ODGovernor.freeCash() (src/governor/ODGovernor.sol#656-658)\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#919)\n\t\t- _owedSpread = uint128(owed - amt) (src/governor/ODGovernor.sol#930)\n\tODGovernor._owedSpread (src/governor/ODGovernor.sol#54) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#845-848)\n\t- ODGovernor.feeOwed() (src/governor/ODGovernor.sol#697-699)\n\t- _settleOne(SPREAD) (src/governor/ODGovernor.sol#919)\n\t\t- _owedToll = uint128(owed - amt) (src/governor/ODGovernor.sol#929)\n\tODGovernor._owedToll (src/governor/ODGovernor.sol#53) can be used in cross function reentrancies:\n\t- ODGovernor._assetsWad(bool) (src/governor/ODGovernor.sol#845-848)\n\t- ODGovernor.feeOwed() (src/governor/ODGovernor.sol#697-699)\n",
+  "first_markdown_element": "src/governor/ODGovernor.sol#L917-L920",
+  "triage": "false positive or accepted by design: Entry points use nonReentrant (ODBacker, ODGovernor, ODMinter, ODStake, ODBuyBurn, ODFees) or follow checks-effects-interactions; the external callees are the fixed USDG/OVRD tokens and admin-set adapters."
+ },
+ {
+  "id": "54a1f6aaa66e8857a39d0073eaf3aa810325976d65248fb33344301c0ceca6bb",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODBacker._governorPays(bytes32,uint256) (src/backer/ODBacker.sol#457-466) ignores return value by governor.onBackerMint(g,0,true,amount,address(0)) (src/backer/ODBacker.sol#460-463)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L457-L466",
+  "triage": "false positive or accepted by design: Return value deliberately dropped: the callee reverts on failure, or the value is re-read from storage, or the call is an accrue/notify whose result is not needed."
+ },
+ {
+  "id": "38f1ea84d7a4d2fdfdb81346cbd21356b8000e79669331c4ada799ded3310c72",
   "check": "reentrancy-events",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#394-424):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#401)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#598)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#411)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#431-434)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#442-445)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#413)\n\t\t- governor.onBackerMint(g,0,true,amount) (src/backer/ODBacker.sol#455-458)\n\tEvent emitted after the call(s):\n\t- CollateralMoved(vaultId,int256(x.surplus),x.surplus) (src/backer/ODBacker.sol#417)\n",
-  "first_markdown_element": "src/backer/ODBacker.sol#L394-L424",
+  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#406)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#416)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#436-439)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#447-450)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#418)\n\t\t- governor.onBackerMint(g,0,true,amount,address(0)) (src/backer/ODBacker.sol#460-463)\n\t- governor.absorbLiquidation(v.gearId,tokens,_ownCleared(v),x.toGovernor,v.owner) (src/backer/ODBacker.sol#425)\n\tEvent emitted after the call(s):\n\t- Liquidated(batchId,vaultId,tokens,coll - x.surplus,x.bonus,x.badDebt) (src/backer/ODBacker.sol#427)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L399-L429",
   "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
  },
  {
-  "id": "49014364671586b047c2d603cb888b2588de2a9320870495d263ec17354e8c51",
-  "check": "return-bomb",
+  "id": "502c0a8e953ded16aadce1cd4ff6a391459a7a854cef9b061c00956b55dad161",
+  "check": "reentrancy-events",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._pythPrice(MarketConfig,uint256) (src/oracle/ODOracleGuard.sol#583-611) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = pyth.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(getPriceUnsafe(bytes32),cfg.pythId)) (src/oracle/ODOracleGuard.sol#585-586)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L583-L611",
-  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#406)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#416)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#436-439)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#447-450)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#418)\n\t\t- governor.onBackerMint(g,0,true,amount,address(0)) (src/backer/ODBacker.sol#460-463)\n\tEvent emitted after the call(s):\n\t- CollateralMoved(vaultId,int256(x.surplus),x.surplus) (src/backer/ODBacker.sol#422)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L399-L429",
+  "triage": "false positive or accepted by design: Event ordering only; no state or fund effect."
  },
  {
-  "id": "909512130a9bda24c7e06943892c9beb0aedc2a6f0d5a999b139bc6c91a2321d",
-  "check": "return-bomb",
-  "impact": "Low",
-  "confidence": "Medium",
-  "description": "ODMinter._discount(address) (src/governor/ODMinter.sol#495-503) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = s.staticcall{gas: STAKE_READ_GAS}(abi.encodeWithSignature(feeDiscountOf(address),account)) (src/governor/ODMinter.sol#498-499)\n",
-  "first_markdown_element": "src/governor/ODMinter.sol#L495-L503",
-  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+  "id": "894c2fa3e261fd7cb09eb6be3764bf08bd1c904f3f2a5fafd02ad8f93d9c2010",
+  "check": "incorrect-equality",
+  "impact": "Medium",
+  "confidence": "High",
+  "description": "ODOracleGuard.liquidationBlock(bytes32) (src/oracle/ODOracleGuard.sol#248-257) uses a dangerous strict equality:\n\t- e.r.refP == 0 (src/oracle/ODOracleGuard.sol#254)\n",
+  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L248-L257",
+  "triage": "false positive or accepted by design: Zero check: refP 0 means the market has no reference now; exact by construction, not a balance."
  },
  {
-  "id": "b9092bd276420f2afd5ff637c52b491036e1ac8769ee10249eeaf77932ee576d",
-  "check": "return-bomb",
-  "impact": "Low",
+  "id": "0bcb840c035fab7d830c5123561606c8321fd0972f1a9550a9dde1c405c04dd8",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
   "confidence": "Medium",
-  "description": "ODOracleGuard._readFeed(address,uint8) (src/oracle/ODOracleGuard.sol#535-560) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#540-542)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L535-L560",
-  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+  "description": "Reentrancy in ODBacker.repay(uint256,uint256) (src/backer/ODBacker.sol#236-246):\n\tExternal calls:\n\t- minter.accrue(v.gearId) (src/backer/ODBacker.sol#238)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#239)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- minter.backerBurn(v.gearId,msg.sender,tokens) (src/backer/ODBacker.sol#242)\n\t- governor.onBackerRepay(v.gearId,tokens,_ownCleared(v),v.owner) (src/backer/ODBacker.sol#244)\n\tState variables written after the call(s):\n\t- governor.onBackerRepay(v.gearId,tokens,_ownCleared(v),v.owner) (src/backer/ODBacker.sol#244)\n\t\t- v.ownTokens = left (src/backer/ODBacker.sol#707)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L236-L246",
+  "triage": "false positive or accepted by design: Entry points are nonReentrant; the calls are to the fixed minter and Governor set at construction, and the vault writes after them complete the same action (read against the source in fix round 8: the only change is the vault owner passed to the Governor)."
  },
  {
-  "id": "c46444c831c788c9ca3aac0c4c797f1c4b51097ebf901b902e808f8fe0dfdf9f",
-  "check": "return-bomb",
-  "impact": "Low",
+  "id": "0f6c54a9978a5cb83251c7963bffb7ab9cd1d724d088978031b5c7d009fcea74",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
   "confidence": "Medium",
-  "description": "ODOracleGuard._staticWord(address,bytes) (src/oracle/ODOracleGuard.sol#630-638) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = target.staticcall{gas: EXTERNAL_READ_GAS}(callData) (src/oracle/ODOracleGuard.sol#633)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L630-L638",
-  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#406)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#416)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#436-439)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#447-450)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#418)\n\t\t- governor.onBackerMint(g,0,true,amount,address(0)) (src/backer/ODBacker.sol#460-463)\n\tState variables written after the call(s):\n\t- v.collateralUsdg = x.surplus (src/backer/ODBacker.sol#420)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n\t- totalCollateral += x.surplus (src/backer/ODBacker.sol#421)\n\tODBacker.totalCollateral (src/backer/ODBacker.sol#91) can be used in cross function reentrancies:\n\t- ODBacker._charge(uint256,ODBacker.VaultData) (src/backer/ODBacker.sol#596-612)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.totalCollateral (src/backer/ODBacker.sol#91)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L399-L429",
+  "triage": "false positive or accepted by design: Entry points are nonReentrant; the calls are to the fixed minter and Governor set at construction, and the vault writes after them complete the same action (read against the source in fix round 8: the only change is the vault owner passed to the Governor)."
  },
  {
-  "id": "f4e3cdf24f15fc3f12d0ef88651658ee4bf7678f2f926edfbee8828f1df0b746",
-  "check": "return-bomb",
+  "id": "8c021a1ebcc9b93632f52a6cac15711d501d379242c61c2e8d3a59acfafc8389",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.repayWithUsdg(uint256,uint256,uint256) (src/backer/ODBacker.sol#252-285):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#259)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#260)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- governor.fundCash(cost) (src/backer/ODBacker.sol#280)\n\t- governor.onBackerRepay(g,tokens,_ownCleared(v),v.owner) (src/backer/ODBacker.sol#282)\n\tState variables written after the call(s):\n\t- governor.onBackerRepay(g,tokens,_ownCleared(v),v.owner) (src/backer/ODBacker.sol#282)\n\t\t- v.ownTokens = left (src/backer/ODBacker.sol#707)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L252-L285",
+  "triage": "false positive or accepted by design: Entry points are nonReentrant; the calls are to the fixed minter and Governor set at construction, and the vault writes after them complete the same action (read against the source in fix round 8: the only change is the vault owner passed to the Governor)."
+ },
+ {
+  "id": "a93bb11f0846af8f7cbc75ad3e6626ad9c58bcbf982c84f08589aa7c5228d793",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429):\n\tExternal calls:\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#406)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- pool += _recover(x.gap) (src/backer/ODBacker.sol#416)\n\t\t- insurance.cover(gap) (src/backer/ODBacker.sol#436-439)\n\t\t- IODStake(st).slash(gap - got) (src/backer/ODBacker.sol#447-450)\n\t- x.bonus += _governorPays(v.gearId,x.floorGap) (src/backer/ODBacker.sol#418)\n\t\t- governor.onBackerMint(g,0,true,amount,address(0)) (src/backer/ODBacker.sol#460-463)\n\t- governor.absorbLiquidation(v.gearId,tokens,_ownCleared(v),x.toGovernor,v.owner) (src/backer/ODBacker.sol#425)\n\tState variables written after the call(s):\n\t- governor.absorbLiquidation(v.gearId,tokens,_ownCleared(v),x.toGovernor,v.owner) (src/backer/ODBacker.sol#425)\n\t\t- v.ownTokens = left (src/backer/ODBacker.sol#707)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L399-L429",
+  "triage": "false positive or accepted by design: Entry points are nonReentrant; the calls are to the fixed minter and Governor set at construction, and the vault writes after them complete the same action (read against the source in fix round 8: the only change is the vault owner passed to the Governor)."
+ },
+ {
+  "id": "f4f2718c125a8d015d1b99f803b9767e529a6a078bdee2bc2124faf9660156dc",
+  "check": "reentrancy-no-eth",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODBacker._mint(uint256,uint256,bool,uint256) (src/backer/ODBacker.sol#555-592):\n\tExternal calls:\n\t- minter.accrue(g) (src/backer/ODBacker.sol#563)\n\t- _charge(vaultId,v) (src/backer/ODBacker.sol#564)\n\t\t- this.sendFees(v.gearId) (src/backer/ODBacker.sol#611)\n\t- minter.backerMint(g,v.owner,tokens) (src/backer/ODBacker.sol#586)\n\tState variables written after the call(s):\n\t- v.ownTokens += tokens (src/backer/ODBacker.sol#587)\n\tODBacker._vaults (src/backer/ODBacker.sol#98) can be used in cross function reentrancies:\n\t- ODBacker._known(uint256) (src/backer/ODBacker.sol#741-744)\n\t- ODBacker.liquidateVault(uint256,uint256,address,uint256) (src/backer/ODBacker.sol#399-429)\n\t- ODBacker.vault(uint256) (src/backer/ODBacker.sol#491-498)\n\t- ODBacker.vaultOwnDebt(uint256) (src/backer/ODBacker.sol#501-503)\n",
+  "first_markdown_element": "src/backer/ODBacker.sol#L555-L592",
+  "triage": "false positive or accepted by design: Entry points are nonReentrant; the calls are to the fixed minter and Governor set at construction, and the vault writes after them complete the same action (read against the source in fix round 8: the only change is the vault owner passed to the Governor)."
+ },
+ {
+  "id": "af164e724975a50ebac9e233d6a055f8600ff0ab7d20eb55020c936105010990",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODGovernorRisk._drawInsurance(IERC20,IODInsurance,uint256) (src/governor/ODGovernorRisk.sol#425-432) ignores return value by ins.cover(usdg) (src/governor/ODGovernorRisk.sol#427)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L425-L432",
+  "triage": "false positive or accepted by design: The amount received is measured by the USDG balance before and after, never taken from the return value."
+ },
+ {
+  "id": "1346aa42e57ec1226a572f9729d931e8de29d9f55dda9439f22e41c9dfd91808",
+  "check": "reentrancy-events",
   "impact": "Low",
   "confidence": "Medium",
-  "description": "ODOracleGuard._sequencerDown() (src/oracle/ODOracleGuard.sol#614-628) tries to limit the gas of an external call that controls implicit decoding\n\t(ok,data) = feed.staticcall{gas: EXTERNAL_READ_GAS}(abi.encodeWithSignature(latestRoundData())) (src/oracle/ODOracleGuard.sol#617-618)\n",
-  "first_markdown_element": "src/oracle/ODOracleGuard.sol#L614-L628",
-  "triage": "false positive or accepted by design: The oracle reads are staticcalls with a gas cap and a fixed-size word decode; a large return cannot grow the cost beyond the cap and a failure makes the market halt (fail closed)."
+  "description": "Reentrancy in ODGovernorRisk._drawInsurance(IERC20,IODInsurance,uint256) (src/governor/ODGovernorRisk.sol#425-432):\n\tExternal calls:\n\t- ins.cover(usdg) (src/governor/ODGovernorRisk.sol#427)\n\tEvent emitted after the call(s):\n\t- IODGovernor.InsuranceDrawn(usdg,got) (src/governor/ODGovernorRisk.sol#431)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L425-L432",
+  "triage": "false positive or accepted by design: Event after a call to the fixed ODInsurance; the Governor entry point (onSell) is nonReentrant and no state depends on the event order."
+ },
+ {
+  "id": "1e793ebd12a14ad1d4ac237206b8824a3232b09d007bbfd44d15988a346d1db8",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODGovernorRisk.paySell(ODGovernorRisk.Books,mapping(bytes32 => uint256),IERC20,IODInsurance,IODGearRegistry,bytes32,uint256,address,uint256) (src/governor/ODGovernorRisk.sol#294-336):\n\tExternal calls:\n\t- cash += _drawInsurance(u,ins,above - (cash - cashBelow) - res) (src/governor/ODGovernorRisk.sol#315)\n\t\t- ins.cover(usdg) (src/governor/ODGovernorRisk.sol#427)\n\tEvent emitted after the call(s):\n\t- IODGovernor.PaidOut(to,usdg,fromRes != 0) (src/governor/ODGovernorRisk.sol#334)\n",
+  "first_markdown_element": "src/governor/ODGovernorRisk.sol#L294-L336",
+  "triage": "false positive or accepted by design: Event after a call to the fixed ODInsurance; the Governor entry point (onSell) is nonReentrant and no state depends on the event order."
  }
 ]

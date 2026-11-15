@@ -12,7 +12,11 @@ import {MarketConfig, PriceReading, Session} from "../../src/interfaces/ODTypes.
 /// without RHC_RPC_URL. Addresses and per-feed age bounds come from the 2026-11-13 chain survey: the in-session bound
 /// is 1.25 x the largest observed in-session gap (at least 26 h), the closed bound 1.25 x the largest closed gap
 /// (5 to 14 days), because quiet feeds (SPY, QQQ, AAPL, MSFT, AMZN) go about 1 day in session and 3.8 days over a
-/// weekend without a round. A pushed OPEN session around the fork time makes every stock read live whatever the day.
+/// weekend without a round. The fixture forces an OPEN session around the fork block, so the in-session age limit is
+/// the one in force on any day. That limit is never loosened here: a feed whose latest round is older than it (a
+/// 26 h feed late on a weekend, any feed after a long holiday) must read HALTED, and the tests assert exactly that for
+/// such a market (`_assertLiveOrHalted`) and run the live checks for every market inside its limit. The expected side
+/// comes from the feed's own latestRoundData, read here and not through the guard.
 contract OracleForkTest is ODTest {
     address internal constant PYTH_CORE = 0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a;
     uint32 internal constant REF_MAX_AGE = 120;
@@ -219,14 +223,49 @@ contract OracleForkTest is ODTest {
         c.alwaysOpen = m.token == address(0);
         c.pythId = m.pythId;
         c.twapPool = m.pool;
-        c.maxAgeOpen = m.maxAgeInSession;
-        c.maxAgeExtended = m.maxAgeInSession;
+        c.maxAgeOpen = _limit(m);
+        c.maxAgeExtended = _limit(m);
         c.maxAgeClosed = m.maxAgeClosed;
         c.refMaxAge = REF_MAX_AGE;
         c.twapWindow = 30 minutes;
         c.refBandBps = 200;
         c.continuityBps = 1500;
         c.enabled = true;
+    }
+
+    /// The in-session age limit in force: the surveyed bound, held to the guard's hard cap (I4-3).
+    function _limit(Mkt memory m) internal pure returns (uint32) {
+        return m.maxAgeInSession > 3 days ? uint32(3 days) : m.maxAgeInSession;
+    }
+
+    /// Age of the feed's latest round, read from the feed itself (not through the guard).
+    function _feedAge(Mkt memory m) internal view returns (uint256) {
+        (, bytes memory d) = m.feed.staticcall(abi.encodeWithSignature("latestRoundData()"));
+        (,,, uint256 updatedAt,) = abi.decode(d, (uint80, int256, uint256, uint256, uint80));
+        return block.timestamp - updatedAt;
+    }
+
+    /// Deterministic on any day: a round inside the limit must read live in the forced OPEN session, a round past it
+    /// must read HALTED (not fresh, buys paused with reason HALTED, never a live price). Returns true when live.
+    function _assertLiveOrHalted(Mkt memory m, PriceReading memory r) internal returns (bool live) {
+        uint256 age = _feedAge(m);
+        live = age <= _limit(m);
+        if (live) {
+            assertEq(uint256(r.session), uint256(Session.OPEN), m.sym);
+            assertTrue(r.fresh, m.sym);
+            assertEq(block.timestamp - r.updatedAt, age, m.sym);
+        } else {
+            assertEq(uint256(r.session), uint256(Session.HALTED), m.sym);
+            assertFalse(r.fresh, m.sym);
+            assertTrue(r.buysPaused, m.sym);
+            assertEq(r.reason, guard.REASON_HALTED(), m.sym);
+            assertEq(r.p, 0, m.sym); // nothing poked yet: no last good price to fall back on
+            guard.poke(m.id);
+            (uint256 lg,) = guard.lastGood(m.id);
+            assertEq(lg, 0, "a stale round must never become the last good price");
+            assertGt(guard.haltedSince(m.id), 0, "the halt is latched");
+            console2.log(m.sym, "feed round older than the in-session limit: HALTED, age", age);
+        }
     }
 
     function _find(string memory sym) internal view returns (Mkt memory) {
@@ -254,6 +293,7 @@ contract OracleForkTest is ODTest {
     /// TSLA, NVDA, SPY, ETH read live; p within 2% of refP when both exist; the stocks have a TWAP reference.
     function test_ForkLiveReads() public {
         _setUpFork();
+        assertEq(guard.MAX_MAX_AGE_OPEN(), 3 days, "_limit mirrors the guard's cap");
         string[4] memory syms = ["TSLA", "NVDA", "SPY", "ETH"];
         for (uint256 i; i < syms.length; ++i) {
             Mkt memory m = _find(syms[i]);
@@ -261,8 +301,7 @@ contract OracleForkTest is ODTest {
             (uint256 refP, bool fromPyth) = guard.refPrice(m.id);
             console2.log(syms[i], r.p, r.refP);
             console2.log("  session/fromPyth/age", uint256(r.session), fromPyth, block.timestamp - r.updatedAt);
-            assertEq(uint256(r.session), uint256(Session.OPEN), syms[i]);
-            assertTrue(r.fresh, syms[i]);
+            if (!_assertLiveOrHalted(m, r)) continue;
             assertGt(r.p, 0);
             assertEq(refP, r.refP);
             if (r.refP != 0) assertTrue(_within2pct(r.p, r.refP), "p within 2% of refP");
@@ -284,7 +323,7 @@ contract OracleForkTest is ODTest {
             if (m.token == address(0) || m.pythId == bytes32(0)) continue;
             PriceReading memory r = guard.read(m.id);
             (uint256 refP, bool fromPyth) = guard.refPrice(m.id);
-            assertTrue(r.session != Session.HALTED, m.sym);
+            if (!_assertLiveOrHalted(m, r)) continue;
             (bool fresh, uint256 pythP) = _pythPerToken(m);
             assertEq(fromPyth, fresh, m.sym);
             if (fresh) {

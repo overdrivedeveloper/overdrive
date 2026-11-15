@@ -53,6 +53,9 @@ interface IODMarketHours {
     /// @notice Reverts when a session starts too far ahead.
     /// @param index Index into the list.
     error SessionTooFar(uint256 index);
+    /// @notice Reverts when a pushed window opens more than MAX_SESSION_GAP after the previous one closes.
+    /// @param index Index of the offending entry.
+    error SessionGapTooLong(uint256 index);
     /// @notice Reverts when a session kind is not allowed.
     /// @param index Index into the list.
     error InvalidSessionKind(uint256 index);

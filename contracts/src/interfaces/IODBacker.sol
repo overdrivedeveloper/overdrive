@@ -121,7 +121,8 @@ interface IODBacker {
     function deposit(uint256 vaultId, uint256 usdg) external; // anyone may top up, never blocked
     /// @notice Withdraws collateral from a vault to `to`.
     /// @dev Only the vault owner may call. Reverts with Undercollateralized if the remainder would not cover the debt, and
-    /// with InBatch inside a batch.
+    /// with InBatch inside a batch. With debt open it needs a reference price, or a live feed round at most
+    /// MAX_ROUND_AGE old (MintingClosed("REF_UNAVAILABLE") otherwise); with no debt it needs no price at all.
     /// @param vaultId Id of the vault.
     /// @param usdg Amount of USDG, in 6-decimal units.
     /// @param to The recipient address.
@@ -164,7 +165,8 @@ interface IODBacker {
     /// @param tokens Amount of gear tokens (18 decimals).
     function repay(uint256 vaultId, uint256 tokens) external; // burns tokens from msg.sender, never blocked
     /// @notice Repays vault debt by paying USDG at the current value instead of tokens.
-    /// @dev Reverts with Slippage if the cost exceeds `maxCostUsdg`.
+    /// @dev Reverts with Slippage if the cost exceeds `maxCostUsdg`. Needs a live reading with a reference price, or a
+    /// feed round at most MAX_ROUND_AGE old (MintingClosed("REF_UNAVAILABLE") otherwise); repay with tokens needs none.
     /// @param vaultId Id of the vault.
     /// @param tokens Amount of gear tokens (18 decimals).
     /// @param maxCostUsdg Maximum USDG cost the caller accepts, else the call reverts.
@@ -283,10 +285,10 @@ interface IODBacker {
     /// @return expiresAt  Timestamp at which the policy expires.
     function batchWindow(uint256 batchId) external view returns (uint64 readyAt, uint64 expiresAt); // (0, 0) unknown
     // 07b additions (sealed-batch liquidation)
-    /// @notice Reverts when sealing is refused, with a reason: NOT_LIVE, REF_UNAVAILABLE, STALE_ROUND, SETTLED or
-    /// NONE_UNHEALTHY.
+    /// @notice Reverts when sealing is refused, with a reason: NOT_LIVE, CONTINUITY, SPLIT_PENDING, REF_UNAVAILABLE,
+    /// REF_BAND, SETTLED or NONE_UNHEALTHY.
     /// @param reason Reason code (bytes32 tag).
-    error SealRefused(bytes32 reason); // NOT_LIVE, REF_UNAVAILABLE, STALE_ROUND, SETTLED, NONE_UNHEALTHY
+    error SealRefused(bytes32 reason); // NOT_LIVE, CONTINUITY, SPLIT_PENDING, REF_UNAVAILABLE, REF_BAND, SETTLED, NONE_UNHEALTHY
     /// @notice Reverts when the batch id does not exist.
     /// @param batchId Id of the liquidation batch.
     error UnknownBatch(uint256 batchId);
@@ -304,9 +306,9 @@ interface IODBacker {
     /// @notice Returns the maximum number of vaults in a batch.
     /// @return  The batch size limit.
     function MAX_BATCH() external view returns (uint8);
-    /// @notice Returns the oldest feed round allowed at seal.
+    /// @notice Returns the oldest feed round on which repayWithUsdg and withdraw (with debt) run without a reference.
     /// @return  Age in seconds.
-    function MAX_ROUND_AGE() external view returns (uint32); // the feed round at seal is at most this old
+    function MAX_ROUND_AGE() external view returns (uint32); // feed-only pricing of a vault needs a round this recent
     /// @notice Returns the number of batches sealed.
     /// @return  The batch count.
     function batchCount() external view returns (uint256);

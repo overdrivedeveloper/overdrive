@@ -2,7 +2,9 @@
 # Local CI: runs the same jobs, with the same commands, as .github/workflows/ci.yml.
 # The workflow skips itself on a private repository, so this script is the CI for the private repo.
 # Usage: scripts/ci-local.sh [--only job[,job...]] [--list]     jobs: hygiene semgrep contracts app guard scripts python web sdk slither
-# On an all-green run on a clean tree it writes .ci-local/green/<sha>.json; .githooks/pre-push refuses a push without it.
+# On an all-green run on a clean tree it writes .ci-local/green/<sha>.json with the list of jobs that ran and
+# "scope": "full" or "subset". .githooks/pre-push refuses a push unless a stamp for the tree lists every required job
+# (all of them, contracts and slither included), so an --only run never opens the gate by itself.
 # Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -82,11 +84,13 @@ if [ "$failed" -eq 0 ]; then
     mkdir -p "$root/.ci-local/green"
     jobs_json="$(printf '%s\n' $ran | sed 's/.*/"&"/' | paste -sd, -)"
     {
-      printf '{\n  "commit": "%s",\n  "tree": "%s",\n  "jobs": [%s],\n  "utc": "%s",\n' "$sha" "$tree" "$jobs_json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      scope=full; [ "$(echo $ran)" = "$JOBS" ] || scope=subset
+      printf '{\n  "commit": "%s",\n  "tree": "%s",\n  "scope": "%s",\n  "jobs": [%s],\n  "utc": "%s",\n' "$sha" "$tree" "$scope" "$jobs_json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       printf '  "tools": {"bun": "%s", "node": "%s", "forge": "%s", "python": "%s"}\n}\n' \
         "$(bun --version 2>/dev/null)" "$(node --version 2>/dev/null)" "$(forge --version 2>/dev/null | head -1)" "$(python3 --version 2>/dev/null)"
     } > "$root/.ci-local/green/$sha.json"
-    echo "ci-local: stamp .ci-local/green/$sha.json"
+    echo "ci-local: stamp .ci-local/green/$sha.json ($scope:$ran)"
+    [ "$scope" = full ] || echo "ci-local: a subset stamp does not open the push gate (run without --only)"
   fi
 fi
 exit "$failed"

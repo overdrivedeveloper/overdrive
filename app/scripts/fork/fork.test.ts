@@ -141,7 +141,7 @@ describe("fork stack", () => {
     const cfg = {
       feed: "0x0000000000000000000000000000000000000001", stockToken: "0x0000000000000000000000000000000000000000", multiplierEmbedded: true,
       pythMultiplierEmbedded: false, alwaysOpen: true, pythId: `0x${"11".repeat(32)}`, twapPool: "0x0000000000000000000000000000000000000000",
-      maxAgeOpen: 284400, maxAgeExtended: 0, maxAgeClosed: 432000, refMaxAge: 120, twapWindow: 1800, refBandBps: 200, continuityBps: 1500, enabled: true,
+      maxAgeOpen: 259200, maxAgeExtended: 0, maxAgeClosed: 432000, refMaxAge: 120, twapWindow: 1800, refBandBps: 200, continuityBps: 1500, enabled: true,
     } as const;
     const r = setup.relaxedMarket(cfg as never, { feedMaxAgeSec: 2592000, feedMaxAgeClosedSec: 1209600, refBandBps: 2000, refMaxAgeSec: 86400 });
     expect(r).toMatchObject({ maxAgeOpen: 2592000, maxAgeExtended: 0, maxAgeClosed: 1209600, refBandBps: 2000, refMaxAge: 86400, continuityBps: 1500, enabled: true });
