@@ -73,6 +73,8 @@ library ODMinterPricing {
 
     /// @notice Reads the gear, the guard (single name or pair), the vol post and the book, and simulates the accrual
     /// the trade performs first (R1, R2). Never reverts for a known gear; an unknown gear returns token == 0.
+    /// Off a live reading `c.r.refP` is kept only when every leg's reference is a fresh Pyth print (I7-1); otherwise
+    /// it is 0 and `trade` queues the sell.
     function context(
         Deps memory d,
         bytes32 id,
@@ -92,6 +94,13 @@ library ODMinterPricing {
         bytes32 b = c.cfg.marketB;
         c.r = b == bytes32(0) ? d.guard.read(a) : d.guard.readRatio(a, b);
         c.live = (c.r.session == Session.OPEN || c.r.session == Session.EXTENDED) && c.r.fresh;
+        // I7-1: off a live reading (CLOSED, UNKNOWN, HALTED) the feed price is frozen, so the reference alone decides
+        // what a sell is paid. A v3 TWAP can be held at the frozen price by one actor for one window; a Pyth print
+        // inside refMaxAge cannot. Without a Pyth print on every leg there is no reference: the sell goes to the queue
+        // and fills at the first live round. Buys are closed off a live reading either way.
+        if (!c.live && c.r.refP != 0 && !(_fromPyth(d.guard, a) && (b == bytes32(0) || _fromPyth(d.guard, b)))) {
+            c.r.refP = 0;
+        }
         c.net = int256(IERC20(c.cfg.token).totalSupply()) - int256(d.governor.backerDebt(id));
         c.vol = _vol(d.vol, b == bytes32(0) ? a : keccak256(abi.encode(a, b)));
         if (settledV != 0) {
@@ -133,6 +142,10 @@ library ODMinterPricing {
         return owed < cash ? owed : cash;
     }
 
+    function _fromPyth(IODOracleGuard guard, bytes32 market) private view returns (bool pyth) {
+        (, pyth) = guard.refPrice(market);
+    }
+
     function _vol(IODVolOracle vol, bytes32 key) private view returns (VolReading memory v) {
         try vol.read(key) returns (VolReading memory x) {
             v = x;
@@ -145,7 +158,8 @@ library ODMinterPricing {
     // -------------------------------------------------------------------------------------------------- trade
 
     /// @notice Value basis, spread and amounts of one trade (R4, R5, R7, R8, R11). `amount` is USDG for exact-in buys
-    /// and exact-out sells, tokens otherwise. A sell with no safe price returns queued = true.
+    /// and exact-out sells, tokens otherwise. A sell with no safe price returns queued = true: no feed price, no
+    /// reference, or (I7-1) a reading that is not live whose only reference is a v3 TWAP.
     function trade(
         Ctx memory c,
         IODMinter.TradeParams memory tp,

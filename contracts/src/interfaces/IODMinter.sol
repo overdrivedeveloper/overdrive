@@ -97,9 +97,10 @@ interface IODMinter {
     error BuysClosed(bytes32 gearId, bytes32 reason);
     /// @notice Reverts when the trade is below the minimum trade size.
     error BelowMinimum();
-    /// @notice Reverts when a sell cannot be paid now (closed with no reference, or the payout failed); call queueSell
-    /// instead.
-    error UseQueue(); // sell cannot be paid now (closed with no reference, payout failed): call queueSell
+    /// @notice Reverts when a sell cannot be paid now: no feed price or no reference, a market that is closed, unknown
+    /// or halted with no Pyth print inside refMaxAge on every leg (I7-1: a v3 TWAP alone is not a reference there),
+    /// or a payout that failed. Call queueSell instead; the ticket fills at the first live round.
+    error UseQueue(); // sell cannot be paid now: call queueSell
     /// @notice Reverts when the caller is not the hook.
     error NotHook();
     /// @notice Reverts when the caller does not own the ticket.

@@ -140,6 +140,54 @@ contract ODMarketHours is AccessControl, IODMarketHours {
     }
 
     /// @inheritdoc IODMarketHours
+    /// @dev Walks the boundaries from `from` to `to`. Inside the pushed range the pushed windows answer. Outside it
+    /// (the keeper drops past windows at every push) the built-in calendar answers whether or not the fallback is
+    /// enabled, so last weekend is still a weekend after the keeper has dropped it and a quiet mid-week stretch
+    /// before the first pushed window is not mistaken for a close. Time neither calendar knows counts as out of
+    /// session. Fails closed (true) when the walk needs more than MAX_SCAN_STEPS boundaries.
+    function closedBetween(uint256 from, uint256 to, uint256 minClosedSeconds) external view returns (bool) {
+        if (to <= from) return false;
+        uint256 t = from;
+        uint256 start = from;
+        bool out = _outAt(from);
+        for (uint256 step; step < MAX_SCAN_STEPS; ++step) {
+            uint256 b = _edgeAfter(t);
+            if (b == 0 || b > to) b = to;
+            if (out && b - start >= minClosedSeconds) return true;
+            if (b == to) return false;
+            bool o = _outAt(b);
+            if (o && !out) start = b;
+            out = o;
+            t = b;
+        }
+        return true;
+    }
+
+    /// @dev Out of session at `ts` for closedBetween: the pushed windows inside their range, else the built-in
+    /// calendar (always, unlike kindAt).
+    function _outAt(uint256 ts) private view returns (bool) {
+        uint256 count = _sessions.length;
+        Session k = count != 0 && ts >= _sessions[0].open && ts < _sessions[count - 1].close
+            ? kindAt(ts)
+            : ODCalendar.kindAt(ts, _holidays);
+        return k != Session.OPEN && k != Session.EXTENDED;
+    }
+
+    /// @dev First instant after `t` where `_outAt` may change: a pushed open or close inside the pushed range, else
+    /// the earlier of the first pushed open and the built-in calendar's next boundary. 0 = none.
+    function _edgeAfter(uint256 t) private view returns (uint256 next) {
+        uint256 count = _sessions.length;
+        if (count != 0 && t < _sessions[count - 1].close) {
+            uint256 i = _lastOpenAtOrBefore(t);
+            if (i != 0 && t < _sessions[i - 1].close) return _sessions[i - 1].close;
+            next = _sessions[i].open;
+            if (i != 0) return next;
+        }
+        uint256 fb = ODCalendar.nextBoundary(t, _holidays);
+        if (fb != 0 && (next == 0 || fb < next)) next = fb;
+    }
+
+    /// @inheritdoc IODMarketHours
     function sessions() external view returns (SessionWindow[] memory) {
         return _sessions;
     }

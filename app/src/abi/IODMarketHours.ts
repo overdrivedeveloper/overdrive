@@ -2,6 +2,35 @@
 export const IODMarketHoursAbi = [
   {
     "type": "function",
+    "name": "closedBetween",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "to",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minClosedSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "fallbackEnabled",
     "inputs": [],
     "outputs": [

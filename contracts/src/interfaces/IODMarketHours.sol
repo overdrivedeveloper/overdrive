@@ -93,6 +93,14 @@ interface IODMarketHours {
     /// @return closeAt  Timestamp of the close.
     /// @return reopenAt  Timestamp of the reopening.
     function nextLongClose(uint256 ts, uint256 minClosedSeconds) external view returns (uint64 closeAt, uint64 reopenAt);
+    /// @notice True when the market is out of session for at least `minClosedSeconds` in a row somewhere between
+    /// `from` and `to` (I7-2: the oracle guard uses it to refuse a pre-close feed round). Outside the pushed windows'
+    /// range the built-in calendar answers, enabled as the fallback or not; time no calendar knows is out of session.
+    /// @param from Start of the range, Unix seconds (a feed round's updatedAt).
+    /// @param to End of the range, Unix seconds (now).
+    /// @param minClosedSeconds Shortest out-of-session stretch that counts, in seconds.
+    /// @return  True when such a stretch lies in [from, to), or the walk could not finish (fail closed).
+    function closedBetween(uint256 from, uint256 to, uint256 minClosedSeconds) external view returns (bool);
     /// @notice Returns the stored session windows.
     /// @return  The session windows.
     function sessions() external view returns (SessionWindow[] memory);

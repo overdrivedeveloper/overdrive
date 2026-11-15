@@ -13,6 +13,8 @@ import {ODTwapReader} from "./ODTwapReader.sol";
 /// else a Uniswap v3 TWAP, is the reference that decides whether buys may proceed. The guard only reports: nothing
 /// here can block a sell. Buys fail closed: no reference, a reference outside the band, a split window, a continuity
 /// latch, a halt or a manual pause all set `buysPaused` with a reason.
+/// A feed round printed before a calendar close of LONG_CLOSE or more is never live at the reopen (I7-2). `refPrice`
+/// names the reference's source: off a live reading the minter pays a sell only on a Pyth print (I7-1).
 /// @dev `read` is a view that reverts only on an unknown market. Every external read (feed, Stock Token, Pyth, pool,
 /// calendar, sequencer feed) is a gas-capped low-level staticcall with return-length checks, so a broken source
 /// degrades to HALTED or "reference unavailable". `poke` (permissionless) is the only function besides the admin
@@ -43,6 +45,9 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
     uint256 public constant MAX_MULTIPLIER = 1e24;
     uint8 public constant MAX_FEED_DECIMALS = 36;
     uint256 public constant SEQUENCER_GRACE = 1 hours;
+    /// @notice I7-2: a CLOSED stretch at least this long between a feed round's print and now makes the round a
+    /// pre-close price: it is never read as live in the session that follows (HALTED until the feed prints again).
+    uint256 public constant LONG_CLOSE = 24 hours;
 
     bytes32 public constant REASON_MANUAL = "MANUAL";
     bytes32 public constant REASON_DISABLED = "DISABLED";
@@ -361,6 +366,9 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
             uint256 maxAge = e.kind == Session.OPEN ? cfg.maxAgeOpen : cfg.maxAgeExtended;
             (bool valid, uint256 raw, uint256 updatedAt) = _readFeed(cfg.feed, d.feedDecimals);
             if (!valid || block.timestamp - updatedAt > maxAge) halted = true;
+            // I7-2: a round printed before the last long close (a weekend, a holiday) is not a live price at the
+            // reopen, whatever its age: the market moved while the feed was silent.
+            else if (!cfg.alwaysOpen && _closedSince(updatedAt)) halted = true;
             if (!halted) {
                 uint256 p = cfg.multiplierEmbedded ? raw : Math.mulDiv(raw, t.mult, WAD);
                 if (p == 0 || p > MAX_P) {
@@ -501,6 +509,18 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
         // The calendar never reports HALTED; anything out of range is UNKNOWN.
         if (!ok || v > uint256(Session.UNKNOWN)) return Session.UNKNOWN;
         return Session(v);
+    }
+
+    /// @dev I7-2. True when the calendar shows at least LONG_CLOSE consecutive seconds outside any session between
+    /// `updatedAt` and now. A round younger than LONG_CLOSE cannot span one, so the common case makes no call. An
+    /// unreadable calendar answer fails closed (true: the round is not live).
+    function _closedSince(uint256 updatedAt) private view returns (bool) {
+        if (block.timestamp - updatedAt < LONG_CLOSE) return false;
+        (bool ok, uint256 v) = _staticWord(
+            marketHours,
+            abi.encodeWithSignature("closedBetween(uint256,uint256,uint256)", updatedAt, block.timestamp, LONG_CLOSE)
+        );
+        return !ok || v != 0;
     }
 
     function _readToken(address token) private view returns (TokenData memory t) {
