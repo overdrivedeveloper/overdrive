@@ -19,10 +19,10 @@ const ExitSchema = z.object({
 export function canExitNow(aboveFloor: boolean, g: Pick<GearView, "status" | "session" | "price">): boolean {
   if (!aboveFloor || g.status === "retired") return false;
   if (g.session === "OPEN" || g.session === "EXTENDED") return true;
-  return g.price !== null; // closed: pays the lower of the last value and the reference value, which needs a last price
+  return g.price !== null; // closed: pays the lower of the last value and a fresh Pyth value, else queues (the quote route reads the minter for which)
 }
 export const ruleWords = (sellMode: "instant" | "instant_min"): string =>
-  sellMode === "instant" ? "The market is open: a sell pays the current value less the spread." : "The market is closed: a sell pays the lower of the last value and the reference value, or waits in the queue for the next fresh price.";
+  sellMode === "instant" ? "The market is open: a sell pays the current value less the spread." : "The market is closed: a sell pays the lower of the last value and the reference value when the reference is a fresh Pyth price, and otherwise waits in the queue for the next live price.";
 
 export function registerExitRoutes(app: OpenAPIHono, deps: ApiDependencies): void {
   defineRoute(app, { method: "get", path: "/v1/exit", summary: "Exit reserve, floor, coverage and queue", tag: "governor", response: ExitSchema, cache: "public, max-age=5", errors: [502] }, async () => {

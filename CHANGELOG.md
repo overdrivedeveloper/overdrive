@@ -11,6 +11,13 @@ Nothing is released or deployed yet. What exists in the repository:
 - `vol-engine/` volatility engine and `risk-sim/` stress simulation.
 - `scripts/ci-local.sh` local CI, pre-commit public guard and commit-msg guard.
 
+Fix round 10 (independent check 7):
+
+- A sell on a reading that is not live (market closed, calendar unknown, halted) is paid only when every leg's reference is a Pyth print inside `refMaxAge`. With a v3 TWAP as the only reference it is refused `UseQueue` (direct and hook paths, `quote` returns `queued`), and the exit is the sell queue, filled at the first live round (I7-1). In session nothing changes.
+- A feed round printed before a calendar close of 24 hours or more is not a live price at the reopen: the market reads HALTED until the feed prints again. New view `ODMarketHours.closedBetween`, new constant `ODOracleGuard.LONG_CLOSE` (I7-2). `IODMarketHours` ABI regenerated.
+- `contracts/AUDIT-SCOPE.md` lists every file in scope, generated and checked in CI by `script/ci/audit-scope.py`.
+- SECURITY.md: scope section refreshed, I7-1 and I7-2 entries, the weekend exit stated under accepted risks, the liquidation bonus wording of the sale credit residual made exact (R7-3).
+
 Fix round 9 (independent check 6):
 
 - Direct sales no longer take USDG out of the Governor (I6-1, I4-1b). `onBackerMint` books the proceeds of a sale to the Governor as sale credit: collateral of the vault that the Governor holds, locked behind the sold debt and paid to the backer contract from free cash only as that debt is repaid or liquidated. New: `ODGovernor.saleCredit`, `settleSaleCredit` (backer only), events `SaleCreditBooked` and `SaleCreditSettled`; `ODBacker.vaultHeld`, `totalHeld`. `ODBacker.withdraw` pays out only collateral that is not held. NAV subtracts the credit.
