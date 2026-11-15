@@ -8,7 +8,7 @@ Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI a
 | File | What it holds |
 |---|---|
 | `slither.config.json` | paths skipped, detectors excluded, `fail_on: pedantic` so any new result fails |
-| `slither.db.json` | the 142 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
+| `slither.db.json` | the 150 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
 
 ## Excluded detectors (style or by-design, whole class)
 
@@ -27,8 +27,8 @@ Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI a
 |---|---|---|
 | incorrect-equality | 33 | exact by construction (zero checks, counters), not donation sensitive |
 | calls-loop | 28 | fixed audited callees, capped batch sizes |
-| unused-return | 26 | callee reverts on failure or value re-read from storage |
-| reentrancy-no-eth | 17 | `nonReentrant` on the entry points, ODFees `distribute`, `release` and `sync` are `nonReentrant` |
+| unused-return | 27 | callee reverts on failure or value re-read from storage |
+| reentrancy-no-eth | 21 | `nonReentrant` on the entry points, ODFees `distribute`, `release` and `sync` are `nonReentrant` |
 | divide-before-multiply | 13 | intentional fixed-point steps, covered by fuzz and invariants |
 | missing-zero-check | 6 | zero is valid (optional feeds) or set by the deploy script and its post-deploy check |
 | reentrancy-benign, reentrancy-events | 10 | no exploitable state, role gated or `nonReentrant` |
