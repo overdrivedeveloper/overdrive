@@ -131,7 +131,8 @@ def forge_test(wdir: Path, timeout: int):
     t0 = time.time()
     try:
         p = subprocess.run(
-            ["forge", "test", "--fail-fast"],
+            # gas-bound tests measure optimised bytecode; with the optimiser off they fail on the clean tree
+            ["forge", "test", "--fail-fast", "--no-match-test", "GasBound"],
             cwd=wdir,
             env=env,
             capture_output=True,
