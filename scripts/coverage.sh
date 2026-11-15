@@ -10,8 +10,8 @@
 #   handler, the only file that fails) is stack too deep under --ir-minimum. It is test code, so it is left out
 #   of the coverage build; it still runs in the normal `forge test`. No file under src/ is excluded.
 # - `--no-match-test GasBound`: the gas ceiling tests, named `..._GasBound` (test_DiscountGasBound, 30k gas;
-#   test_FallbackCalendar_GasBound, test_R8_2_ListLength_GasBound and test_R8_2_GuardMidWeek_FullList_GasBound,
-#   the calendar walk against the guard's 300,000 gas read). The coverage build is unoptimised and instrumented,
+#   test_FallbackCalendar_GasBound, test_R8_2_ListLength_GasBound, test_R8_2_GuardMidWeek_FullList_GasBound
+#   and test_QuietFeed70Hours_GasBound, the calendar walk against the guard's 300,000 gas read). The coverage build is unoptimised and instrumented,
 #   so they fail only here. They run and pass in the normal `forge test`. Nothing else is left out by this flag:
 #   a test must have the suffix to be skipped.
 # - `--no-match-coverage`: report only contracts/src (tests, scripts and libraries are not counted).

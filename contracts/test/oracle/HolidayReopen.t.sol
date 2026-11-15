@@ -313,7 +313,16 @@ contract HolidayReopenTest is OracleFixture {
         _assertHalted("a Saturday night round at the reopen");
         feed.push(ANSWER_250);
         _assertLive("Sunday 20:00:01");
-        vm.warp(nextFri + 48 hours + 70 hours);
+    }
+
+    /// A quiet feed: Sunday evening's round is still live 70 hours later through the guard, with the deployed list
+    /// and no pushed window (the longest walk an in-session round can need, inside the guard's gas read).
+    function test_QuietFeed70Hours_GasBound() public {
+        _market(72 hours);
+        _fallback();
+        _roundAt(SUN_2000 + 1);
+        vm.warp(SUN_2000 + 70 hours);
+        vm.cool(address(mh));
         _assertLive("70 hours later, same week, quiet feed");
     }
 
