@@ -10,6 +10,7 @@ import {DeploySystem} from "../../script/DeploySystem.s.sol";
 import {SystemConfig} from "../../script/lib/SystemConfig.sol";
 import {SystemDeployer} from "../../script/lib/SystemDeployer.sol";
 import {Gear, MarketConfig} from "overdrive/interfaces/ODTypes.sol";
+import {Holiday} from "overdrive/interfaces/IODMarketHours.sol";
 
 /// Exposes the deploy without its handoff (a run that stopped half way).
 contract DeployHarness is DeploySystem {
@@ -62,6 +63,9 @@ abstract contract DeployFixture is ODTest {
         cfg.ext.entryPoint = makeAddr("entryPoint");
         cfg.dev = SystemConfig.Dev(true, true, true);
         cfg.paymaster = SystemConfig.PaymasterCfg(0.01 ether, 0.05 ether, 1 ether);
+        cfg.holidays.push(Holiday({day: 20_783, closeMinute: 0})); // Thanksgiving 2026
+        cfg.holidays.push(Holiday({day: 20_784, closeMinute: 780})); // the 13:00 close after it
+        cfg.holidays.push(Holiday({day: 21_176, closeMinute: 0})); // 2027-12-24
         _addMarket(ETH, 3000e18, 2, impl);
         _addMarket(BTC, 90000e18, 2, impl);
         _addGear(ETH, Gear.CRUISE, 5_000_000, 40);

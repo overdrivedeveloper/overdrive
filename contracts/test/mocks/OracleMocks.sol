@@ -36,13 +36,14 @@ contract MockKindCalendar {
     /// Same meaning as ODMarketHours.closedBetween (I7-2), walked over the steps.
     function closedBetween(uint256 from, uint256 to, uint256 minClosed) external view returns (bool) {
         if (to <= from) return false;
-        uint256 start = from;
-        bool out = _out(kindAt(from));
+        uint256 t = from > minClosed ? from - minClosed : 0;
+        uint256 start = t;
+        bool out = _out(kindAt(t));
         for (uint256 i; i < stepAt.length; ++i) {
             uint256 b = stepAt[i];
-            if (b <= from) continue;
+            if (b <= t) continue;
             if (b >= to) break;
-            if (out && b - start >= minClosed) return true;
+            if (out && b > from && b - start >= minClosed) return true;
             bool o = _out(stepKind[i]);
             if (o && !out) start = b;
             out = o;

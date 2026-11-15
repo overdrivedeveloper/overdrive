@@ -9,6 +9,7 @@ import {SystemDeployer} from "../../script/lib/SystemDeployer.sol";
 import {ODHook} from "overdrive/hook/ODHook.sol";
 import {ODOracleGuard} from "overdrive/oracle/ODOracleGuard.sol";
 import {ODGearRegistry} from "overdrive/gear/ODGearRegistry.sol";
+import {IODMarketHours, Holiday} from "overdrive/interfaces/IODMarketHours.sol";
 
 /// Rule R8: PostDeployCheck passes on a fresh deploy and names each broken check.
 contract PostDeployCheckTest is DeployFixture {
@@ -74,6 +75,35 @@ contract PostDeployCheckTest is DeployFixture {
         SystemDeployer.Deployed memory x = _d();
         x.insurance = d.fees; // has code, wrong pointer
         _expectWith(_cfg(), x, "WIRING");
+    }
+
+    /// R8-1: the deploy writes the config's holiday list, and the check names a list that differs or is empty.
+    function test_HolidaysWrittenAtDeploy_FailsWhenCleared() public {
+        Holiday[] memory h = IODMarketHours(d.marketHours).holidays();
+        assertEq(h.length, 3, "the config list is on chain");
+        assertEq(h[0].day, 20_783);
+        assertEq(h[1].closeMinute, 780);
+        vm.prank(d.timelock);
+        IODMarketHours(d.marketHours).setHolidays(new Holiday[](0));
+        _expect("HOLIDAYS");
+    }
+
+    /// R8-1: a list that has ended fails the check, and a config with no list, or an ended one, cannot deploy.
+    function test_HolidaysEndedOrMissing() public {
+        uint256 t0 = vm.getBlockTimestamp();
+        vm.warp(uint256(21_176) * 1 days + 1);
+        _expect("HOLIDAYS");
+        SystemConfig.Config memory c = _cfg();
+        vm.expectRevert(abi.encodeWithSelector(SystemConfig.ConfigRefused.selector, "holiday list is in the past"));
+        ds.validateConfig(c);
+        vm.warp(t0);
+        c.holidays = new Holiday[](0);
+        vm.expectRevert(abi.encodeWithSelector(SystemConfig.ConfigRefused.selector, "holiday list empty or over 64"));
+        ds.validateConfig(c);
+        c = _cfg();
+        c.holidays[1].day = c.holidays[0].day;
+        vm.expectRevert(abi.encodeWithSelector(SystemConfig.ConfigRefused.selector, "holidays not ascending"));
+        ds.validateConfig(c);
     }
 
     function test_FailsOnRole() public {

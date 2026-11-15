@@ -91,12 +91,16 @@ contract ReopenRoundTest is OracleFixture {
         assertTrue(_r().fresh, "12 h and 20 h closed: live");
     }
 
-    /// A round printed inside the close, less than 24 hours before the reopen, is news from the closed market: live.
-    function test_RoundPrintedLateInTheCloseIsLive() public {
+    /// I8-1: a round printed inside the close, even less than 24 hours before the reopen, is not a session price.
+    /// The close is measured over its whole length, not from the round. The first round after the reopen is live.
+    function test_RoundPrintedLateInTheCloseIsNotLive() public {
         _schedule(8 hours, 48 hours, Session.CLOSED);
         _warp(8 hours + 38 hours);
         feed.push(ANSWER_250); // 10 hours before the reopen
         _warp(10 hours);
+        assertEq(uint256(_r().session), uint256(Session.HALTED));
+        assertFalse(_r().fresh);
+        feed.push(ANSWER_250);
         assertTrue(_r().fresh);
         assertEq(uint256(_r().session), uint256(Session.EXTENDED));
     }
@@ -132,10 +136,8 @@ contract ReopenRoundTest is OracleFixture {
         c.maxAgeExtended = 3 days;
         vm.prank(admin);
         g.setMarket(M, c);
-        _warp(24 hours - 1);
-        assertTrue(g.read(M).fresh, "under 24 hours old: no calendar call, live");
-        _warp(1);
-        assertEq(uint256(g.read(M).session), uint256(Session.HALTED), "24 hours old and no answer: not live");
+        _warp(1 hours);
+        assertEq(uint256(g.read(M).session), uint256(Session.HALTED), "no answer at any age (I8-1): not live");
     }
 }
 
@@ -175,7 +177,8 @@ contract ClosedBetweenTest is Test {
         assertTrue(mh.closedBetween(TUE_1200, FRI_2000 + 24 hours, 24 hours), "closed for 24 hours");
         assertTrue(mh.closedBetween(FRI_2000 - 8 hours, SUN_2000 + 30, 24 hours), "Friday round at the reopen");
         assertTrue(mh.closedBetween(FRI_2000 - 8 hours, SUN_2000 + 3 days, 24 hours), "and for the rest of its age");
-        assertFalse(mh.closedBetween(SUN_2000 - 10 hours, SUN_2000 + 30, 24 hours), "printed 10 h before the reopen");
+        assertTrue(mh.closedBetween(SUN_2000 - 10 hours, SUN_2000 + 30, 24 hours), "printed 10 h before the reopen");
+        assertTrue(mh.closedBetween(SUN_2000 - 1, SUN_2000 + 3 days, 24 hours), "printed 1 s before the reopen");
         assertFalse(mh.closedBetween(SUN_2000, SUN_2000 + 3 days, 24 hours), "the new week");
         assertFalse(mh.closedBetween(SUN_2000, SUN_2000, 24 hours), "empty range");
         assertFalse(mh.closedBetween(SUN_2000, SUN_2000 - 1, 24 hours), "reversed range");
@@ -222,12 +225,12 @@ contract ClosedBetweenTest is Test {
     function test_BeyondTheCalendarFailsClosed() public view {
         uint256 far = TUE_1200 + 3650 days;
         assertTrue(mh.closedBetween(far, far + 24 hours, 24 hours));
-        assertFalse(mh.closedBetween(far, far + 24 hours - 1, 24 hours));
+        assertTrue(mh.closedBetween(far, far + 1 hours, 24 hours), "the stretch began before the round");
     }
 
     /// The built-in calendar: nightly closes (8 hours) never count, the weekend and a full holiday do. The walk
     /// across three days of four boundaries each stays far inside the guard's 300,000 gas read.
-    function test_FallbackCalendar() public {
+    function test_FallbackCalendar_GasBound() public {
         Holiday[] memory h = new Holiday[](1);
         h[0] = Holiday({day: DAY_TG_2026, closeMinute: 0});
         vm.startPrank(admin);

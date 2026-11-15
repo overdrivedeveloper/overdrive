@@ -36,7 +36,7 @@ contract MockHours {
 
     /// One kind for all time: a long close lies between two instants only when that kind is out of session.
     function closedBetween(uint256 from, uint256 to, uint256 minClosed) external view returns (bool) {
-        return kind != Session.OPEN && kind != Session.EXTENDED && to >= from + minClosed;
+        return kind != Session.OPEN && kind != Session.EXTENDED && to > from && minClosed != 0;
     }
 }
 
