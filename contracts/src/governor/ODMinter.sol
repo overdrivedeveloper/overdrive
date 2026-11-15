@@ -199,13 +199,18 @@ contract ODMinter is AccessControl, ReentrancyGuardTransient, IODMinter {
     }
 
     /// @inheritdoc IODMinter
-    /// @dev Anyone, only on a live fresh reading with a reference (or once settled), priced exactly as a live sell
-    /// for the ticket's owner. Any failure reverts NotFillable and the ticket stays.
+    /// @dev Only on a live fresh reading with a reference (or once settled), priced exactly as a live sell for the
+    /// ticket's owner. I8-2: anyone but the owner may fill only while buys are open on the gear's reading, so the
+    /// reference is inside the band around the feed and no pause, split or continuity latch is set; a third party
+    /// cannot settle a ticket at a reference far under the feed. The owner may fill at any live price (the ticket's
+    /// `minUsdgOut` is their limit). Any failure reverts NotFillable and the ticket stays.
     function fillQueued(uint256 ticket) external nonReentrant returns (uint256 usdgOut) {
         Ticket memory t = _tickets[ticket];
         if (t.tokens == 0) revert NotFillable(ticket);
         P.Ctx memory c = _load(t.gearId);
-        if (!c.settled && !(c.live && c.r.refP != 0)) revert NotFillable(ticket);
+        if (!c.settled && !(c.live && c.r.refP != 0 && (msg.sender == t.owner || !c.r.buysPaused))) {
+            revert NotFillable(ticket);
+        }
         delete _tickets[ticket];
         P.Trade memory tr = _sell(c, true, t.tokens, t.minUsdgOut, address(this), t.recipient, t.owner, false, ticket);
         usdgOut = tr.usdg;

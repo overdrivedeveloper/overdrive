@@ -67,14 +67,20 @@ library ODCalendar {
     }
 
     /// @notice Regular-session close minute for `day`, or 0 when the market is closed all day (weekend or holiday).
+    /// @dev R8-2: a binary search over the sorted list (at most 7 reads for MAX_HOLIDAYS entries), so the cost of a
+    /// calendar walk does not grow with the number of past holidays listed.
     function closeMinuteOf(uint256 day, Holiday[] storage holidays) internal view returns (uint256) {
         uint256 dow = dayOfWeek(day);
         if (dow == 0 || dow == 6) return 0;
-        uint256 count = holidays.length;
-        for (uint256 i; i < count; ++i) {
-            Holiday storage h = holidays[i];
-            if (h.day == day) return h.closeMinute; // 0 = full holiday
-            if (h.day > day) break; // list is sorted ascending
+        uint256 low;
+        uint256 high = holidays.length;
+        while (low < high) {
+            uint256 mid = (low + high) / 2;
+            Holiday storage h = holidays[mid];
+            uint256 d = h.day;
+            if (d == day) return h.closeMinute; // 0 = full holiday
+            if (d < day) low = mid + 1;
+            else high = mid;
         }
         return REGULAR_CLOSE;
     }

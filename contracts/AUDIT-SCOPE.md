@@ -25,7 +25,7 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 | `src/governor/ODGovernor.sol` | 961 | contract or library |
 | `src/governor/ODGovernorRisk.sol` | 620 | contract or library |
 | `src/governor/ODInsurance.sol` | 70 | contract or library |
-| `src/governor/ODMinter.sol` | 510 | contract or library |
+| `src/governor/ODMinter.sol` | 515 | contract or library |
 | `src/governor/ODMinterPricing.sol` | 320 | contract or library |
 | `src/hook/ODHook.sol` | 301 | contract or library |
 | `src/hook/ODHookMiner.sol` | 37 | contract or library |
@@ -37,8 +37,8 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 | `src/interfaces/IODGovernor.sol` | 517 | interface or shared types |
 | `src/interfaces/IODHook.sol` | 28 | interface or shared types |
 | `src/interfaces/IODInsurance.sol` | 28 | interface or shared types |
-| `src/interfaces/IODMarketHours.sol` | 116 | interface or shared types |
-| `src/interfaces/IODMinter.sol` | 301 | interface or shared types |
+| `src/interfaces/IODMarketHours.sol` | 118 | interface or shared types |
+| `src/interfaces/IODMinter.sol` | 303 | interface or shared types |
 | `src/interfaces/IODOracleGuard.sol` | 94 | interface or shared types |
 | `src/interfaces/IODPaymaster.sol` | 66 | interface or shared types |
 | `src/interfaces/IODStake.sol` | 68 | interface or shared types |
@@ -50,15 +50,15 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 | `src/math/ODIndex.sol` | 92 | library (pure maths) |
 | `src/math/ODNorm.sol` | 74 | library (pure maths) |
 | `src/math/ODToll.sol` | 61 | library (pure maths) |
-| `src/oracle/ODCalendar.sol` | 119 | contract or library |
-| `src/oracle/ODMarketHours.sol` | 251 | contract or library |
-| `src/oracle/ODOracleGuard.sol` | 678 | contract or library |
+| `src/oracle/ODCalendar.sol` | 125 | contract or library |
+| `src/oracle/ODMarketHours.sol` | 269 | contract or library |
+| `src/oracle/ODOracleGuard.sol` | 681 | contract or library |
 | `src/oracle/ODTickPrice.sol` | 45 | contract or library |
 | `src/oracle/ODTwapReader.sol` | 117 | contract or library |
 | `src/oracle/ODVolOracle.sol` | 217 | contract or library |
 | `src/stake/ODStake.sol` | 440 | contract or library |
 
-Total: 9759 lines.
+Total: 9795 lines.
 
 ## Supporting, not in scope: `script/` (10 files)
 

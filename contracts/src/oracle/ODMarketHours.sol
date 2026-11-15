@@ -140,20 +140,38 @@ contract ODMarketHours is AccessControl, IODMarketHours {
     }
 
     /// @inheritdoc IODMarketHours
-    /// @dev Walks the boundaries from `from` to `to`. Inside the pushed range the pushed windows answer. Outside it
-    /// (the keeper drops past windows at every push) the built-in calendar answers whether or not the fallback is
-    /// enabled, so last weekend is still a weekend after the keeper has dropped it and a quiet mid-week stretch
-    /// before the first pushed window is not mistaken for a close. Time neither calendar knows counts as out of
-    /// session. Fails closed (true) when the walk needs more than MAX_SCAN_STEPS boundaries.
+    /// @dev True when an out-of-session stretch of at least `minClosedSeconds` ends after `from` and by `to` (or is
+    /// still running at `to`). The stretch is measured over its whole length, not from `from`: the walk starts
+    /// `minClosedSeconds` before `from`, so a round printed INSIDE a close (a few seconds after a holiday's 20:00
+    /// boundary, I8-1) is behind that close exactly like a round printed before it. A stretch that ended at or
+    /// before `from` does not count: a round printed at or after the reopen is a session price.
+    /// Inside the pushed range the pushed windows answer. Outside it (the keeper drops past windows at every push)
+    /// the built-in calendar and the admin's holiday list answer whether or not the fallback is enabled, so last
+    /// weekend and last Thursday's holiday are still closes after the keeper has dropped them (R8-1), and a quiet
+    /// mid-week stretch before the first pushed window is not mistaken for a close. Time neither calendar knows
+    /// counts as out of session.
+    /// Gas (R8-2): the walk covers `to - from` (plus `minClosedSeconds` only when `from` is itself out of session)
+    /// at about four boundaries a day, each a binary search of the holiday list, so the cost does not depend on
+    /// how many holidays are listed. When `from` is
+    /// younger than `minClosedSeconds`, a long close can only have ended after it if the market was out of session
+    /// `minClosedSeconds` before `to`; that one lookup answers the common case. Fails closed (true) when the walk
+    /// needs more than MAX_SCAN_STEPS boundaries.
     function closedBetween(uint256 from, uint256 to, uint256 minClosedSeconds) external view returns (bool) {
         if (to <= from) return false;
+        if (to - from < minClosedSeconds && !_outAt(to > minClosedSeconds ? to - minClosedSeconds : 0)) return false;
+        // A stretch that ends after `from` either contains `from` or starts after it. Only the first kind needs the
+        // look back, so a round printed in session (the usual one) is walked from its own print.
         uint256 t = from;
-        uint256 start = from;
         bool out = _outAt(from);
+        if (out) {
+            t = from > minClosedSeconds ? from - minClosedSeconds : 0;
+            out = _outAt(t);
+        }
+        uint256 start = t;
         for (uint256 step; step < MAX_SCAN_STEPS; ++step) {
             uint256 b = _edgeAfter(t);
             if (b == 0 || b > to) b = to;
-            if (out && b - start >= minClosedSeconds) return true;
+            if (out && b > from && b - start >= minClosedSeconds) return true;
             if (b == to) return false;
             bool o = _outAt(b);
             if (o && !out) start = b;

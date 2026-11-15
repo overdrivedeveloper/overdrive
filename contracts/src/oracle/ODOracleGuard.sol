@@ -13,7 +13,8 @@ import {ODTwapReader} from "./ODTwapReader.sol";
 /// else a Uniswap v3 TWAP, is the reference that decides whether buys may proceed. The guard only reports: nothing
 /// here can block a sell. Buys fail closed: no reference, a reference outside the band, a split window, a continuity
 /// latch, a halt or a manual pause all set `buysPaused` with a reason.
-/// A feed round printed before a calendar close of LONG_CLOSE or more is never live at the reopen (I7-2). `refPrice`
+/// A feed round printed before or inside a calendar close of LONG_CLOSE or more is never live at the reopen (I7-2,
+/// I8-1): the market reads HALTED until the feed prints a round at or after the reopen. `refPrice`
 /// names the reference's source: off a live reading the minter pays a sell only on a Pyth print (I7-1).
 /// @dev `read` is a view that reverts only on an unknown market. Every external read (feed, Stock Token, Pyth, pool,
 /// calendar, sequencer feed) is a gas-capped low-level staticcall with return-length checks, so a broken source
@@ -45,8 +46,9 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
     uint256 public constant MAX_MULTIPLIER = 1e24;
     uint8 public constant MAX_FEED_DECIMALS = 36;
     uint256 public constant SEQUENCER_GRACE = 1 hours;
-    /// @notice I7-2: a CLOSED stretch at least this long between a feed round's print and now makes the round a
-    /// pre-close price: it is never read as live in the session that follows (HALTED until the feed prints again).
+    /// @notice I7-2, I8-1: a CLOSED stretch at least this long (its whole length) that ended after a feed round's
+    /// print makes the round a pre-reopen price: it is never read as live in the session that follows (HALTED until
+    /// the feed prints again).
     uint256 public constant LONG_CLOSE = 24 hours;
 
     bytes32 public constant REASON_MANUAL = "MANUAL";
@@ -366,8 +368,8 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
             uint256 maxAge = e.kind == Session.OPEN ? cfg.maxAgeOpen : cfg.maxAgeExtended;
             (bool valid, uint256 raw, uint256 updatedAt) = _readFeed(cfg.feed, d.feedDecimals);
             if (!valid || block.timestamp - updatedAt > maxAge) halted = true;
-            // I7-2: a round printed before the last long close (a weekend, a holiday) is not a live price at the
-            // reopen, whatever its age: the market moved while the feed was silent.
+            // I7-2, I8-1: a round printed before or inside the last long close (a weekend, a holiday) is not a live
+            // price at the reopen, whatever its age: the market moved while the feed was silent.
             else if (!cfg.alwaysOpen && _closedSince(updatedAt)) halted = true;
             if (!halted) {
                 uint256 p = cfg.multiplierEmbedded ? raw : Math.mulDiv(raw, t.mult, WAD);
@@ -511,11 +513,12 @@ contract ODOracleGuard is AccessControl, IODOracleGuard {
         return Session(v);
     }
 
-    /// @dev I7-2. True when the calendar shows at least LONG_CLOSE consecutive seconds outside any session between
-    /// `updatedAt` and now. A round younger than LONG_CLOSE cannot span one, so the common case makes no call. An
-    /// unreadable calendar answer fails closed (true: the round is not live).
+    /// @dev I7-2, I8-1. True when a calendar close of at least LONG_CLOSE (measured over its whole length) ended
+    /// after `updatedAt`: the round was printed before or inside that close, so it is not a price of the session
+    /// that is open now. The calendar is asked for every round, whatever its age (a round printed seconds into a
+    /// 24 hour holiday close is under LONG_CLOSE old at the reopen); its own first lookup answers the common
+    /// case. An unreadable calendar answer, or one over EXTERNAL_READ_GAS, fails closed (true: not live).
     function _closedSince(uint256 updatedAt) private view returns (bool) {
-        if (block.timestamp - updatedAt < LONG_CLOSE) return false;
         (bool ok, uint256 v) = _staticWord(
             marketHours,
             abi.encodeWithSignature("closedBetween(uint256,uint256,uint256)", updatedAt, block.timestamp, LONG_CLOSE)

@@ -93,13 +93,15 @@ interface IODMarketHours {
     /// @return closeAt  Timestamp of the close.
     /// @return reopenAt  Timestamp of the reopening.
     function nextLongClose(uint256 ts, uint256 minClosedSeconds) external view returns (uint64 closeAt, uint64 reopenAt);
-    /// @notice True when the market is out of session for at least `minClosedSeconds` in a row somewhere between
-    /// `from` and `to` (I7-2: the oracle guard uses it to refuse a pre-close feed round). Outside the pushed windows'
-    /// range the built-in calendar answers, enabled as the fallback or not; time no calendar knows is out of session.
-    /// @param from Start of the range, Unix seconds (a feed round's updatedAt).
+    /// @notice True when an out-of-session stretch of at least `minClosedSeconds` in a row ended after `from` and by
+    /// `to`, or is still running at `to` (I7-2, I8-1: the oracle guard uses it to refuse a feed round printed before
+    /// or inside a long close). The stretch is measured over its whole length, so it may have started before `from`;
+    /// one that ended at or before `from` does not count. Outside the pushed windows' range the built-in calendar and
+    /// the holiday list answer, enabled as the fallback or not; time no calendar knows is out of session.
+    /// @param from A feed round's updatedAt, Unix seconds.
     /// @param to End of the range, Unix seconds (now).
     /// @param minClosedSeconds Shortest out-of-session stretch that counts, in seconds.
-    /// @return  True when such a stretch lies in [from, to), or the walk could not finish (fail closed).
+    /// @return  True when such a stretch exists, or the walk could not finish (fail closed).
     function closedBetween(uint256 from, uint256 to, uint256 minClosedSeconds) external view returns (bool);
     /// @notice Returns the stored session windows.
     /// @return  The session windows.

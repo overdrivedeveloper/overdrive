@@ -186,7 +186,9 @@ interface IODMinter {
         external
         returns (uint256 ticket);
     /// @notice Fills a queued sell at the next fresh price.
-    /// @dev Anyone may call. Reverts with NotFillable.
+    /// @dev The ticket's owner may call on any live reading with a reference. Anyone else may call only while buys are
+    /// open on that reading (reference inside the band, no pause), or once the gear is settled (I8-2). Reverts with
+    /// NotFillable.
     /// @param ticket Id of the ticket.
     /// @return usdgOut  Amount of USDG paid out, in 6-decimal units.
     function fillQueued(uint256 ticket) external returns (uint256 usdgOut); // anyone, at the next fresh price
