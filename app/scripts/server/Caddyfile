@@ -1,10 +1,20 @@
 # Overdrive site file. provision.sh renders it (the __NAME__ words) and installs it as ONE separate file:
 #   /etc/caddy/conf.d/overdrive.caddy
 # It never edits another project's site, and Caddy is reloaded only after `caddy validate` accepts the whole config.
+# Access logs (json, rolled at 20 MiB, 5 kept) go to their own files /var/log/caddy/overdrive-api.log and overdrive-mcp.log, which the
+# usage report and the MCP kill check read; no other project's log or site is touched.
 # Overdrive owns 127.0.0.1:38101 (api) and 127.0.0.1:38102 (mcp).
 
 __API_DOMAIN__ {
 	encode zstd gzip
+	log {
+		output file /var/log/caddy/overdrive-api.log {
+			roll_size 20MiB
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
@@ -21,6 +31,14 @@ __API_DOMAIN__ {
 # BEGIN mcp
 __MCP_DOMAIN__ {
 	encode zstd gzip
+	log {
+		output file /var/log/caddy/overdrive-mcp.log {
+			roll_size 20MiB
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
