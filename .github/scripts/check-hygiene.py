@@ -123,6 +123,11 @@ if prov.exists():
             bad(f"provision.sh: {var} is '{pm.group(1)}', ci.yml says '{pins[tool]}' (server and CI must match)")
 else:
     bad("app/scripts/server/provision.sh is missing")
+deep_wf = ROOT / ".github" / "workflows" / "deep-invariants.yml"
+if deep_wf.exists():
+    dm = re.search(r"^\s*FOUNDRY_VERSION:\s*\"?v?([0-9][^\"\s]*)\"?\s*$", deep_wf.read_text(), re.M)
+    if not dm or dm.group(1) != pins.get("foundry"):
+        bad(f"deep-invariants.yml: FOUNDRY_VERSION is '{dm.group(1) if dm else None}', ci.yml says '{pins.get('foundry')}'")
 py_file = ROOT / ".python-version"
 if not py_file.exists() or py_file.read_text().strip() != pins["python"]:
     bad(f".python-version must be {pins['python']} (as in ci.yml)")

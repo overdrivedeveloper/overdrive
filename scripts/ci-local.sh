@@ -17,10 +17,12 @@ if [ -z "${RHC_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then s
 # One shared RPC (Alchemy free tier or public) answers 429 in bursts: throttle forge (retry flags need --rpc-url, so none).
 FORK_FLAGS="--compute-units-per-second 100"
 JOBS="hygiene semgrep contracts app guard scripts python web sdk slither"
+# deep is manual (15 to 25 min per seed, 100,000 handler calls): `scripts/ci-local.sh --only deep`; never in the default run.
+RUNJOBS="$JOBS"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --only) only="$2"; shift 2 ;;
+    --only) only="$2"; RUNJOBS="$JOBS deep"; shift 2 ;;
     --list) for j in $JOBS; do echo "$j"; done; exit 0 ;;
     *) echo "ci-local: unknown argument $1" >&2; exit 2 ;;
   esac
@@ -63,14 +65,15 @@ job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privil
 job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh && bash scripts/pre-push.test.sh; }
-job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
+job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && bash scripts/deep-gate.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
 job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build && bun test); }
 job_sdk() { (cd sdk && bun install --frozen-lockfile && bun run generate:check && bun test && bunx tsc --noEmit -p tsconfig.json); }
+job_deep() { bash scripts/deep-gate.sh; }
 job_python() { bash scripts/check-python-locks.sh; }
 
 failed=0
 ran=""
-for j in $JOBS; do
+for j in $RUNJOBS; do
   if [ -n "$only" ]; then case ",$only," in *",$j,"*) ;; *) continue ;; esac; fi
   ran="$ran $j"
   if "job_$j" >"$logdir/$j.log" 2>&1; then echo "ci-local: $j ok"; else echo "ci-local: $j FAILED (see $logdir/$j.log)"; tail -15 "$logdir/$j.log"; failed=1; fi
