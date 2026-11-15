@@ -13,7 +13,9 @@ test("can_exit_now_rules", async () => {
   expect(canExitNow(true, { status: "active", session: "OPEN", price: "1" })).toBe(true);
   expect(canExitNow(false, { status: "active", session: "OPEN", price: "1" })).toBe(false); // reserve at or below its floor
   expect(canExitNow(true, { status: "retired", session: "OPEN", price: "1" })).toBe(false);
-  expect(canExitNow(true, { status: "active", session: "CLOSED", price: "1" })).toBe(true); // closed: pays min(last, reference)
+  expect(canExitNow(true, { status: "active", session: "CLOSED", price: "1" })).toBe(false); // closed: instant only on a fresh Pyth print, which the API cannot see (D35)
+  expect(canExitNow(true, { status: "active", session: "HALTED", price: "1" })).toBe(false);
+  expect(canExitNow(true, { status: "active", session: "UNKNOWN", price: "1" })).toBe(false);
   expect(canExitNow(true, { status: "active", session: "CLOSED", price: null })).toBe(false); // closed with no last price
   if (!h) return;
   await h.seedIndexer();

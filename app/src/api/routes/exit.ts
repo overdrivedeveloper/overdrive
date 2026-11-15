@@ -15,11 +15,13 @@ const ExitSchema = z.object({
   gears: z.array(z.object({ symbol: z.string(), canExitNow: z.boolean(), sellMode: z.enum(["instant", "instant_min"]), rule: z.string() })),
 }).openapi("Exit");
 
-/** R10. A gear can be exited now only when the reserve is above its floor and the gear is sellable by the closed-market rule. */
+/** R10. A gear can be exited now only when the reserve is above its floor, the gear is not retired and its market is live (D35). */
 export function canExitNow(aboveFloor: boolean, g: Pick<GearView, "status" | "session" | "price">): boolean {
   if (!aboveFloor || g.status === "retired") return false;
   if (g.session === "OPEN" || g.session === "EXTENDED") return true;
-  return g.price !== null; // closed: pays the lower of the last value and a fresh Pyth value, else queues (the quote route reads the minter for which)
+  // Closed, halted or unknown: a sell is paid now only when every leg has a fresh Pyth print (D35), which only the chain
+  // knows. This route reads Postgres only, so it never promises an instant exit here; GET the quote route for the answer.
+  return false;
 }
 export const ruleWords = (sellMode: "instant" | "instant_min"): string =>
   sellMode === "instant" ? "The market is open: a sell pays the current value less the spread." : "The market is closed: a sell pays the lower of the last value and the reference value when the reference is a fresh Pyth price, and otherwise waits in the queue for the next live price.";
