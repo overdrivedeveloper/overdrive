@@ -22,7 +22,7 @@ export const QuoteSchema = z.object({
   amountIn: z.string().nullable(), amountOut: z.string().nullable(), tokensOut: z.string().nullable(), usdgOut: z.string().nullable(),
   valuePerToken: z.string().nullable(), spreadBps: z.number().nullable(), tollPerDayBps: z.string().nullable(), holdersReceive: z.boolean(), breakevenDays: z.number().nullable(),
   minOutSuggested: z.string().nullable(), minterQuote: RawQuoteSchema.nullable(), parity: z.array(z.string()),
-  queue: z.object({ rule: z.string(), minUsdgOutSuggested: z.string() }).nullable(),
+  queue: z.object({ rule: z.string(), minUsdgOutSuggested: z.string().nullable() }).nullable(),
 }).openapi("Quote");
 
 const QuoteQuery = z.object({
@@ -60,7 +60,7 @@ export function quoteDocument(deps: Pick<ApiDependencies, "deployment">, ref: { 
     valuePerToken: text(m?.valuePerTokenWad ?? null), spreadBps: spread, tollPerDayBps: toll === null ? null : tollBpsText(toll), holdersReceive: toll !== null && toll < 0n,
     breakevenDays: spread !== null && toll !== null ? breakevenDays(spread, toll) : null,
     minOutSuggested: text(o.minOutSuggested), minterQuote: rawOut(m), parity: o.parity,
-    queue: o.sellMode === "queued" && m ? { rule: "Paid at the next fresh price, never below your minimum.", minUsdgOutSuggested: (o.minOutSuggested ?? 0n).toString() } : null,
+    queue: o.sellMode === "queued" && m ? { rule: "Paid at the next fresh price, never below your minimum.", minUsdgOutSuggested: text(o.minOutSuggested) } : null,
   };
 }
 

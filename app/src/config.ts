@@ -112,7 +112,8 @@ const envSchema = z.object({
   API_WRITE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(30),
   API_CLIENT_IP_HEADER: z.string().default("cf-connecting-ip"),
   API_QUOTE_CACHE_MS: z.coerce.number().int().min(0).default(2000),
-  API_QUOTE_MAX_RPC_PER_REQUEST: z.coerce.number().int().min(1).default(2),
+  // V4Quoter + IODMinter.quote, plus IODMinter.valuePerToken for a sell queued in a market that is not live (I8-2).
+  API_QUOTE_MAX_RPC_PER_REQUEST: z.coerce.number().int().min(1).default(3),
   API_DB_READONLY_URL: z.union([z.literal(""), z.string().url()]).default(""),
   QUOTER_ADDRESS: addressOrEmpty,
   /** "chain" = V4Quoter through the hook; "mock" = the in-process mock hook (fork network only, refused elsewhere). */

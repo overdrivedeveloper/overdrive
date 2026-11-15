@@ -115,7 +115,17 @@
     try {
       var g = selGear(), tokens = L.parseUnits($("s-amt").value, state.gearDec);
       var q = await read(D.addr.ODMinter, A.minter, "quote", [g.id, false, true, tokens]);
-      var out = q[1]; $("s-min").value = L.fmtUnits(out * 99n / 100n, state.usdDec, state.usdDec);
+      var out = q[1];
+      if (out === 0n && q[8]) {
+        // A closed or halted market quotes no amount. Never fill in 0: anyone may fill a queued sell at the next live price.
+        var v = await read(D.addr.ODMinter, A.minter, "valuePerToken", [g.id]);
+        var est = tokens * v[0] / (10n ** BigInt(18 + state.gearDec - state.usdDec));
+        if (est === 0n) throw new Error("The contract has no value for this gear yet. Type the smallest USDG you accept yourself.");
+        $("s-min").value = L.fmtUnits(est * 95n / 100n, state.usdDec, state.usdDec);
+        say("sell", "The market is not live, so this sell would be queued: use Queue sell. At the last price it is worth about " + L.fmtUnits(est, state.usdDec) + " USDG. I set your minimum 5% lower. It is paid at the next live price and never below your minimum; if the price falls further the ticket waits until you cancel it and queue again.", "ok");
+        return;
+      }
+      $("s-min").value = L.fmtUnits(out * 99n / 100n, state.usdDec, state.usdDec);
       say("sell", "The contract would pay about " + L.fmtUnits(out, state.usdDec) + " USDG now. I set your minimum 1% lower so small price moves do not stop the sale. Change it if you want." + (q[8] ? " This sell would be queued, not paid now: use Queue sell." : ""), "ok");
     } catch (e) { say("sell", reasonFrom(e), "bad"); }
   }

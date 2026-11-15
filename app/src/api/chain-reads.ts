@@ -33,6 +33,8 @@ export interface ApiChain {
   /** IODMinter.quote for the same trade. */
   minterQuote(i: QuoteInput): Promise<BlockQuote>;
   minterTollPerDay(gearId: string): Promise<bigint>;
+  /** IODMinter.valuePerToken: the gear's value at the guard's price (the last good price off a live reading), WAD. */
+  minterValuePerToken?(gearId: string): Promise<bigint>;
   readonly governor: GovernorReads;
   backerHealth(vaultId: bigint): Promise<BackerHealth>;
   feeSplits(): Promise<{ protocolSpreadShareBps: number; tollFeeBps: number; distributable: bigint; nextDistributionAt: bigint }>;
@@ -115,6 +117,7 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
     blockTimestamp: async () => (await client.getBlock({ blockTag: "latest" })).timestamp,
     quoter,
     minterQuote,
+    minterValuePerToken: async (gearId) => (await client.readContract({ address: minter, abi: IODMinterAbi, functionName: "valuePerToken", args: [gearId as `0x${string}`] }))[0],
     minterTollPerDay: async (gearId) => (await client.readContract({ address: minter, abi: IODMinterAbi, functionName: "tollPerDay", args: [gearId as `0x${string}`] })),
     governor: {
       equity: async () => gov("equity"),

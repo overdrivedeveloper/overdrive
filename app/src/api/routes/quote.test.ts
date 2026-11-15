@@ -93,3 +93,43 @@ test("intent deadline counts from the chain clock when the chain is ahead of the
     expect(d >= wall + 300n && d <= wall + 310n).toBe(true);
   } finally { if (prior) chain.blockTimestamp = prior; else delete chain.blockTimestamp; }
 });
+
+// I8-2: a closed market with no reference quotes amountOut 0. The API must never turn that into a minimum of 0.
+test("a queued sell in a closed market carries a real minimum on the quote and on the intent", async () => {
+  if (!h) return;
+  const post = async (path: string, body: unknown) => { const r = await h.app.request(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, body: (await r.json()) as any }; };
+  const account = "0x00000000000000000000000000000000000000a1";
+  const g = [...h.hook.gears.values()].find((x) => x.id.toLowerCase() === h.deployment.gears.find((d) => d.symbol === "TSLA-SPORT")!.id.toLowerCase())!;
+  const saved = { session: g.session, ref: g.refValueWad };
+  g.session = 2; g.refValueWad = 0n; h.hook.block += 1n;
+  try {
+    const tokens = 3n * 10n ** 18n;
+    const expected = (tokens * g.lastValueWad * 9_500n) / 10_000n / 10n ** 30n; // last good value less 5%
+    expect(expected).toBeGreaterThan(0n);
+    const q = (await (await h.app.request(`/v1/quote?gear=TSLA-SPORT&side=sell&tokens=${tokens}`)).json()) as any;
+    expect(q.sellMode).toBe("queued");
+    expect(q.minterQuote.amountOut).toBe("0");
+    expect(q.minOutSuggested).toBe(expected.toString());
+    expect(q.queue.minUsdgOutSuggested).toBe(expected.toString());
+    const intent = await post("/v1/intent/sell", { gear: "TSLA-SPORT", account, tokens: tokens.toString() });
+    expect(intent.status).toBe(200);
+    expect(intent.body.kind).toBe("queue_sell");
+    expect(intent.body.minOut).toBe(expected.toString());
+    // the quote's minimum is the limit in the calldata, to the unit
+    const { decodeFunctionData } = await import("viem");
+    const { IODMinterAbi } = await import("../../abi");
+    const call = decodeFunctionData({ abi: IODMinterAbi, data: intent.body.tx.data });
+    expect(call.functionName).toBe("queueSell");
+    expect((call.args as readonly unknown[])[2]).toBe(expected);
+    // an explicit minimum is the caller's own choice
+    expect((await post("/v1/intent/sell", { gear: "TSLA-SPORT", account, tokens: tokens.toString(), minOut: "1" })).body.minOut).toBe("1");
+    // no last value: no suggestion and no intent without a minimum
+    const last = g.lastValueWad; g.lastValueWad = 0n; h.hook.block += 1n;
+    const none = (await (await h.app.request(`/v1/quote?gear=TSLA-SPORT&side=sell&tokens=${tokens + 1n}`)).json()) as any;
+    expect(none.minOutSuggested).toBe(null);
+    expect(none.queue.minUsdgOutSuggested).toBe(null);
+    const refused = await post("/v1/intent/sell", { gear: "TSLA-SPORT", account, tokens: (tokens + 1n).toString() });
+    expect(refused.status).toBe(409);
+    g.lastValueWad = last;
+  } finally { g.session = saved.session; g.refValueWad = saved.ref; h.hook.block += 1n; }
+});

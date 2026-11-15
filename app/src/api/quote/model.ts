@@ -74,6 +74,19 @@ export const SLIPPAGE_BPS = 50n;
 /** Minimum acceptable output for a 50 bps slippage allowance. */
 export const minOutSuggested = (amountOut: bigint, bps: bigint = SLIPPAGE_BPS): bigint => (amountOut * (10_000n - bps)) / 10_000n;
 
+/** I8-2: how far under the last good value a queued sell's suggested minimum sits (5%). */
+export const QUEUE_MARGIN_BPS = 500n;
+/** Suggested minimum USDG (6 decimals) for a queued sell: the minter's own amount less slippage when it gives one (a sell
+ * queued only because cash is short), else the tokens at the last good value per token less QUEUE_MARGIN_BPS (a closed
+ * or halted market quotes amountOut 0). null when neither is known: the caller must then choose a minimum; 0 is never
+ * suggested, because anyone may fill a ticket at the next live price. */
+export function queuedMinOut(tokens: bigint, amountOut: bigint, lastValueWad: bigint | null): bigint | null {
+  if (amountOut > 0n) return minOutSuggested(amountOut);
+  if (lastValueWad === null || lastValueWad <= 0n) return null;
+  const min = (tokens * lastValueWad * (10_000n - QUEUE_MARGIN_BPS)) / 10_000n / 10n ** 30n;
+  return min > 0n ? min : null;
+}
+
 /** Toll in bps per day as a decimal string (WAD fraction per day, times 1e4). Negative = holders receive. */
 export const tollBpsText = (tollPerDayWad: bigint): string => formatUnits(tollPerDayWad, 14);
 

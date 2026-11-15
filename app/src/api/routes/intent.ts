@@ -2,7 +2,6 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { encodeFunctionData } from "viem";
 import { IODMinterAbi } from "../../abi";
 import { ApiError } from "../errors";
-import { minOutSuggested } from "../quote/model";
 import type { QuoteService } from "../quote/quoter";
 import { resolveGear } from "../resolve";
 import { defineRoute } from "../route-kit";
@@ -41,8 +40,11 @@ export function registerIntentRoutes(app: OpenAPIHono, deps: ApiDependencies, se
     const deadline = (chainSec > wallSec ? chainSec : wallSec) + BigInt(body.deadlineSec);
     const base = { asOfBlock: o.blockNumber.toString(), asOf: new Date(o.asOfMs).toISOString(), stale: false, decimals: { usdg: 6 as const, token: 18 as const, value: 18 as const }, quoteId: o.quoteId, blockNumber: o.blockNumber.toString(), permit2: null };
     if (o.sellMode === "queued" && o.minter) {
-      const minOut = BigInt(body.minOut ?? minOutSuggested(o.minter.amountOut).toString());
-      return { ...base, kind: "queue_sell" as const, tx: { to: minter, data: encodeFunctionData({ abi: IODMinterAbi, functionName: "queueSell", args: [ref.id as `0x${string}`, amount, minOut, recipient] }), value: "0" as const }, approvals: [{ token: ref.token as `0x${string}`, spender: minter, amount: amount.toString() }], expectedOut: o.minter.amountOut.toString(), minOut: minOut.toString(), note: "Queued: paid at the next fresh price, never below your minimum." };
+      // I8-2: never build a queued sell with a minimum of 0 unless the caller sends it. The suggestion is the last
+      // good value less a stated margin; with no value to go on the caller must choose.
+      if (body.minOut === undefined && (o.minOutSuggested === null || o.minOutSuggested <= 0n)) throw new ApiError(409, "UPSTREAM", "No minimum can be suggested for this queued sell. Send minOut.", "QUEUE_MIN_UNKNOWN");
+      const minOut = BigInt(body.minOut ?? o.minOutSuggested!.toString());
+      return { ...base, kind: "queue_sell" as const, tx: { to: minter, data: encodeFunctionData({ abi: IODMinterAbi, functionName: "queueSell", args: [ref.id as `0x${string}`, amount, minOut, recipient] }), value: "0" as const }, approvals: [{ token: ref.token as `0x${string}`, spender: minter, amount: amount.toString() }], expectedOut: o.minter.amountOut.toString(), minOut: minOut.toString(), note: "Queued: paid at the next fresh price, never below your minimum. If the price falls under your minimum the ticket waits: cancel it and queue again with a lower one." };
     }
     if (!o.buyable || !o.v4) throw new ApiError(409, (o.refusal?.code === "QUEUED" || !o.refusal ? "UPSTREAM" : o.refusal.code), "This trade cannot execute now.", o.refusal?.reason);
     const out = o.v4.amountOut;

@@ -92,6 +92,7 @@ export class MockHook {
       quoter,
       minterQuote: async (i) => { calls.minter++; await wait(); return this.minterQuote(i); },
       minterTollPerDay: async (id) => { calls.other++; return this.gear(id).tollPerDayWad; },
+      minterValuePerToken: async (id) => { calls.other++; return this.gear(id).lastValueWad; },
       governor: {
         equity: never("equity"), freeCash: async () => { calls.other++; return this.book.freeCashUsdg; }, stressLoss: never("stressLoss"), hedgeStale: never("hedgeStale"),
         buysPaused: async () => { calls.other++; return { paused: false, reason: "" }; }, exposure: never("exposure"),

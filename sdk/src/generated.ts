@@ -339,7 +339,7 @@ export interface Operations {
         parity: Array<string>;
         queue: {
           rule: string;
-          minUsdgOutSuggested: string;
+          minUsdgOutSuggested: string | null;
         } | null;
       };
       400: {

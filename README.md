@@ -274,7 +274,7 @@ All config comes from environment variables and is checked at startup (`app/src/
 | `API_WRITE_RATE_LIMIT_PER_MINUTE` | `30` | Per client, intent routes |
 | `API_CLIENT_IP_HEADER` | `cf-connecting-ip` | Header carrying the client address behind the proxy |
 | `API_QUOTE_CACHE_MS` | `2000` | Quote cache lifetime |
-| `API_QUOTE_MAX_RPC_PER_REQUEST` | `2` | RPC calls one quote request may make |
+| `API_QUOTE_MAX_RPC_PER_REQUEST` | `3` | RPC calls one quote request may make |
 | `API_DB_READONLY_URL` | empty | SELECT-only Postgres role for the API; falls back to `DATABASE_URL` |
 | `QUOTER_ADDRESS` | empty | Quoter contract address; empty uses the deployment file |
 | `API_QUOTER` | `chain` | `chain` or `mock` (mock only on the fork network) |

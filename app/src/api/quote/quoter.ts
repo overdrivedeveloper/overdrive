@@ -7,7 +7,7 @@ import type { ApiChain, QuoteInput } from "../chain-reads";
 import { decodeRevert } from "../../chain/revert";
 import { ApiError } from "../errors";
 import { parityFailures as parityFailuresOrNone } from "./parity";
-import { classifyRevert, minOutSuggested, sellModeOf, type BlockQuote, type RawQuote, type Refusal, type SellMode, type Side } from "./model";
+import { classifyRevert, minOutSuggested, queuedMinOut, sellModeOf, type BlockQuote, type RawQuote, type Refusal, type SellMode, type Side } from "./model";
 
 export interface QuoteOutcome {
   gearId: string;
@@ -63,7 +63,11 @@ export function createQuoteService(options: QuoteServiceOptions) {
         // A sell the hook cannot pay now: the minter's own quote carries the queue terms (the next-fresh-price rule).
         if ("ok" in minter && minter.ok.queued) {
           const m = minter.ok;
-          return { ...base, blockNumber: m.blockNumber, v4: null, minter: m, refusal, buyable: false, sellMode: "queued", parity: [], minOutSuggested: minOutSuggested(m.amountOut), quoteId: quoteId(m.blockNumber, m.amountOut) };
+          // I8-2: a closed or halted market quotes amountOut 0. The suggested minimum then comes from the last good
+          // value, never 0: a ticket is filled by anyone at the next live price.
+          const read = options.chain.minterValuePerToken;
+          const last = m.amountOut > 0n || !read ? null : await (async () => meter(() => read(i.gear)))().catch(() => null);
+          return { ...base, blockNumber: m.blockNumber, v4: null, minter: m, refusal, buyable: false, sellMode: "queued", parity: [], minOutSuggested: queuedMinOut(i.exactIn, m.amountOut, last), quoteId: quoteId(m.blockNumber, m.amountOut) };
         }
         return refuse({ code: "UPSTREAM", reason: "PARITY_MISMATCH" }, block);
       }

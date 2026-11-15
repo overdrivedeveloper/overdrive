@@ -1217,7 +1217,10 @@
                 "type": "string"
               },
               "minUsdgOutSuggested": {
-                "type": "string"
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
