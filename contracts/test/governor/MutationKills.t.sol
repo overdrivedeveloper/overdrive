@@ -13,19 +13,14 @@ import {IODOracleGuard} from "overdrive/interfaces/IODOracleGuard.sol";
 /// mutant showed no test checked.
 contract GovernorMutationKillsTest is GovernorFixture {
     function _deployWith(uint256 zeroAt) internal returns (bool reverted) {
-        address[7] memory a = [
-            address(usdg), admin, guardian, address(reg), address(guard), address(ins), address(fees)
-        ];
+        address[7] memory a =
+            [address(usdg), admin, guardian, address(reg), address(guard), address(ins), address(fees)];
         a[zeroAt] = address(0);
         try new ODGovernor(
-            IERC20(a[0]),
-            a[1],
-            a[2],
-            IODGearRegistry(a[3]),
-            IODOracleGuard(a[4]),
-            IODInsurance(a[5]),
-            a[6]
-        ) returns (ODGovernor) {
+            IERC20(a[0]), a[1], a[2], IODGearRegistry(a[3]), IODOracleGuard(a[4]), IODInsurance(a[5]), a[6]
+        ) returns (
+            ODGovernor
+        ) {
             return false;
         } catch (bytes memory err) {
             assertEq(bytes4(err), IODGovernor.InvalidParams.selector);
