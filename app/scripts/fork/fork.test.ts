@@ -10,9 +10,12 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 const HERE = import.meta.dir;
 const REAL_FORK_DIR = process.env.FORK_DIR ?? join(process.env.HOME ?? "", ".overdrive", "fork");
 const LIVE = process.env.FORK_LIVE === "1";
-const tmp = mkdtempSync(join(tmpdir(), "od-fork-test-"));
+// Offline: the temp FORK_DIR the test preload set (src/testing/preload.ts), so it is already in place when another test
+// file imported lib.ts first. A run without the preload gets its own temp dir here.
+const ownTmp = LIVE || process.env.FORK_DIR ? undefined : mkdtempSync(join(tmpdir(), "od-fork-test-"));
+const tmp = LIVE ? "" : (ownTmp ?? process.env.FORK_DIR!);
 process.env.FORK_DIR = LIVE ? REAL_FORK_DIR : tmp;
-afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+afterAll(() => { if (ownTmp) rmSync(ownTmp, { recursive: true, force: true }); });
 
 // A temp anvil-accounts file with random keys (never anvil's real dev keys in a test file).
 if (!LIVE) {
@@ -21,6 +24,8 @@ if (!LIVE) {
 }
 
 const lib = await import("./lib");
+// lib.ts read FORK_DIR at its first import: if that was a different dir, every offline check below would read it.
+if (lib.FORK_DIR !== process.env.FORK_DIR) throw new Error(`fork.test: lib.ts loaded with FORK_DIR=${lib.FORK_DIR}, expected ${process.env.FORK_DIR}`);
 const cache = await import("./rpc-cache");
 const setup = await import("./setup");
 const warm = await import("./warm");
