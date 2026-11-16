@@ -135,7 +135,7 @@ else
     /bin/bash "$APP/scripts/deploy-fork.sh" >"$FORK_DIR/logs/deploy.log" 2>&1 || { tail -30 "$FORK_DIR/logs/deploy.log" >&2; die "deploy failed"; }
   cp "$STACK_DEPLOYMENT" "$FORK_DIR/deployment.json"
   grep '^stage' "$FORK_DIR/logs/deploy.log" | sed 's/^/up: /'
-  cp "$ROOT/security/audit-grade/post-deploy-fork.txt" "$FORK_DIR/post-deploy-check.txt"
+  cp "$ROOT/security/post-deploy-fork.txt" "$FORK_DIR/post-deploy-check.txt"
 fi
 
 # 5. Env files (keystore form, FORK_DIR only), migrations, fork relaxations and the gear listing (once), services.

@@ -12,7 +12,7 @@ evm_version = "cancun"
 bytecode_hash = "ipfs"
 cbor_metadata = true
 # Fork-test RPC throttle is a CLI flag in forge 1.8 (not a config key): see FORK_FLAGS in .github/scripts/ci-local.sh.
-fs_permissions = [{ access = "read", path = "./" }, { access = "read-write", path = "./out" }, { access = "read-write", path = "../app/deployments" }, { access = "read-write", path = "../security/audit-grade" }, { access = "read-write", path = "../.batches" }]
+fs_permissions = [{ access = "read", path = "./" }, { access = "read-write", path = "./out" }, { access = "read-write", path = "../app/deployments" }, { access = "read-write", path = "../security" }, { access = "read-write", path = "../.batches" }]
 
 [invariant]
 runs = 64

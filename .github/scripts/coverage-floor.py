@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """TEST-5: compares a fresh coverage summary (.github/scripts/coverage.sh writes contracts/coverage/summary.md) with the
-recorded floor in security/audit-grade/coverage.md (its "src/ total" row). Fails when lines, branches or functions fall
+recorded floor in security/coverage.md (its "src/ total" row). Fails when lines, branches or functions fall
 below the recorded figure. The floor only moves up: rerun with --record after a rise, never edit it down.
-Usage: python3 .github/scripts/coverage-floor.py <summary.md> <security/audit-grade/coverage.md> [--record]"""
+Usage: python3 .github/scripts/coverage-floor.py <summary.md> <security/coverage.md> [--record]"""
 import re
 import sys
 

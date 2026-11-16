@@ -62,9 +62,9 @@ app/python/vol-engine/tests/fixtures/test.*
 
 # Dry-run outputs of the deploy scripts (todo 11): fork/anvil deployments, post-deploy reports, timelock batches.
 /app/deployments/local/
-# security/audit-grade/ is committed (public audit evidence); only local dry-run reports stay out.
-/security/audit-grade/post-deploy-anvil.txt
-/security/audit-grade/post-deploy-fork.txt
+# security/ is committed (public audit evidence); only local dry-run reports stay out.
+/security/post-deploy-anvil.txt
+/security/post-deploy-fork.txt
 /.batches/
 
 # Coverage output (.github/scripts/coverage.sh); reproduce it, never commit it.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # FORMAL: Halmos symbolic checks (contracts/test/halmos), run SEPARATELY from ci-local (a full run took over an hour
 # per contract on this machine). Bounded: FORMAL_TIMEOUT seconds in all (default 540), after which the run FAILS.
-# FORMAL_ONLY (default check_StepNeverBelowMin) picks the check functions. --record writes security/audit-grade/halmos.md.
+# FORMAL_ONLY (default check_StepNeverBelowMin) picks the check functions. --record writes security/halmos.md.
 # Needs halmos on PATH (pipx install halmos). Usage: bash .github/scripts/formal.sh [--record]
 # Nightly (unbounded, hours): FORMAL_TIMEOUT=0 is not supported; run halmos directly:
 #   halmos --root contracts --contract NormSymbolic && halmos --root contracts --contract SystemSymbolic
@@ -51,6 +51,6 @@ and the unbounded run stays a nightly command (header of .github/scripts/formal.
 | SystemSymbolic.check_GapRateIsWorseOf | not run | Toll.t.sol testFuzz_GapRateIsMax, test_GapRateNeverFavoursCaller |
 | SystemSymbolic.check_NormStepBounds | not run | NormFuzz testFuzz_StepBounds |
 TABLE
-  } >"$root/security/audit-grade/halmos.md"
+  } >"$root/security/halmos.md"
 fi
 exit "$fail"

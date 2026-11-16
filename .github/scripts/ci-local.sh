@@ -18,7 +18,7 @@ if [ -z "${RHC_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then s
 FORK_FLAGS="--compute-units-per-second 100"
 JOBS="hygiene semgrep contracts app guard scripts python web sdk slither"
 # deep is manual (15 to 25 min per seed, 100,000 handler calls): `.github/scripts/ci-local.sh --only deep`; never in the default run.
-# coverage is manual too (`--only coverage`, floor in security/audit-grade/coverage.md). Halmos is NOT in ci-local: .github/scripts/formal.sh.
+# coverage is manual too (`--only coverage`, floor in security/coverage.md). Halmos is NOT in ci-local: .github/scripts/formal.sh.
 RUNJOBS="$JOBS"
 only=""
 while [ $# -gt 0 ]; do
@@ -76,7 +76,7 @@ job_scripts() { node --test web/exit/test/exit.test.mjs && bash .github/scripts/
 job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build && bun test); }
 job_sdk() { (cd sdk && bun install --frozen-lockfile && bun run generate:check && bun test && bunx tsc --noEmit -p tsconfig.json); }
 job_deep() { bash .github/scripts/deep-gate.sh; }
-job_coverage() { bash .github/scripts/coverage.sh && python3 .github/scripts/coverage-floor.py contracts/coverage/summary.md security/audit-grade/coverage.md; }
+job_coverage() { bash .github/scripts/coverage.sh && python3 .github/scripts/coverage-floor.py contracts/coverage/summary.md security/coverage.md; }
 job_python() { bash .github/scripts/check-python-locks.sh; }
 
 failed=0

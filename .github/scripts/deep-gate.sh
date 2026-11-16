@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deep invariant gate at the skill's floor of 100,000 handler calls (crypto-release-gate / audit-lessons TEST-2).
+# Deep invariant gate at the release floor of 100,000 handler calls (release gate rule TEST-2).
 # The system campaign in contracts/script/ci/deep-invariants.sh is 250 runs x depth 200 = 50,000 calls, so this runs it
 # with DEEP_SEEDS different fuzz seeds (default 2) and requires the summed calls to reach DEEP_MIN_CALLS (default 100000).
 # Not part of the default ci-local jobs (about 15 to 25 minutes per seed): `.github/scripts/ci-local.sh --only deep` or the manual

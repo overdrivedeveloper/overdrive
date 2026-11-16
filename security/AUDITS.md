@@ -1,8 +1,8 @@
 # Audit history (DOC-4)
 
 **There is no outside audit.** The owner decided on 2026-11-15 to launch without one (decision D40): every round
-below is an internal review, run with the crypto-audit-grade method (a 10-point rubric across seven categories,
-caps for open findings). An internal review is a strong pre-audit signal, not a substitute for a human audit
+below is an internal review, scored on a 10-point rubric across seven categories with
+caps for open findings. An internal review is a strong pre-audit signal, not a substitute for a human audit
 before large deposits. This is also stated in `SECURITY.md` (Accepted risks).
 
 Commits are private dev repo shas; the public copy is made from them by a signed sync. The full reports stay
