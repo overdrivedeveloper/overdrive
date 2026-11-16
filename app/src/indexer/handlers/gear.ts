@@ -3,6 +3,7 @@ import type { ChainEvent, IndexerContext } from "../types";
 import { asAddress, asNumber, gearStatusName, ZERO_BYTES32 } from "../units";
 import { addr, big, id32, iso, recordEntity } from "./common";
 import { applyEntity } from "./entities";
+import { pairVolKey } from "../../db/queries/gears";
 
 const SECONDS_PER_YEAR = 31_536_000n;
 
@@ -51,11 +52,12 @@ export async function handleAccrued(context: IndexerContext, event: ChainEvent):
   const gear = id32(event, "gearId");
   const nf = big(event, "nf");
   const toll = BigInt(String(event.args.tollPerSecWad ?? 0n));
-  const rows = await context.tx<{ market_a: string; power_wad: string }[]>`SELECT market_a, power_wad FROM gears WHERE id = ${gear}`;
+  const rows = await context.tx<{ market_a: string; market_b: string | null; power_wad: string }[]>`SELECT market_a, market_b, power_wad FROM gears WHERE id = ${gear}`;
   let sigma: bigint | undefined;
   let usage: string | null = null;
   if (rows[0]) {
-    sigma = await sigmaAt(context, rows[0].market_a, event);
+    // the minter reads a pair's sigma under the oracle pair key (ODMinterPricing: b == 0 ? a : keccak256(abi.encode(a, b)))
+    sigma = await sigmaAt(context, pairVolKey({ marketA: rows[0].market_a, marketB: rows[0].market_b }) ?? rows[0].market_a, event);
     if (sigma !== undefined) {
       // derived: usage = toll - 1/2 p (p - 1) sigma^2 per second (sigma is annualised)
       const p = toBigInt(rows[0].power_wad);

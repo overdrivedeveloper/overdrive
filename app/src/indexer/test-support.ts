@@ -113,8 +113,8 @@ export function ev(address: Address, abi: Abi, eventName: string, args: Record<s
   return { address, data, topics };
 }
 
-export const listGear = (d: Deployment, id: Hex, market: Hex, token: Address, gear = 0): L =>
-  ev(addressOf(d, "ODGearRegistry"), IODGearRegistryAbi as Abi, "GearListed", { id, marketA: market, marketB: `0x${"00".repeat(32)}`, gear, token, p0: 10n ** 18n, unitWad: 10n ** 18n });
+export const listGear = (d: Deployment, id: Hex, market: Hex, token: Address, gear = 0, marketB: Hex = `0x${"00".repeat(32)}`): L =>
+  ev(addressOf(d, "ODGearRegistry"), IODGearRegistryAbi as Abi, "GearListed", { id, marketA: market, marketB, gear, token, p0: 10n ** 18n, unitWad: 10n ** 18n });
 export const transfer = (token: Address, from: Address, to: Address, value: bigint): L => ev(token, IODGearAbi as Abi, "Transfer", { from, to, value });
 export const accrued = (d: Deployment, gearId: Hex, nf: bigint, toll = 1000n): L =>
   ev(addressOf(d, "ODMinter"), IODMinterAbi as Abi, "Accrued", { gearId, nf, tollPerSecWad: toll, dt: 3600n, tollValueUsdWad: 5n });

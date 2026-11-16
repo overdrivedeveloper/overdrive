@@ -27,6 +27,19 @@ suite("handlers", () => {
     expect(new Date(gear.last_accrual).getTime()).toBe(new Date(latest.ts).getTime());
   });
 
+  test("pair_gear_accrual_reads_sigma_under_the_oracle_pair_key", async () => {
+    // Regression: a pair gear's sigma_hat came from leg A's post; the minter and the oracle use keccak256(abi.encode(a, b)).
+    await resetDb(db.sql);
+    const eth = `0x${Buffer.from("ETH").toString("hex").padEnd(64, "0")}` as const;
+    const btc = `0x${Buffer.from("BTC").toString("hex").padEnd(64, "0")}` as const;
+    const pair = "0x53a0b92e86a2442720353fd0555f985c34c582969c5f45ba30cf5194eaff582d"; // not-a-key: the ETH/BTC oracle pair key
+    const chain = new FakeChain();
+    chain.add([listGear(d, GEAR_1, eth, TOKEN_1, 0, btc)]);
+    chain.add([volPosted(d, eth, 6000n, 1_800_000_000n), volPosted(d, pair, 4200n, 1_800_000_000n), accrued(d, GEAR_1, 9n * 10n ** 17n, 100n)]);
+    await drain(await newState(db.sql, chain));
+    expect((await db.sql`SELECT sigma_hat FROM nf_history`)[0]!.sigma_hat).toBe((4200n * 10n ** 14n).toString());
+  });
+
   test("listing_reads_cap_and_spread_from_chain_then_params_event_overwrites", async () => {
     await resetDb(db.sql);
     const chain = new FakeChain();

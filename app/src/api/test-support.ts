@@ -8,6 +8,7 @@ import type { Deployment } from "../lib/deployments";
 import { testDeployment } from "../indexer/test-support";
 import { applyMigrations, createTestDatabase, testDatabaseUrl, type TestDatabase } from "../testing/db";
 import { createApiSql } from "../db/client";
+import { pairMarketKey } from "../lib/volpost";
 import { MockHook, mockBook, mockGear, mockHookFor, type MockBook, type MockGear } from "../testing/mock-hook";
 export { mockBook, mockGear, mockHookFor };
 import { createApiApp } from "./app";
@@ -65,12 +66,17 @@ export async function harness(label: string, o: { chain?: Partial<ApiChain>; now
       const g = deployment.gears.find((x) => x.symbol === symbol)!;
       const powerWad = POWERS.find((p) => p.power === g.power)!.powerWad;
       const underlying = g.marketB ? `${g.marketA}/${g.marketB}` : g.marketA;
+      // a pair gear row carries the on-chain bytes32 market ids, as the indexer stores them; its sigma lives under the oracle pair key
+      const ascii32 = (s: string) => `0x${Buffer.from(s).toString("hex").padEnd(64, "0")}` as `0x${string}`;
+      const marketA = g.marketB ? ascii32(g.marketA) : g.marketA;
+      const marketB = g.marketB ? ascii32(g.marketB) : null;
+      const volKey = marketB ? pairMarketKey(marketA as `0x${string}`, marketB) : underlying;
       await sql`INSERT INTO gears (id, market_a, market_b, underlying, underlying_b, power, power_wad, token, cap_usd, spread_bps, status)
-        VALUES (${g.id}, ${g.marketA}, ${g.marketB}, ${underlying}, ${g.marketB}, ${g.power}, ${powerWad.toString()}, ${g.token.toLowerCase()}, ${g.capUsd}, ${g.spreadBps}, 'active') ON CONFLICT DO NOTHING`;
+        VALUES (${g.id}, ${marketA}, ${marketB}, ${underlying}, ${g.marketB}, ${g.power}, ${powerWad.toString()}, ${g.token.toLowerCase()}, ${g.capUsd}, ${g.spreadBps}, 'active') ON CONFLICT DO NOTHING`;
       await sql`INSERT INTO prices (underlying, ts, block, price_wad, session, fresh) VALUES (${underlying}, ${now.toISOString()}, 1, ${(250n * WAD).toString()}, ${s.session ?? "OPEN"}, ${s.fresh ?? true}) ON CONFLICT DO NOTHING`;
       if (s.sigmaBps !== undefined) {
         const at = new Date(now.getTime() - (s.sigmaAgeSec ?? 60) * 1000);
-        await sql`INSERT INTO vol_posts (gear_or_underlying, ts, block, tx_hash, log_index, sigma_bps) VALUES (${underlying}, ${at.toISOString()}, 1, ${idOf(`vp-${symbol}`)}, 0, ${s.sigmaBps}) ON CONFLICT DO NOTHING`;
+        await sql`INSERT INTO vol_posts (gear_or_underlying, ts, block, tx_hash, log_index, sigma_bps) VALUES (${volKey}, ${at.toISOString()}, 1, ${idOf(`vp-${symbol}`)}, 0, ${s.sigmaBps}) ON CONFLICT DO NOTHING`;
       }
       if (s.toll !== undefined) await sql`INSERT INTO nf_history (gear, ts, block, tx_hash, log_index, nf, toll) VALUES (${g.id}, ${now.toISOString()}, 1, ${idOf(`nf-${symbol}`)}, 0, ${WAD.toString()}, ${s.toll.toString()}) ON CONFLICT DO NOTHING`;
       if (s.valueWad !== undefined) await sql`INSERT INTO trades (tx_hash, log_index, block, ts, gear, account, side, tokens, usdg, value_per_token, via) VALUES (${idOf(`tr-${symbol}`)}, 0, 1, ${now.toISOString()}, ${g.id}, ${addr("a")}, 'buy', 1, 1, ${s.valueWad.toString()}, 'hook') ON CONFLICT DO NOTHING`;

@@ -52,6 +52,18 @@ test("a sigma older than two hours is shown with a floor warning, never hidden",
   expect(row.sigmaBps).toBe("3000");
 });
 
+test("pair_gear_sigma_is_read_under_the_oracle_pair_key_not_leg_a", async () => {
+  if (!h) return;
+  await h.seedGear("NVDA/TSLA-SPORT", { sigmaBps: 3000, sigmaAgeSec: 60, toll: 1000n });
+  // a newer post for leg A alone (NVDA's bytes32 id) must not stand in for the pair
+  const nvda = `0x${Buffer.from("NVDA").toString("hex").padEnd(64, "0")}`;
+  await h.raw`INSERT INTO vol_posts (gear_or_underlying, ts, block, tx_hash, log_index, sigma_bps) VALUES (${nvda}, ${new Date(Date.now() + 1000).toISOString()}, 2, ${"0x" + "77".repeat(32)}, 0, 9000)`; // not-a-key: tx hash
+  h.deps.cache.clear();
+  const body = (await (await h.app.request("/v1/tolls")).json()) as any;
+  expect(body.tolls.find((r: any) => r.symbol === "NVDA/TSLA-SPORT").sigmaBps).toBe("3000");
+  await h.raw`DELETE FROM vol_posts WHERE gear_or_underlying = ${nvda}`;
+});
+
 test("the formula page is the vol engine's document, constant for constant", async () => {
   const doc = join(import.meta.dir, "..", "..", "..", "..", "vol-engine", "FORMULA.md");
   const file = readFileSync(doc, "utf8");
