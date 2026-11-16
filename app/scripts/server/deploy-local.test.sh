@@ -412,6 +412,8 @@ sleep 1; out="$(dep "$R3" "$SHA2" OD_SETTLE=0 OD_PRE_SLEEP=0 OD_TEST_BUILD_CMD="
 check "  ... and a matching one deploys (exit 0)" bash -c '[ "$1" = 0 ] && grep -q "vol keys: every market" <<<"$2"' _ "$rc" "$out"
 
 # ---------------------------------------------------------------- K: nothing ever reached ssh or the real server
+check "remote script sets the test-root prefix empty before server_main (real box runs under set -u; 2026-11-16)" bash -c 'out="$(DEPLOY_SH_SOURCE_ONLY=1 bash -c ". \"\$1\"; remote_script" _ "$1/deploy.sh")" && [ "$(printf "%s\n" "$out" | head -1)" = "P=\"\"" ]' _ "$HERE"
+check "provision hands the Caddy site logs to the caddy user after validate (fresh box, 2026-11-16)" grep -q 'chown caddy:caddy "\$lf"' "$HERE/provision.sh"
 check "no real server address in any script" bash -c '! grep -rnE "88\.216" "$1"/*.sh "$1"/systemd "$1"/Caddyfile "$1"/env.example' _ "$HERE"
 check "ssh was never called" bash -c '[ ! -e "$1/ssh-called" ]' _ "$T"
 

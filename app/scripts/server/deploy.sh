@@ -402,7 +402,8 @@ server_main() {
 SRV
 eval "$SERVER_FNS"
 
-remote_script() { printf '%s\n%s\nserver_main "$@" </dev/null\n' "$RELEASE_FNS" "$SERVER_FNS"; }
+# P is the test-root prefix; a real server has none, and server_main runs under set -u, so the remote script sets it empty.
+remote_script() { printf 'P=""\n%s\n%s\nserver_main "$@" </dev/null\n' "$RELEASE_FNS" "$SERVER_FNS"; }
 
 # Tests source this file with DEPLOY_SH_SOURCE_ONLY=1 to reach the functions above without running a deploy.
 if [[ "${DEPLOY_SH_SOURCE_ONLY:-}" == 1 ]]; then return 0 2>/dev/null || exit 0; fi

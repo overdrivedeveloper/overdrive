@@ -446,6 +446,11 @@ else
     rm -f "$site_tmp" "$site_tmp.err" "$site_tmp.prev"
     die "caddy validate rejected the configuration: the site file and any main-file edit were reverted, Caddy was not reloaded"
   fi
+  # `caddy validate` runs as root and creates the site's log files owned by root; the caddy service user must own them or
+  # Caddy refuses to load the config (seen on a fresh box, 2026-11-16).
+  if id caddy >/dev/null 2>&1; then
+    for lf in "$P/var/log/caddy/overdrive-api.log" "$P/var/log/caddy/overdrive-mcp.log"; do [[ ! -e "$lf" ]] || chown caddy:caddy "$lf"; done
+  fi
   if grep -qE "^[[:space:]]*import[[:space:]]+.*conf\.d" "$MAIN" 2>/dev/null; then
     $CADDY_RELOAD_CMD || warn "caddy reload failed; the configuration is valid, reload it by hand"
     log "caddy: $CADDY_CONF_DIR/overdrive.caddy written for $API_DOMAIN${MCP_DOMAIN:+ and $MCP_DOMAIN}; validated and reloaded"
