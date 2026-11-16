@@ -137,7 +137,7 @@ describe("fork stack", () => {
   });
 
   test("relaxations_listed_and_applied_through_timelock", async () => {
-    expect(setup.RELAXATIONS.map((r) => r.id)).toEqual(["R5.1", "R5.2", "R5.3", "R5.4"]);
+    expect(setup.RELAXATIONS.map((r) => r.id)).toEqual(["R5.1", "R5.2", "R5.3", "R5.4", "R5.5"]);
     const cfg = {
       feed: "0x0000000000000000000000000000000000000001", stockToken: "0x0000000000000000000000000000000000000000", multiplierEmbedded: true,
       pythMultiplierEmbedded: false, alwaysOpen: true, pythId: `0x${"11".repeat(32)}`, twapPool: "0x0000000000000000000000000000000000000000",

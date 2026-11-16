@@ -37,10 +37,11 @@ import {
 
 export interface Relaxation { id: string; contract: string; what: string; why: string }
 export const RELAXATIONS: readonly Relaxation[] = [
-  { id: "R5.1", contract: "ODOracleGuard", what: "maxAgeOpen and maxAgeExtended = 30 days, every market", why: "real feeds are frozen at the fork block; warps would read HALTED" },
+  { id: "R5.1", contract: "ODOracleGuard", what: "maxAgeOpen and maxAgeExtended = 3 days (the guard's setMarket ceiling), every market", why: "real feeds are frozen at the fork block; warps would read HALTED" },
   { id: "R5.2", contract: "ODOracleGuard", what: "maxAgeClosed = 14 days (contract maximum), every market", why: "closed-session reads after warps" },
   { id: "R5.3", contract: "ODOracleGuard", what: "refBandBps = 2000 and refMaxAge = 1 day (contract maxima), every market", why: "feed, Pyth and pools frozen at different prices" },
   { id: "R5.4", contract: "Pyth Core (external)", what: "MockPyth code at the Pyth Core address, priced from the Chainlink feed, publishTime = fork clock", why: "real Pyth prices are days old; updates need signed Hermes data" },
+  { id: "R5.5", contract: "ODOracleGuard", what: "each market's feed swapped (setMarket, timelock) for a mirror MockAggregator holding the real feed's answer and decimals at the fork block, re-stamped at the current chain time on every refreshPyth (warp, freshen)", why: "the guard caps maxAgeOpen at 3 days and the run warps more than that; the frozen real feeds would read HALTED" },
 ];
 
 const feedAbi = [
@@ -66,8 +67,47 @@ function mockPythCode(): Hex {
 }
 
 /** R5.4: MockPyth code at the Pyth Core address (once), then a fresh price per market from its Chainlink feed. */
+/** R5.5: once, every market's feed becomes a mirror MockAggregator (real answer and decimals at the fork block) through the
+ * timelock; afterwards each call re-stamps the mirrors at the chain clock (answer unchanged). Returns the mirror count. */
+export async function mirrorFeeds(): Promise<number> {
+  const { pub } = await assertFork();
+  const dep = loadDeployment();
+  const guard = getAddress(dep.contracts.ODOracleGuard ?? "");
+  const file = join(FORK_DIR, "mirror-feeds.json");
+  const mirrors: Record<string, { real: Address; mirror: Address }> = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+  const w = walletFor("spare1");
+  const now = (await pub.getBlock()).timestamp;
+  const send = async (hash: Hex, what: string) => { if ((await pub.waitForTransactionReceipt({ hash })).status !== "success") throw new Error(`${what}: ${hash} reverted`); };
+  for (const m of dep.markets) {
+    if (mirrors[m.symbol]) continue;
+    const id = marketId(m.symbol);
+    const cfg = (await pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "config", args: [id] })) as unknown as MarketCfg;
+    const [, answer] = await pub.readContract({ address: cfg.feed, abi: feedAbi, functionName: "latestRoundData" });
+    const dec = await pub.readContract({ address: cfg.feed, abi: feedAbi, functionName: "decimals" });
+    const p = Bun.spawnSync([join(process.env.HOME ?? "", ".foundry/bin/forge"), "inspect", "test/mocks/MockAggregator.sol:MockAggregator", "bytecode"], { cwd: join(ROOT, "contracts"), stdout: "pipe", stderr: "pipe" });
+    const code = (p.stdout.toString().trim().split("\n").pop() ?? "") as Hex;
+    if (p.exitCode !== 0 || !/^0x[0-9a-fA-F]+$/.test(code)) throw new Error(`forge inspect MockAggregator failed: ${p.stderr.toString().slice(-400)}`);
+    const hash = await w.deployContract({ abi: [], bytecode: `${code}${encodeAbiParameters([{ type: "uint8" }, { type: "int256" }], [Number(dec), answer]).slice(2)}` as Hex, chain: null, account: w.account! } as never);
+    const r = await pub.waitForTransactionReceipt({ hash });
+    const mirror = getAddress(r.contractAddress!);
+    // the guard wants aggregator() to be a contract other than the feed itself
+    await send(await w.writeContract({ address: mirror, abi: mirrorAbi, functionName: "setAggregator", args: [getAddress(dep.external.usdg!)], chain: null, account: w.account! }), `mirror ${m.symbol} setAggregator`);
+    await send(await w.writeContract({ address: mirror, abi: mirrorAbi, functionName: "setRound", args: [answer, now], chain: null, account: w.account! }), `mirror ${m.symbol} setRound`);
+    await send(await asTimelock((tw, t) => tw.writeContract({ address: guard, abi: IODOracleGuardAbi, functionName: "setMarket", args: [id, { ...cfg, feed: mirror } as never], gas: 10_000_000n, chain: null, account: t } as never)), `mirror ${m.symbol} setMarket`);
+    mirrors[m.symbol] = { real: getAddress(cfg.feed), mirror };
+    writeFileSync(file, `${JSON.stringify(mirrors, null, 1)}\n`);
+  }
+  for (const [sym, x] of Object.entries(mirrors)) {
+    const [, answer] = await pub.readContract({ address: x.mirror, abi: feedAbi, functionName: "latestRoundData" });
+    await send(await w.writeContract({ address: x.mirror, abi: mirrorAbi, functionName: "setRound", args: [answer, now], chain: null, account: w.account! }), `mirror ${sym} restamp`);
+  }
+  return Object.keys(mirrors).length;
+}
+const mirrorAbi = parseAbi(["function setRound(int256 answer, uint256 updatedAt) external", "function setAggregator(address) external"]);
+
 export async function refreshPyth(): Promise<number> {
   const { pub, test } = await assertFork();
+  if (existsSync(join(FORK_DIR, "relaxations.json"))) await mirrorFeeds();
   const dep = loadDeployment();
   const pyth = getAddress(dep.external.pythCore ?? "");
   const guard = getAddress(dep.contracts.ODOracleGuard ?? "");
