@@ -144,7 +144,7 @@ describe("fork stack", () => {
       maxAgeOpen: 259200, maxAgeExtended: 0, maxAgeClosed: 432000, refMaxAge: 120, twapWindow: 1800, refBandBps: 200, continuityBps: 1500, enabled: true,
     } as const;
     const r = setup.relaxedMarket(cfg as never, { feedMaxAgeSec: 2592000, feedMaxAgeClosedSec: 1209600, refBandBps: 2000, refMaxAgeSec: 86400 });
-    expect(r).toMatchObject({ maxAgeOpen: 2592000, maxAgeExtended: 0, maxAgeClosed: 1209600, refBandBps: 2000, refMaxAge: 86400, continuityBps: 1500, enabled: true });
+    expect(r).toMatchObject({ maxAgeOpen: 259200, maxAgeExtended: 0, maxAgeClosed: 1209600, refBandBps: 2000, refMaxAge: 86400, continuityBps: 1500, enabled: true });
     expect(setup.pythFromFeed(150_00000000n, 2n * 10n ** 18n)).toBe(75_00000000n);
     expect(setup.pythFromFeed(150_00000000n, undefined)).toBe(150_00000000n);
     expect(setup.marketId("ETH")).toBe(`0x455448${"0".repeat(58)}`);

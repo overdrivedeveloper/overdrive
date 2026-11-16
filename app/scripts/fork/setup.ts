@@ -151,14 +151,19 @@ type MarketCfg = {
   refBandBps: number; continuityBps: number; enabled: boolean;
 };
 /** The relaxed MarketConfig for one market (pure, tested). Leaves refMaxAge alone when no Pyth id is set. */
+/** ODOracleGuard.setMarket bounds (MAX_MAX_AGE_OPEN, MAX_MAX_AGE_CLOSED, MAX_REF_BAND_BPS, MAX_REF_MAX_AGE): a relaxation
+ * past them reverts InvalidConfig, so every relaxed value is clamped to them. */
+export const GUARD_BOUNDS = { maxAgeOpen: 3 * 86_400, maxAgeClosed: 14 * 86_400, refBandBps: 2000, refMaxAge: 86_400 } as const;
+
 export function relaxedMarket(cfg: MarketCfg, r = loadForkConfig().relaxations): MarketCfg {
+  const b = GUARD_BOUNDS;
   return {
     ...cfg,
-    maxAgeOpen: Math.max(cfg.maxAgeOpen, r.feedMaxAgeSec),
-    maxAgeExtended: cfg.alwaysOpen && cfg.maxAgeExtended === 0 ? 0 : Math.max(cfg.maxAgeExtended, r.feedMaxAgeSec),
-    maxAgeClosed: Math.max(cfg.maxAgeClosed, r.feedMaxAgeClosedSec),
-    refBandBps: Math.max(cfg.refBandBps, r.refBandBps),
-    refMaxAge: /^0x0+$/.test(cfg.pythId) ? cfg.refMaxAge : Math.max(cfg.refMaxAge, r.refMaxAgeSec),
+    maxAgeOpen: Math.min(Math.max(cfg.maxAgeOpen, r.feedMaxAgeSec), b.maxAgeOpen),
+    maxAgeExtended: cfg.alwaysOpen && cfg.maxAgeExtended === 0 ? 0 : Math.min(Math.max(cfg.maxAgeExtended, r.feedMaxAgeSec), b.maxAgeOpen),
+    maxAgeClosed: Math.min(Math.max(cfg.maxAgeClosed, r.feedMaxAgeClosedSec), b.maxAgeClosed),
+    refBandBps: Math.min(Math.max(cfg.refBandBps, r.refBandBps), b.refBandBps),
+    refMaxAge: /^0x0+$/.test(cfg.pythId) ? cfg.refMaxAge : Math.min(Math.max(cfg.refMaxAge, r.refMaxAgeSec), b.refMaxAge),
   };
 }
 

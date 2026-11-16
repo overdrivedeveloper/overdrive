@@ -12,7 +12,7 @@
  },
  "usdgHolder": "0x6bEbb110c9BB93D529d1EAB51D44bcf49ae585D5",
  "relaxations": {
-  "feedMaxAgeSec": 2592000,
+  "feedMaxAgeSec": 259200,
   "feedMaxAgeClosedSec": 1209600,
   "refBandBps": 2000,
   "refMaxAgeSec": 86400
