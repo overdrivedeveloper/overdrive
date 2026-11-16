@@ -19,12 +19,16 @@ function apiBase(configured: string): string {
   return base;
 }
 
-/** Posts `text` to the ops chat (TELEGRAM_OPS_CHAT_ID) and, when set, the community chat. True when a chat accepted it. */
+/**
+ * Posts `text` to the ops chat (TELEGRAM_OPS_CHAT_ID) only. Ops alerts never go to the community chat: with no ops
+ * chat id the call refuses before any request, even when TELEGRAM_COMMUNITY_CHAT_ID is set. True when Telegram accepted it.
+ */
 export async function sendTelegram(envFile: string, text: string, fetchImpl: typeof fetch = fetch, apiBaseUrl: string = DEFAULT_API_BASE): Promise<boolean> {
   const file = readFileSync(envFile, "utf8");
   const token = readEnvValue(file, "TELEGRAM_BOT_TOKEN");
-  const ops = readEnvValue(file, "TELEGRAM_OPS_CHAT_ID") || readEnvValue(file, "TELEGRAM_COMMUNITY_CHAT_ID");
-  if (!token || !ops) throw new Error(`no TELEGRAM_BOT_TOKEN or chat id in ${envFile}`);
+  const ops = readEnvValue(file, "TELEGRAM_OPS_CHAT_ID");
+  if (!token) throw new Error(`no TELEGRAM_BOT_TOKEN in ${envFile}`);
+  if (!ops) throw new Error(`no TELEGRAM_OPS_CHAT_ID in ${envFile}; ops alerts are never sent to the community chat`);
   const base = apiBase(apiBaseUrl);
   try {
     const response = await fetchImpl(`${base}/bot${token}/sendMessage`, {
