@@ -1,0 +1,38 @@
+[Unit]
+Description=Overdrive team Telegram bot (read only commands, long poll)
+After=network-online.target overdrive-api.service
+Wants=network-online.target
+PartOf=overdrive.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=overdrive-telegram
+Group=overdrive-telegram
+Slice=overdrive.slice
+WorkingDirectory=/opt/overdrive/current/app
+EnvironmentFile=/etc/overdrive/overdrive.env
+# telegram.env holds TELEGRAM_BOT_TOKEN, TELEGRAM_OPS_CHAT_ID and TELEGRAM_ALLOWED_USER_IDS (root, 0600). The bot holds no
+# chain key and no database password; it reads the local API only. With any of the three blank it logs and exits cleanly.
+EnvironmentFile=/etc/overdrive/telegram.env
+Environment=NODE_ENV=production
+ExecStart=/opt/overdrive/bin/bun src/bin/telegram-bot.ts
+Restart=on-failure
+RestartSec=5
+MemoryMax=128M
+MemorySwapMax=0
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/overdrive/telegram
+
+[Install]
+WantedBy=overdrive.target

@@ -88,7 +88,7 @@ mkd() { # mkd <mode> <owner:group> <dir>
   chmod "$1" "$3"; own "$2" "$3"
 }
 
-SERVICES=(api indexer crank hedger liquidator vol-engine mcp risk-sim)
+SERVICES=(api indexer crank hedger liquidator vol-engine mcp risk-sim telegram)
 KEYS_DIR="$ETC/keys"
 key_owner() { # keystore role -> the one service that signs with it
   case "$1" in
