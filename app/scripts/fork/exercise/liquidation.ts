@@ -45,7 +45,7 @@ async function readyAt(ctx: Ctx, batchId: bigint): Promise<bigint> {
 }
 async function executeAt(ctx: Ctx, row: Row, batchId: bigint, label: string) {
   const at = await readyAt(ctx, batchId);
-  if ((await nowTs(ctx)) < at) await ctx.test.setNextBlockTimestamp({ timestamp: Number(at) });
+  await (await import("./harness")).nextBlockAtLeast(ctx, at);
   return row.send(label, "liquidator", { address: ctx.c.ODBacker!, abi: backerAbi, functionName: "executeBatch", args: [batchId], gas: 8_000_000n });
 }
 const D_OF = (tokens: bigint, sealed: bigint) => { const w = (tokens * sealed + 10n ** 18n - 1n) / 10n ** 18n; return (w + 10n ** 12n - 1n) / 10n ** 12n; };
@@ -156,6 +156,8 @@ const B05b: Flow = {
     await row.expectRevert("re-seal E after the price recovered", "liquidator", { address: ctx.c.ODBacker!, abi: backerAbi, functionName: "sealBatch", args: [g.id, [exp]] }, ["SealRefused"]);
     row.chain("E still holds its debt and collateral (nothing was liquidated)", (await vaultOf(ctx, exp))[3] > 0n, true);
     // and when it is still sick, a new seal succeeds as a new batch
+    // two in-band steps from the reset price: one +21 percent print is a continuity jump the guard refuses to liquidate on
+    await moveMckr(ctx, row, up(MCKR_PRICE, 10), "MCKR price +10 percent (E sick, step 1)");
     await moveMckr(ctx, row, up(up(MCKR_PRICE, 10), 10), "MCKR price up again (E sick)");
     const ev3 = await sealBatch(ctx, row, g, [exp], "re-seal E: a NEW batch (not the expired one)");
     row.chainTrue("new batch id", ev3.batchId > ev2.batchId, `${ev3.batchId} > ${ev2.batchId}`);

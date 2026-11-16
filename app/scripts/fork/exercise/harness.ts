@@ -104,6 +104,14 @@ export const tokenOf = (ctx: Ctx, token: Address, who: Address) => ctx.pub.readC
 
 /** Runs `fn` with the next block pinned to T = latest + 1 s, so a quote taken with `blockOverrides.time = T` and the
  * transaction mined at T see the same clock (a toll accrual quoted in another second is a different number). */
+/** The next block lands no earlier than `t`. A service block that already passed `t` is fine (the chain is past it). */
+export async function nextBlockAtLeast(ctx: Ctx, t: bigint): Promise<void> {
+  if ((await nowTs(ctx)) >= t) return;
+  try { await ctx.test.setNextBlockTimestamp({ timestamp: t }); } catch (e) {
+    if (!/lower than previous block's timestamp/.test((e as Error).message)) throw e;
+  }
+}
+
 export async function atNextSecond<R>(ctx: Ctx, fn: (t: bigint) => Promise<R>): Promise<R> {
   // the stack's services mine their own blocks: one can land between the read and the set, so re-read and retry
   for (let i = 0; ; i++) {

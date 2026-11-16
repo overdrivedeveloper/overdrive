@@ -280,7 +280,7 @@ const B09: Flow = {
       const rec = await row.send("seal a batch (permissionless) while minting is paused", "liquidator", { address: liq, abi: backerAbi, functionName: "sealBatch", args: [g.id, [victim]], gas: G });
       const sealed = (await eventsOf(ctx, rec.hash, backerAbi, "BatchSealed"))[0]!.args as { batchId: bigint };
       const [readyAt] = (await ctx.pub.readContract({ address: liq, abi: IODBackerAbi, functionName: "batchWindow", args: [sealed.batchId] })) as readonly [bigint, bigint];
-      await ctx.test.setNextBlockTimestamp({ timestamp: readyAt });
+      await (await import("./harness")).nextBlockAtLeast(ctx, readyAt);
       const ex = await row.send("execute the batch while minting is paused", "liquidator", { address: liq, abi: backerAbi, functionName: "executeBatch", args: [sealed.batchId], gas: 6_000_000n });
       const liqd = (await eventsOf(ctx, ex.hash, backerAbi, "Liquidated"))[0]?.args as { vaultId: bigint; debtTokens: bigint } | undefined;
       row.chain("vault B liquidated while minting is paused", liqd?.vaultId, victim);
