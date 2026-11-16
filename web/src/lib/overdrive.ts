@@ -56,7 +56,6 @@ export const MARKETS: readonly Market[] = [
   market('MSFT', 'Microsoft', 'Mega-caps'),
   market('META', 'Meta', 'Mega-caps'),
   market('AMZN', 'Amazon', 'Mega-caps'),
-  market('HOOD', 'Robinhood', 'Retail favourites'),
   market('COIN', 'Coinbase', 'Retail favourites'),
   market('MSTR', 'Strategy', 'Retail favourites'),
   market('PLTR', 'Palantir', 'Retail favourites'),
