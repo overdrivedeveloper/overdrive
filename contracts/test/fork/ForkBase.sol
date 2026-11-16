@@ -67,7 +67,7 @@ contract SettleFirstRouter is IUnlockCallback {
     }
 }
 
-/// HookFixture on a fork of Robinhood Chain mainnet (latest block): the hook binds to the DEPLOYED PoolManager and is
+/// HookFixture on a fork of Robinhood Chain mainnet (pinned block, ForkPin): the hook binds to the DEPLOYED PoolManager and is
 /// quoted through the DEPLOYED V4Quoter and routed through the DEPLOYED Universal Router. The Overdrive system itself
 /// (minter, Governor, registry, oracle guard) is deployed fresh on the fork with the SystemFixture mocks for USDG,
 /// feeds and Stock Tokens: the quoter, the PoolManager and the router never read those, so parity is unaffected.

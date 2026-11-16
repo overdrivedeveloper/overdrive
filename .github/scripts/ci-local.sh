@@ -5,7 +5,8 @@
 # On an all-green run on a clean tree it writes .ci-local/green/<sha>.json with the list of jobs that ran and
 # "scope": "full" or "subset". .githooks/pre-push refuses a push unless a stamp for the tree lists every required job
 # (all of them, contracts and slither included), so an --only run never opens the gate by itself.
-# Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL.
+# Logs: .ci-local/logs/<timestamp>/<job>.log. Exit status 0 only if no job failed. Fork tests skip without RHC_RPC_URL; with it they fork the pinned block
+# (contracts/test/utils/ForkPin.sol, needs an archive RPC); .github/scripts/fork-live.sh is the non-gating latest-block run.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$root"

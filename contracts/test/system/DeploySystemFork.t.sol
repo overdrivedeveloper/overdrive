@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ODTest} from "../utils/ODTest.sol";
+import {ForkPin} from "../utils/ForkPin.sol";
 import {DeploySystem} from "../../script/DeploySystem.s.sol";
 import {SystemConfig} from "../../script/lib/SystemConfig.sol";
 import {SystemDeployer} from "../../script/lib/SystemDeployer.sol";
@@ -22,13 +23,7 @@ contract DeploySystemForkTest is ODTest {
             vm.skip(true);
             return;
         }
-        string memory url = vm.envString("RHC_RPC_URL");
-        bytes memory raw = vm.rpc(url, "eth_blockNumber", "[]");
-        uint256 latest;
-        for (uint256 i; i < raw.length; ++i) {
-            latest = (latest << 8) | uint8(raw[i]);
-        }
-        vm.createSelectFork(url, latest - latest % 500);
+        ForkPin.select(vm.envString("RHC_RPC_URL"));
         ds = new DeploySystem();
     }
 

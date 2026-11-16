@@ -8,6 +8,7 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {ODTest} from "../utils/ODTest.sol";
+import {ForkPin} from "../utils/ForkPin.sol";
 import {SettleFirstRouter} from "./ForkBase.sol";
 import {ODOracleGuard} from "overdrive/oracle/ODOracleGuard.sol";
 import {ODMarketHours} from "overdrive/oracle/ODMarketHours.sol";
@@ -29,7 +30,7 @@ import {IODMinter} from "overdrive/interfaces/IODMinter.sol";
 import {IODMarketHours, SessionWindow} from "overdrive/interfaces/IODMarketHours.sol";
 import {Gear, MarketConfig, PriceReading, Session} from "overdrive/interfaces/ODTypes.sol";
 
-/// The full Overdrive system on a fork of Robinhood Chain mainnet (latest block): REAL USDG, the REAL v4 PoolManager,
+/// The full Overdrive system on a fork of Robinhood Chain mainnet (pinned block, ForkPin): REAL USDG, the REAL v4 PoolManager,
 /// REAL Chainlink feed proxies, REAL Stock Tokens, REAL v3 TWAP pools and the REAL Pyth Core address (2026-11-13
 /// survey, docs feeds.json). Every Overdrive contract is deployed fresh. The launch gear set is listed:
 ///   ETH, BTC, NVDA, TSLA: CRUISE, SPORT, ECO, REVERSE (RACE refused: vol ceiling above 40%)
@@ -130,16 +131,10 @@ abstract contract ForkSystem is ODTest {
         _poke();
     }
 
-    /// Forks a recent block rounded down to a multiple of 500 (about 90 s), so every test of a run shares one fork
-    /// backend and its RPC cache instead of each fetching `latest` again (the public RPC rate-limits at 429).
+    /// Forks the pinned block (ForkPin), so every test of a run shares one fork backend and forge's on-disk RPC cache
+    /// for that block instead of each fetching live state (the public RPC rate-limits at 429).
     function _forkShared() internal {
-        string memory url = vm.envString("RHC_RPC_URL");
-        bytes memory raw = vm.rpc(url, "eth_blockNumber", "[]");
-        uint256 latest;
-        for (uint256 i; i < raw.length; ++i) {
-            latest = (latest << 8) | uint8(raw[i]);
-        }
-        vm.createSelectFork(url, latest - latest % 500);
+        ForkPin.select(vm.envString("RHC_RPC_URL"));
     }
 
     function _seedUsdg() internal view virtual returns (uint256) {

@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {ForkPin} from "../utils/ForkPin.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ODOracleGuard} from "overdrive/oracle/ODOracleGuard.sol";
 import {MarketConfig, PriceReading, Session} from "overdrive/interfaces/ODTypes.sol";
@@ -44,7 +45,7 @@ contract Ind5LiveOracleForkTest is Test {
             vm.skip(true);
             return;
         }
-        vm.createSelectFork(url);
+        ForkPin.select(url);
         MockKindCalendar cal = new MockKindCalendar(Session.OPEN); // in session, whatever the day of the run
         guard = new ODOracleGuard(admin, makeAddr("guardian"), address(cal), PYTH, address(0));
         vm.startPrank(admin);

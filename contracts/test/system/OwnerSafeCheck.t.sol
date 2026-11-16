@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ODTest} from "../utils/ODTest.sol";
+import {ForkPin} from "../utils/ForkPin.sol";
 import {DeploySystem} from "../../script/DeploySystem.s.sol";
 
 /// DEP-8 and SAFE-1: the post-deploy check pins the codehash of the Safe singletons, factory, fallback handler,
@@ -24,7 +25,7 @@ contract OwnerSafeCheckTest is ODTest {
     function _fork() internal returns (bool) {
         string memory url = vm.envOr("RHC_RPC_URL", string(""));
         if (bytes(url).length == 0) return false;
-        vm.createSelectFork(url);
+        ForkPin.select(url);
         if (block.chainid != 4663) return false;
         ds = new DeploySystem();
         return true;

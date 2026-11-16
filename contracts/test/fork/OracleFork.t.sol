@@ -8,7 +8,7 @@ import {ODMarketHours} from "../../src/oracle/ODMarketHours.sol";
 import {SessionWindow} from "../../src/interfaces/IODMarketHours.sol";
 import {MarketConfig, PriceReading, Session} from "../../src/interfaces/ODTypes.sol";
 
-/// Live Robinhood Chain (4663) feeds, Stock Tokens, v3 pools and Pyth Core, on a fork of the latest block. Skips
+/// Live Robinhood Chain (4663) feeds, Stock Tokens, v3 pools and Pyth Core, on a fork of the pinned block (ForkPin). Skips
 /// without RHC_RPC_URL. Addresses and per-feed age bounds come from the 2026-11-13 chain survey: the in-session bound
 /// is 1.25 x the largest observed in-session gap (at least 26 h), the closed bound 1.25 x the largest closed gap
 /// (5 to 14 days), because quiet feeds (SPY, QQQ, AAPL, MSFT, AMZN) go about 1 day in session and 3.8 days over a
