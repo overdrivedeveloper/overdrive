@@ -7,7 +7,7 @@ set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/env.sh"
 /bin/bash "$(cd "$(dirname "$0")" && pwd)/down.sh"
 rm -rf "$FORK_DIR/state.json" "$FORK_DIR/fork-block" "$FORK_DIR/warmed" "$FORK_DIR/deployment.json" "$FORK_DIR/deploy-config.json" \
-  "$FORK_DIR/relaxations.json" "$FORK_DIR/gears-listed.json" "$FORK_DIR/anvil-accounts.json" "$FORK_DIR/keys" "$FORK_DIR/env" "$FORK_DIR/pg" "$FORK_DIR/pids" \
+  "$FORK_DIR/relaxations.json" "$FORK_DIR/mirror-feeds.json" "$FORK_DIR/gears-listed.json" "$FORK_DIR/anvil-accounts.json" "$FORK_DIR/keys" "$FORK_DIR/env" "$FORK_DIR/pg" "$FORK_DIR/pids" \
   "$FORK_DIR/exercise"
 rm -f "$APP/deployments/local/fork-stack.json" "$ROOT/.batches/fork-list-gears.json" "$ROOT/.batches/fork-list-gears.execute.json" "$ROOT/.audit-grade/post-deploy-fork.txt"
 echo "fork: reset (next up.sh forks the latest block and deploys)"
