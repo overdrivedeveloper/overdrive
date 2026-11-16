@@ -1,13 +1,14 @@
 // Backer flows B01 to B04, B09, B10 (todo 22c). B05 to B08 (liquidation) live in liquidation.ts and share the helpers below.
 // Fixtures: ETH-SPORT (real frozen feed, 200 percent initial) and MCKR-RACE (mock always-open market, 250 percent initial).
 import { encodeFunctionData, parseEventLogs, type Address, type Hex } from "viem";
-import { IODBackerAbi, IODGovernorAbi } from "../../../src/abi";
+import { IODBackerAbi, IODGovernorAbi, IODOracleGuardAbi } from "../../../src/abi";
 import { addressOf } from "../lib";
 import {
-  GEAR, apiGet, approveMinter, ensureCapital, ensureGear, ensureMockMarket, freshen, fundRole, nowTs, pollApi, postVol, pushMockFeed, refreshMocks,
+  GEAR, apiGet, approveMinter, ensureCapital, ensureGear, ensureMockMarket, freshen, fundRole, nowTs, pokeMarket, pollApi, postVol, pushMockFeed, refreshMocks,
   sellDirect, tokenOf, usdgOf, warpBy, atNextSecond, readAt, revertNames, U, type Abi, type Ctx, type Flow, type GearInfo, type Row, type Role,
 } from "./harness";
 import { walletFor } from "../lib";
+import { marketId } from "../setup";
 
 export const G = 3_000_000n; // explicit gas: plain estimates under-run on this fork
 export const backerAbi = IODBackerAbi as unknown as Abi;
@@ -46,8 +47,27 @@ export async function resetMckr(ctx: Ctx, row: Row | null, price = MCKR_PRICE): 
   const w = walletFor("deployer");
   const hash = await w.writeContract({ address: m.feed, abi: (await import("./harness")).mockFeedAbi, functionName: "setRound", args: [price, await nowTs(ctx)], chain: null, account: w.account! } as never);
   await ctx.pub.waitForTransactionReceipt({ hash });
+  await settleMckr(ctx, row, price);
   await freshen(ctx, ["ETH", "BTC", "MCKR"]);
-  void row;
+}
+
+/** The keeper's poke after a MCKR print, so the guard's last good price follows each in-band step (production cranks poke every
+ * pass). A move back from far away is a continuity jump the guard latches: it clears only as the product defines, after
+ * CONFIRMATIONS_TO_CLEAR later prints at the new level, so print and poke that many more rounds. */
+async function settleMckr(ctx: Ctx, row: Row | null, price: bigint): Promise<void> {
+  const m = await ensureMockMarket(ctx, "MCKR", true, { alwaysOpen: true, volCeil: 4000n });
+  const reason = async () => (await ctx.pub.readContract({ address: ctx.c.ODOracleGuard!, abi: IODOracleGuardAbi, functionName: "buysPausedReason", args: [marketId("MCKR")] })) as Hex;
+  const CONT = `0x${Buffer.from("CONTINUITY").toString("hex").padEnd(64, "0")}`;
+  await pokeMarket(ctx, row, "MCKR");
+  const w = walletFor("deployer");
+  for (let i = 0; i < 4 && (await reason()) === CONT; i++) {
+    await ctx.test.increaseTime({ seconds: 1 });
+    await ctx.test.mine({ blocks: 1 });
+    const hash = await w.writeContract({ address: m.feed, abi: (await import("./harness")).mockFeedAbi, functionName: "setRound", args: [price, await nowTs(ctx)], chain: null, account: w.account! } as never);
+    await ctx.pub.waitForTransactionReceipt({ hash });
+    await pokeMarket(ctx, row, "MCKR");
+  }
+  if ((await reason()) === CONT) throw new Error("MCKR continuity pause did not clear after the confirming prints");
 }
 
 /** Moves the MCKR price (one step, kept inside the guard's continuity band) and re-prices its mock Pyth entry. */
@@ -55,6 +75,7 @@ export async function moveMckr(ctx: Ctx, row: Row, price: bigint, label: string)
   const m = await ensureMockMarket(ctx, "MCKR", true, { alwaysOpen: true, volCeil: 4000n });
   await pushMockFeed(ctx, row, m, price, undefined, label);
   await refreshMocks(ctx);
+  await pokeMarket(ctx, row, "MCKR");
 }
 
 /** Opens a vault for `role` and returns its id. */
