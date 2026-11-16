@@ -3,7 +3,7 @@ import type { MiddlewareHandler } from "hono";
 
 /** Cache policy for read routes that do not set their own header. */
 const DEFAULT_CACHE: ReadonlyArray<readonly [string, string]> = [
-  ["/v1/health", "public, max-age=2"],
+  ["/health", "public, max-age=2"],
   ["/v1/openapi.json", "public, max-age=300"],
 ];
 

@@ -414,6 +414,7 @@ check "  ... and a matching one deploys (exit 0)" bash -c '[ "$1" = 0 ] && grep 
 # ---------------------------------------------------------------- K: nothing ever reached ssh or the real server
 check "remote script sets the test-root prefix empty before server_main (real box runs under set -u; 2026-11-16)" bash -c 'out="$(DEPLOY_SH_SOURCE_ONLY=1 bash -c ". \"\$1\"; remote_script" _ "$1/deploy.sh")" && [ "$(printf "%s\n" "$out" | head -1)" = "P=\"\"" ]' _ "$HERE"
 check "provision hands the Caddy site logs to the caddy user after validate (fresh box, 2026-11-16)" grep -q 'chown caddy:caddy "\$lf"' "$HERE/provision.sh"
+check "every health path the scripts and Caddy probe is a route the API serves (it is /health, not /v1/health; 2026-11-16)" bash -c 'grep -q "path: \"/health\"" "$1/../../src/api/routes/health.ts" && ! grep -rn "v1/health" "$1"/deploy.sh "$1"/Caddyfile "$1/../../src/api/http-cache.ts"' _ "$HERE"
 check "no real server address in any script" bash -c '! grep -rnE "88\.216" "$1"/*.sh "$1"/systemd "$1"/Caddyfile "$1"/env.example' _ "$HERE"
 check "ssh was never called" bash -c '[ ! -e "$1/ssh-called" ]' _ "$T"
 

@@ -189,7 +189,7 @@ server_main() {
     *) s_die "NETWORK must be mainnet or testnet in $ENVF (it is '$NET')" ;;
   esac
   local api_port; api_port="$(envval API_PORT)"; api_port="${api_port:-38101}"
-  api_url() { printf 'http://127.0.0.1:%s/v1/health' "$api_port"; }
+  api_url() { printf 'http://127.0.0.1:%s/health' "$api_port"; }
 
   health_api() { # the API is the one service with an HTTP health route
     local timeout="$1" deadline body code
@@ -542,7 +542,7 @@ log "uploaded code and $DEP_NAME ($NET)"
 run_remote deploy "$REL" "$SHA" "$NET"
 
 if [[ -n "${OVERDRIVE_PUBLIC_API_URL:-}" ]]; then
-  curl -fsS -m 20 "${OVERDRIVE_PUBLIC_API_URL%/}/v1/health" >/dev/null && log "public API ok (${OVERDRIVE_PUBLIC_API_URL%/}/v1/health)" \
-    || die "public API check failed at ${OVERDRIVE_PUBLIC_API_URL%/}/v1/health (DNS, Caddy certificate or firewall?)"
+  curl -fsS -m 20 "${OVERDRIVE_PUBLIC_API_URL%/}/health" >/dev/null && log "public API ok (${OVERDRIVE_PUBLIC_API_URL%/}/health)" \
+    || die "public API check failed at ${OVERDRIVE_PUBLIC_API_URL%/}/health (DNS, Caddy certificate or firewall?)"
 fi
 log "done"

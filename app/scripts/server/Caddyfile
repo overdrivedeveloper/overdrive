@@ -23,7 +23,7 @@ __API_DOMAIN__ {
 	}
 	reverse_proxy 127.0.0.1:38101 {
 		header_up X-Forwarded-For {remote_host}
-		health_uri /v1/health
+		health_uri /health
 		health_interval 30s
 	}
 }
