@@ -8,7 +8,7 @@ Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI a
 | File | What it holds |
 |---|---|
 | `slither.config.json` | paths skipped, detectors excluded, `fail_on: pedantic` so any new result fails |
-| `slither.db.json` | the 151 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
+| `slither.db.json` | the 159 triaged results (id, check, reason). A change to a flagged function changes its id and the result comes back for a new read |
 
 ## Excluded detectors (style or by-design, whole class)
 
@@ -52,6 +52,9 @@ reasons kept) and added one, read against the source: `unused-return` in `ODMint
 the source flag of `ODOracleGuard.refPrice` (the price is already in the reading).
 Fix round 11 moved 27 results (line shifts in `ODOracleGuard`, `ODMinter` and `ODCalendar`; each matched its old
 entry word for word apart from line numbers, reasons kept) and added none. 151 triaged results, 0 open.
+Shutdown helper (2026-11-16) added 8, each read against the source: `src/periphery/ODHookSeed.sol` (D26 seed helper for the owner
+Safe): arbitrary `from` (the immutable owner Safe, owner-only entry), the unused `unlock` return, calls in the token loop, and
+events after the previous iteration's calls. 159 triaged results, 0 open.
 
 To re-triage: `cd contracts && slither . --config-file slither.config.json`, read the new results, then add them to the db.
 

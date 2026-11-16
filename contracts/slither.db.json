@@ -1357,5 +1357,77 @@
   "description": "ODMinterPricing._fromPyth(IODOracleGuard,bytes32) (src/governor/ODMinterPricing.sol#145-147) ignores return value by (None,pyth) = guard.refPrice(market) (src/governor/ODMinterPricing.sol#146)\n",
   "first_markdown_element": "src/governor/ODMinterPricing.sol#L145-L147",
   "triage": "accepted by design: ODMinterPricing._fromPyth needs only the source flag of ODOracleGuard.refPrice (I7-1); the reference price itself is already in the reading taken by context from guard.read / readRatio in the same call."
+ },
+ {
+  "id": "2c01df04459d3d1a5ba3df58ff20b56a3857ff022e05b87ca08725a39c96b7b9",
+  "check": "arbitrary-send-erc20",
+  "impact": "High",
+  "confidence": "High",
+  "description": "ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87) uses arbitrary from in transferFrom: IERC20(currencies[i]).safeTransferFrom(owner,address(poolManager),amt) (src/periphery/ODHookSeed.sol#77)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "accepted by design: `from` is the immutable owner Safe and only the owner can start the unlock (`_run` checks msg.sender == owner; the PoolManager calls back only the contract that called unlock). The amount is the Safe's own exact approval in the same Safe batch."
+ },
+ {
+  "id": "84d96f9a38981bcf6e13a87f641f0de52f9781db74bf32b8faa5116d689b20bd",
+  "check": "unused-return",
+  "impact": "Medium",
+  "confidence": "Medium",
+  "description": "ODHookSeed._run(uint8,address[],uint256[]) (src/periphery/ODHookSeed.sol#89-96) ignores return value by poolManager.unlock(abi.encode(op,currencies,amounts)) (src/periphery/ODHookSeed.sol#95)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L89-L96",
+  "triage": "accepted: the helper's callback returns empty bytes, so the return of unlock carries nothing; the return of settle is checked against the amount (SettledShort)."
+ },
+ {
+  "id": "032f062ac7107689fc477751f72653847f77fb67cf0c7448c76b716a5d190496",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87) has external calls inside a loop: poolManager.take(c,owner,amt) (src/periphery/ODHookSeed.sol#83)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "accepted: the loop runs over the owner Safe's own short token list (USDG plus the launch gears) against the fixed PoolManager; a revert reverts the Safe's own batch and touches nobody else."
+ },
+ {
+  "id": "165ba90aebf26511d8f38d46a73f6018eb7bfef043ad280dd9577f1581e18b09",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87) has external calls inside a loop: poolManager.burn(owner,c.toId(),amt) (src/periphery/ODHookSeed.sol#82)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "accepted: the loop runs over the owner Safe's own short token list (USDG plus the launch gears) against the fixed PoolManager; a revert reverts the Safe's own batch and touches nobody else."
+ },
+ {
+  "id": "1d3a7cdabd68be7f6c258b159873bfa690ea9fcc6f2e7e7654f9d50af5d99900",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87) has external calls inside a loop: poolManager.mint(owner,c.toId(),amt) (src/periphery/ODHookSeed.sol#79)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "accepted: the loop runs over the owner Safe's own short token list (USDG plus the launch gears) against the fixed PoolManager; a revert reverts the Safe's own batch and touches nobody else."
+ },
+ {
+  "id": "4c13f606c9e7889115d15d4986787b0d7bb951a7ef3d173aaed17c742dab04dd",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87) has external calls inside a loop: poolManager.sync(c) (src/periphery/ODHookSeed.sol#76)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "accepted: the loop runs over the owner Safe's own short token list (USDG plus the launch gears) against the fixed PoolManager; a revert reverts the Safe's own batch and touches nobody else."
+ },
+ {
+  "id": "7fe4cfc7f83f53be86f4532f6dbfa29aa684082f42e4d0a6563596c61003d145",
+  "check": "calls-loop",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87) has external calls inside a loop: poolManager.settle() != amt (src/periphery/ODHookSeed.sol#78)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "accepted: the loop runs over the owner Safe's own short token list (USDG plus the launch gears) against the fixed PoolManager; a revert reverts the Safe's own batch and touches nobody else."
+ },
+ {
+  "id": "3ecd3160dcd4bd9a92f2b01597d48e556d72aae6d406f149af39704d497856bb",
+  "check": "reentrancy-events",
+  "impact": "Low",
+  "confidence": "Medium",
+  "description": "Reentrancy in ODHookSeed.unlockCallback(bytes) (src/periphery/ODHookSeed.sol#67-87):\n\tExternal calls:\n\t- poolManager.sync(c) (src/periphery/ODHookSeed.sol#76)\n\t- poolManager.settle() != amt (src/periphery/ODHookSeed.sol#78)\n\t- poolManager.mint(owner,c.toId(),amt) (src/periphery/ODHookSeed.sol#79)\n\t- poolManager.burn(owner,c.toId(),amt) (src/periphery/ODHookSeed.sol#82)\n\t- poolManager.take(c,owner,amt) (src/periphery/ODHookSeed.sol#83)\n\tEvent emitted after the call(s):\n\t- Removed(currencies[i],amt) (src/periphery/ODHookSeed.sol#81)\n\t- Seeded(currencies[i],amt) (src/periphery/ODHookSeed.sol#75)\n",
+  "first_markdown_element": "src/periphery/ODHookSeed.sol#L67-L87",
+  "triage": "false positive: each event is emitted before its iteration's calls; slither sees the previous iteration's calls. The helper keeps no state and no funds, and only the PoolManager reaches the callback."
  }
 ]

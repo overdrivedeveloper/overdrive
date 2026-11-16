@@ -6,7 +6,7 @@ nothing under `lib/` or `test/` is. Paths are relative to `contracts/`.
 
 Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 
-## In scope: `src/` (47 files)
+## In scope: `src/` (48 files)
 
 | File | Lines | Kind |
 | --- | ---: | --- |
@@ -56,13 +56,15 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 | `src/oracle/ODTickPrice.sol` | 45 | contract or library |
 | `src/oracle/ODTwapReader.sol` | 117 | contract or library |
 | `src/oracle/ODVolOracle.sol` | 217 | contract or library |
+| `src/periphery/ODHookSeed.sol` | 97 | contract or library |
 | `src/stake/ODStake.sol` | 440 | contract or library |
 
-Total: 9798 lines.
+Total: 9895 lines.
 
-## Supporting, not in scope: `script/` (10 files)
+## Supporting, not in scope: `script/` (11 files)
 
 - `script/DeploySystem.s.sol`
+- `script/HookSeed.s.sol`
 - `script/ListGears.s.sol`
 - `script/MineHookSalt.s.sol`
 - `script/PostDeployCheck.s.sol`
