@@ -2,7 +2,7 @@
 // policy) is done with viem while everything is open; then the guardian sets every pause the runbook lists (Governor buys,
 // backer mint, stake deposits, one gear SELL_ONLY) and each withdrawal path is run ONLY with `cast` (call to simulate, send
 // from an unlocked fork account) against the loopback node, using the addresses of the deployment file.
-//   bun scripts/fork/exercise/index.ts --area shutdown            (SH01 first, SH09 last: it warps 35 days)
+//   bun scripts/fork/exercise/index.ts --area shutdown            (SH01 first; SH09 warps 35 days; SH10 seeds then removes the D26 hook seed)
 import { type Abi, type Address, type Hex, getAddress, parseAbi } from "viem";
 import { IODGovernorAbi, IODGearRegistryAbi, IODMinterAbi } from "../../../src/abi";
 import { ANVIL_URL, addressOf, asTimelock, walletFor, type Role } from "../lib";
@@ -33,15 +33,19 @@ function cast(row: Row, args: string[]): string {
 function castSend(row: Row, from: Address, to: Address, sig: string, args: string[], label: string): string {
   cast(row, ["call", "--from", from, to, sig, ...args]);
   const ok = (st: string) => st === "0x1" || st === "success" || st === "1";
-  let out = JSON.parse(cast(row, ["send", "--unlocked", "--from", from, to, sig, ...args, "--json"])) as { transactionHash: string; status: string };
+  type Sent = { transactionHash: string; status: string; gasUsed?: string };
+  let out = JSON.parse(cast(row, ["send", "--unlocked", "--from", from, to, sig, ...args, "--json"])) as Sent;
   if (!ok(out.status)) {
     // seen on the fork for ODStake.requestUnstake: the simulation passes, the estimated gas is too low, the send reverts with no reason
     row.note(`GAS-ESTIMATE ${label}: sent with the default estimate, reverted (${out.transactionHash}); resent with --gas-limit 1000000`);
     row.txs.push({ label: `cast send ${label} (default gas, reverted)`, hash: out.transactionHash, gas: "", status: "reverted" });
-    out = JSON.parse(cast(row, ["send", "--unlocked", "--gas-limit", "1000000", "--from", from, to, sig, ...args, "--json"])) as { transactionHash: string; status: string };
+    out = JSON.parse(cast(row, ["send", "--unlocked", "--gas-limit", "1000000", "--from", from, to, sig, ...args, "--json"])) as Sent;
   }
   if (!ok(out.status)) throw new Error(`${label}: tx status ${out.status}`);
-  row.txs.push({ label: `cast send ${label}`, hash: out.transactionHash, gas: "", status: "success" });
+  const used = out.gasUsed ? BigInt(out.gasUsed).toString() : "";
+  // measured gas per runbook step: shutdown.md's explicit --gas-limit values come from these notes (with margin)
+  if (used) row.note(`GAS-USED ${label}: ${used}`);
+  row.txs.push({ label: `cast send ${label}`, hash: out.transactionHash, gas: used, status: "success" });
   return out.transactionHash;
 }
 /** The indexed ticket of the event `sig` in a receipt (topic 1 or 2), matched by the event signature hash. */
@@ -310,5 +314,67 @@ const SH09: Flow = {
   },
 };
 
-export const flows: Flow[] = [SH01, SH02, SH03, SH04, SH05, SH06, SH07, SH08, SH09];
+const SH10: Flow = {
+  id: "SH10", area: "shutdown", kind: "success", name: "path: D26 hook pool seed: owner Safe seeds ERC-6909 claims through ODHookSeed, then removes them under the shutdown pauses (forge script batches, sent as the Safe)",
+  async run(row, ctx) {
+    const { g } = await needState(ctx, row);
+    const x = sheet(ctx), pm = ctx.dep.external.poolManager as Address, safe = getAddress(ctx.dep.admin.ownerSafe);
+    const { forgeScript, logged, parseSafeBatch } = await import("./hook-seed");
+    const { readFileSync } = await import("node:fs");
+    const { join, basename } = await import("node:path");
+    const { ROOT, FORK_DIR } = await import("../lib");
+    const seedCfg = (JSON.parse(readFileSync(join(ROOT, "contracts/script/config/fork.json"), "utf8")) as { hookSeed: { usdgPerGear: string; gearWadPerGear: string } }).hookSeed;
+    const usdgSeed = BigInt(seedCfg.usdgPerGear), gearSeed = BigInt(seedCfg.gearWadPerGear);
+    // the Safe's seed tokens: USDG from the fork's USDG holder, gear tokens from the holder (buys are paused at this point;
+    // at launch the Safe buys them through the minter)
+    await fundRole(ctx, "owner", Number(usdgSeed) / 1e6 + 10);
+    if ((await tokenOf(ctx, g.token, safe)) < gearSeed) {
+      if ((await tokenOf(ctx, g.token, x.me)) < gearSeed) throw new Blocked("the holder has no ETH-SPORT left to hand the Safe its gear seed");
+      castSend(row, x.me, g.token, "transfer(address,uint256)(bool)", [safe, gearSeed.toString()], "holder hands the Safe 1 ETH-SPORT for the seed (fork shortcut)");
+    }
+    await ctx.test.impersonateAccount({ address: safe });
+    const id = (t: Address) => BigInt(t).toString();
+    const bal = (t: Address, who: Address) => num(cast(row, ["call", t, "balanceOf(address)(uint256)", who]));
+    const claim = (t: Address, who: Address) => num(cast(row, ["call", pm, "balanceOf(address,uint256)(uint256)", who, id(t)]));
+    const env = { OD_POOL_MANAGER: pm, OD_OWNER_SAFE: safe, OD_USDG: x.usdg, OD_GEAR_TOKENS: g.token, OD_NETWORK: basename(FORK_DIR), OD_SEED_USDG_PER_GEAR: usdgSeed.toString(), OD_SEED_GEAR_WAD: gearSeed.toString() };
+    // 1. deploy the helper (no privileges; anyone may sign it): here the holder's unlocked account
+    const helper = getAddress(logged(forgeScript("script/HookSeed.s.sol:DeployHookSeed", env, x.me), "ODHookSeed:"));
+    row.chain("helper owner is the Safe", getAddress(cast(row, ["call", helper, "owner()(address)"])), safe);
+    // 2. seed batch, sent as the Safe would (one call per batch transaction, simulated first)
+    const u0 = bal(x.usdg, safe), t0 = bal(g.token, safe), c0u = claim(x.usdg, safe), c0t = claim(g.token, safe);
+    const runBatch = (mode: "seed" | "remove") => {
+      const out = forgeScript("script/HookSeed.s.sol:HookSeedBatch", { ...env, OD_HOOK_SEED_MODE: mode, OD_HOOK_SEED_HELPER: helper });
+      const path = logged(out, "HookSeedBatch:");
+      const b = parseSafeBatch(readFileSync(path, "utf8"));
+      row.note(`${mode} batch ${path}: ${b.txs.length} Safe transactions, chain ${b.chainId}`);
+      b.txs.forEach((t, i) => castSend(row, safe, t.to, t.data, [], `Safe ${mode} batch tx ${i + 1}/${b.txs.length}`));
+    };
+    runBatch("seed");
+    row.chain("Safe USDG claim after seed", claim(x.usdg, safe) - c0u, usdgSeed);
+    row.chain("Safe ETH-SPORT claim after seed", claim(g.token, safe) - c0t, gearSeed);
+    row.chain("Safe USDG spent on the seed", u0 - bal(x.usdg, safe), usdgSeed);
+    row.chain("Safe ETH-SPORT spent on the seed", t0 - bal(g.token, safe), gearSeed);
+    // 3. a stranger cannot use the helper (NotOwner), and cannot reach its callback (NotPoolManager)
+    for (const [label, args] of [["remove", ["remove(address[],uint256[])", `[${x.usdg}]`, `[${usdgSeed}]`]], ["unlockCallback", ["unlockCallback(bytes)", "0x"]]] as const) {
+      let reverted = false;
+      try { cast(row, ["call", "--from", x.me, helper, ...args]); } catch { reverted = true; runbookIssues.pop(); row.notes = row.notes.filter((n) => !n.startsWith("RUNBOOK-STEP-FAILED")); }
+      row.chainTrue(`stranger ${label} on the helper reverts`, reverted, "");
+    }
+    // 4. remove batch under the shutdown pauses: every claim back to the Safe as tokens
+    const st = await paused(ctx, g);
+    row.chain("shutdown pauses still set", JSON.stringify(st), JSON.stringify({ buys: true, mint: true, stake: true, gear: 3 }));
+    runBatch("remove");
+    row.chain("Safe USDG claim after remove", claim(x.usdg, safe), 0n);
+    row.chain("Safe ETH-SPORT claim after remove", claim(g.token, safe), 0n);
+    row.chain("Safe USDG back to before the seed", bal(x.usdg, safe), u0 + c0u);
+    row.chain("Safe ETH-SPORT back to before the seed", bal(g.token, safe), t0 + c0t);
+    for (const t of [x.usdg, g.token]) {
+      row.chain(`helper holds no ${t === x.usdg ? "USDG" : "ETH-SPORT"}`, bal(t, helper), 0n);
+      row.chain(`helper holds no ${t === x.usdg ? "USDG" : "ETH-SPORT"} claim`, claim(t, helper), 0n);
+      row.chain(`Safe claim approval to the helper consumed (${t === x.usdg ? "USDG" : "ETH-SPORT"})`, num(cast(row, ["call", pm, "allowance(address,address,uint256)(uint256)", safe, helper, id(t)])), 0n);
+    }
+  },
+};
+
+export const flows: Flow[] = [SH01, SH02, SH03, SH04, SH05, SH06, SH07, SH08, SH09, SH10];
 void ({} as Hex);
