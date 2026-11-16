@@ -35,7 +35,7 @@
 # Env (optional; saved to /etc/overdrive/provision.conf and reused on the next run):
 #   API_DOMAIN   default api.get-overdrive.com        MCP_DOMAIN  blank = no public MCP route        ACME_EMAIL (unused here)
 #   DB_NAME      default overdrive                    API_PORT / MCP_PORT  defaults 38101 / 38102   PG_PORT  default 5433 (docker) / 5432 (host)
-#   PG_MODE      docker (default) or host          PG_IMAGE  default postgres:16.10-bookworm (exact tag; pin a digest if you prefer)
+#   PG_MODE      docker (default) or host          PG_IMAGE  default postgres:16.10-bookworm pinned by digest (multi-arch index, resolved 2026-11-16)
 #   PG_MEMORY    default 512m (container limit)
 #   SWAP_SIZE    default 4G (0 = never add swap)      CADDY_ADD_IMPORT=1  append the conf.d import to the main Caddyfile
 #   CADDY_MAIN   default /etc/caddy/Caddyfile         CADDY_CONF_DIR  default /etc/caddy/conf.d
@@ -173,7 +173,7 @@ API_PORT="${API_PORT:-38101}"; MCP_PORT="${MCP_PORT:-38102}"
 PG_MODE="${PG_MODE:-$(saved PG_MODE || true)}"; PG_MODE="${PG_MODE:-docker}"
 [[ "$PG_MODE" == docker || "$PG_MODE" == host ]] || die "PG_MODE must be docker or host"
 if [[ "$PG_MODE" == docker ]]; then PG_PORT="${PG_PORT:-5433}"; else PG_PORT="${PG_PORT:-5432}"; fi
-PG_IMAGE="${PG_IMAGE:-postgres:16.10-bookworm}"; PG_MEMORY="${PG_MEMORY:-512m}"
+PG_IMAGE="${PG_IMAGE:-postgres:16.10-bookworm@sha256:38471f330eb885e04de130b768d6db4e10469e2311879c7e5c699f6d2d8a1c74}"; PG_MEMORY="${PG_MEMORY:-512m}"
 PG_CONTAINER=overdrive-db-postgres; PG_VOLUME=overdrive-pgdata
 [[ "$PG_IMAGE" =~ ^[A-Za-z0-9._/:@-]+$ && "$PG_MEMORY" =~ ^[0-9]+[mg]$ ]] || die "PG_IMAGE or PG_MEMORY has a bad value"
 if [[ "$PG_MODE" == docker ]]; then
