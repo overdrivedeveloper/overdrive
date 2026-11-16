@@ -15,8 +15,10 @@ on:
 permissions:
   contents: read
 
+# A push to main gets its own group per commit, so a newer push never cancels an older commit's run (a cancelled run
+# reads as broken on the public Actions page; public runners are free). Pull requests still cancel superseded runs.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'latest' }}
   cancel-in-progress: true
 
 env:
@@ -30,6 +32,33 @@ env:
   PYTHON_VERSION: "3.12.14"
 
 jobs:
+  # Sets contracts=true when this push changed contracts/ or this workflow. The full via-ir build of every contract and
+  # test is the slowest step, and most pushes touch only app/, web/ or sdk/. Pull requests, manual runs, a branch's first
+  # push and a push whose previous tip is gone (a rewritten branch) always run the contract job.
+  changes:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      contracts: ${{ steps.diff.outputs.contracts }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          contracts=true
+          if [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            if [ -z "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- contracts .github/workflows/ci.yml)" ]; then contracts=false; fi
+          fi
+          echo "contracts=$contracts"
+          echo "contracts=$contracts" >> "$GITHUB_OUTPUT"
+
   hygiene:
     name: hygiene (pins, pragmas, README vs deployments, gitleaks)
     if: ${{ !github.event.repository.private }}
@@ -70,8 +99,10 @@ jobs:
         run: bash .github/scripts/semgrep.sh
 
   contracts:
-    if: ${{ !github.event.repository.private }}
+    needs: changes
+    if: ${{ !github.event.repository.private && needs.changes.outputs.contracts == 'true' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: contracts
@@ -82,6 +113,16 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
+      # The cold via-ir build of every contract and test is one long solc run on a 4-core runner. forge's cache is keyed
+      # on file content, so a restored out/ + cache/ from an earlier commit recompiles only what changed.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            contracts/out
+            contracts/cache
+          key: forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('contracts/foundry.toml', 'contracts/src/**', 'contracts/test/**', 'contracts/script/**', 'contracts/lib/**') }}
+          restore-keys: |
+            forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-
       - name: check_no_failopen_pattern
         run: "! grep -rnE '!= 0\\) .*worse' src/oracle"
       - name: check_privileged_functions
@@ -107,6 +148,7 @@ jobs:
     name: app (typecheck, unit and database tests)
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     # The database tests run against this Postgres. CI=true (set by GitHub) makes the test preload fail, not skip,
     # when no database is reachable, so a green run always includes them.
     services:
@@ -166,18 +208,32 @@ jobs:
   guard:
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: .githooks/public-guard.sh
-      - run: bash scripts/guard.test.sh
+      # The word denylist is private by design: the public sync excludes .githooks/public-guard.denylist from every
+      # public copy, and the guard refuses to run without it (it never skips
+      # silently). The word check is enforced before anything is published: the private pre-commit hook,
+      # scripts/ci-local.sh (job_guard, unchanged) and the pre-push hook, which accepts a public copy only when its tree is
+      # the private tree minus the denylist. A tree without the denylist (the public copy) skips these two steps with a
+      # notice that says so; a tree with it runs them.
+      - name: public guard (word denylist, private trees only)
+        run: |
+          if [ -f .githooks/public-guard.denylist ]; then
+            .githooks/public-guard.sh
+            bash scripts/guard.test.sh
+          else
+            echo "::notice title=public guard skipped::the word denylist is private and excluded from this public copy; the private pre-commit, ci-local and pre-push gates ran the guard before it was published"
+          fi
       - run: bash scripts/pre-push.test.sh
 
   scripts:
     name: scripts (exit page, quiet runner, ABI export, server deploy scripts)
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -203,6 +259,7 @@ jobs:
     name: web (typecheck, build, tests)
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -225,6 +282,7 @@ jobs:
     name: sdk (generate:check, tests, typecheck)
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: sdk
@@ -243,6 +301,7 @@ jobs:
   python-locks:
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
