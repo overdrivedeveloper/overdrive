@@ -117,7 +117,9 @@ export async function atNextSecond<R>(ctx: Ctx, fn: (t: bigint) => Promise<R>): 
   for (let i = 0; ; i++) {
     const T = (await nowTs(ctx)) + 1n;
     try { await ctx.test.setNextBlockTimestamp({ timestamp: T }); } catch (e) {
-      if (i < 5 && /lower than previous block's timestamp/.test((e as Error).message)) continue;
+      // a service block that is still being mined has already claimed its timestamp but is not yet `latest`: back off
+      // until it lands (a heavy fork block fetches upstream state and can take seconds), then re-read
+      if (i < 40 && /lower than previous block's timestamp/.test((e as Error).message)) { await Bun.sleep(250 + 50 * i); continue; }
       throw e;
     }
     return fn(T);
@@ -677,13 +679,23 @@ export async function buyDirect(ctx: Ctx, row: Row, role: Role, g: GearInfo, usd
   const who = addressOf(role);
   await approveMinter(ctx, row, role, ctx.usdg, ctx.c.ODMinter!);
   const t0 = await tokenOf(ctx, g.token, who), u0 = await usdgOf(ctx, who);
-  const q = await atNextSecond(ctx, async (t) => {
+  const { quote: q, exact } = await atNextSecond(ctx, async (t) => {
+    const b0 = await ctx.pub.getBlockNumber({ cacheTime: 0 });
     const quote = await minterQuote(ctx, t, g.id, true, true, usdgIn, who);
-    await row.send(label, role, { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "buy", args: [g.id, usdgIn, 0n, who, t + 3600n] });
-    return quote;
+    const rec = await row.send(label, role, { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "buy", args: [g.id, usdgIn, 0n, who, t + 3600n] });
+    const r = await ctx.pub.getTransactionReceipt({ hash: rec.hash as Hex });
+    const blk = await ctx.pub.getBlock({ blockNumber: r.blockNumber });
+    return { quote, exact: r.blockNumber === b0 + 1n && blk.timestamp === t };
   });
   const got = (await tokenOf(ctx, g.token, who)) - t0;
-  row.chain(`${label}: tokens == quote`, got, q.amountOut);
+  if (exact) row.chain(`${label}: tokens == quote`, got, q.amountOut);
+  else {
+    // a service block landed between the quote and the send, so the state moved: hold the product's own promise instead,
+    // the quote less SLIPPAGE_BPS (50), rounded down (app/src/api/quote/model.ts:76-78, minOutSuggested)
+    const floor = (q.amountOut * (10_000n - 50n)) / 10_000n;
+    row.note(`${label}: a service block landed between quote and send; asserted tokens >= minOutSuggested (${floor})`);
+    row.chainTrue(`${label}: tokens >= minOutSuggested(quote)`, got >= floor, `${got} >= ${floor}`);
+  }
   row.chain(`${label}: USDG paid`, u0 - (await usdgOf(ctx, who)), usdgIn);
   return { got, q };
 }
