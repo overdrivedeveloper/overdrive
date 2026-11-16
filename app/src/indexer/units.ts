@@ -55,3 +55,16 @@ export function bytes32Text(value: unknown): string {
   }
   return out;
 }
+
+/** A market id (bytes32, the symbol's ASCII right padded with zeros) to its symbol, for markets the deployment file does not
+ *  list yet (listed later through the timelock). Anything that is not a clean printable-ASCII id is returned unchanged. */
+export function marketSymbol(id: string): string {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(id)) return id;
+  const raw = Buffer.from(id.slice(2), "hex");
+  let end = raw.length;
+  while (end > 0 && raw[end - 1] === 0) end--;
+  if (end === 0) return id;
+  const body = raw.subarray(0, end);
+  for (const b of body) if (b <= 0x20 || b >= 0x7f) return id;
+  return body.toString("ascii");
+}

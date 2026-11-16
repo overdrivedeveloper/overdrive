@@ -128,3 +128,29 @@ def test_pair_gear_sigma_is_found_under_the_oracle_pair_key(pg):
     assert sorted(g.key for g in book.gears) == ["ETH", "ETH/BTC"]
     assert book.sigma_bps["ETH/BTC"] == 4200.0 and book.sigma_bps["ETH"] == 6000.0
     assert not [r for r in freshness(book, parse_ts("2026-11-13T02:00:00Z"), 3600, 3600) if r.startswith("sigma_missing")]
+
+
+def test_gear_stored_under_a_raw_market_id_matches_its_sigma(pg):
+    """Regression (fork G07): a market listed after the deployment file was written was stored with its raw bytes32 id as the
+    underlying, while vol_posts decode to the symbol, so the book reported sigma_missing and wrote no scenario rows."""
+    from datetime import datetime, timezone
+
+    from risk_sim.book import freshness, load_book, parse_ts
+
+    mcka = "0x" + "MCKA".encode().hex().ljust(64, "0")
+    now_iso = "2026-11-13T01:58:00Z"
+    with psycopg.connect(pg, autocommit=True) as c:
+        c.execute("INSERT INTO gears (id, market_a, market_b, underlying, underlying_b, power, power_wad, token, cap_usd, spread_bps, status) VALUES "
+                  "('0xgm', %s, NULL, %s, NULL, 2, 2000000000000000000, '0xtm', 1000000000000, 60, 'active')", (mcka, mcka))
+        c.execute("INSERT INTO balances VALUES ('0xtm','0xh1',1000000000000000000000)")
+        c.execute("INSERT INTO trades (tx_hash, log_index, block, ts, gear, account, side, tokens, usdg, value_per_token, via) "
+                  "VALUES ('0x0xgm',0,1,%s,'0xgm','0xh1','buy',1,1,1000000000000000000,'minter')", (now_iso,))
+        c.execute("INSERT INTO governor_ledger (ts, underlying, delta, gamma, hedge_delta, equity, exit_reserve, block) "
+                  "VALUES (%s,'MCKA',0,0,0,400000000000,1500000000000,1)", (now_iso,))
+        c.execute("INSERT INTO prices (underlying, ts, price_wad) VALUES ('MCKA',%s,3000000000000000000000)", (now_iso,))
+        c.execute("INSERT INTO vol_posts VALUES (%s,%s,1,'0xv1',0,5100,NULL,NULL)", (mcka, now_iso))
+    with psycopg.connect(pg) as c:
+        book = load_book(c, datetime(2026, 11, 13, 2, 0, tzinfo=timezone.utc))
+    assert [g.key for g in book.gears] == ["MCKA"]
+    assert book.sigma_bps["MCKA"] == 5100.0
+    assert not [r for r in freshness(book, parse_ts("2026-11-13T02:00:00Z"), 3600, 3600) if r.startswith("sigma_missing")]

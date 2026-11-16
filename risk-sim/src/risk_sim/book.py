@@ -156,6 +156,9 @@ def load_book(conn, as_of: datetime) -> Book:
     gears = []
     pair_alias: dict[str, str] = {}      # oracle pair key (lowercase hex) -> the gear's readable key "A/B"
     for gid, ua, ub, power, token, cap, ma, mb in gear_rows:
+        # rows written before the indexer decoded unlisted markets hold the raw bytes32 id: key them by symbol like vol_posts
+        ua = market_key(ua) if ua else ua
+        ub = market_key(ub) if ub else ub
         if ub and ma and mb:
             pair_alias[pair_market_key(ma, mb)] = f"{ua}/{ub}"
         cur.execute("SELECT coalesce(sum(balance),0) FROM balances WHERE token = %s AND account <> %s",

@@ -2,7 +2,7 @@
 import type { TransactionSql } from "postgres";
 import type { Deployment } from "../../chain/deployment";
 import { wadToUsdg } from "../../lib/fixed";
-import { GEAR_NAMES, GEAR_POWER_TEXT, GEAR_POWER_WAD, ZERO_BYTES32, asNumber } from "../units";
+import { GEAR_NAMES, GEAR_POWER_TEXT, GEAR_POWER_WAD, ZERO_BYTES32, asNumber, marketSymbol } from "../units";
 
 export interface EntityChange {
   readonly scope: string;
@@ -26,8 +26,8 @@ export async function applyEntity(tx: TransactionSql, deployment: Deployment, ch
       const marketB = data.marketB ? String(data.marketB) : null;
       const markets = new Map(deployment.markets.map((m) => [m.id.toLowerCase(), m.symbol]));
       const configured = deployment.gears.find((g) => g.id.toLowerCase() === ref);
-      const symbolA = markets.get(marketA) ?? marketA;
-      const symbolB = marketB ? (markets.get(marketB) ?? marketB) : null;
+      const symbolA = markets.get(marketA) ?? marketSymbol(marketA);
+      const symbolB = marketB ? (markets.get(marketB) ?? marketSymbol(marketB)) : null;
       await tx`
         INSERT INTO gears (id, market_a, market_b, underlying, underlying_b, power, power_wad, token, cap_usd, spread_bps, status, listed_block, listed_at)
         VALUES (${ref}, ${marketA}, ${marketB}, ${symbolA}, ${symbolB}, ${GEAR_POWER_TEXT[index] ?? "1"}, ${(GEAR_POWER_WAD[index] ?? 0n).toString()},
