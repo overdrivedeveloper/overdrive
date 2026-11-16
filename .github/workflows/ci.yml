@@ -15,11 +15,13 @@ on:
 permissions:
   contents: read
 
-# A push to main gets its own group per commit, so a newer push never cancels an older commit's run (a cancelled run
-# reads as broken on the public Actions page; public runners are free). Pull requests still cancel superseded runs.
+# Nothing on main is ever cancelled: each run on main has its own group (commit and run id), so neither a newer push
+# nor a manual re-run of the same commit (the launch proof is one push run plus two workflow_dispatch runs) cancels it.
+# A cancelled run reads as broken on the public Actions page, and public runners are free. Pull requests still cancel
+# superseded runs.
 concurrency:
-  group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'latest' }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && format('{0}-{1}', github.sha, github.run_id) || 'latest' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   FOUNDRY_VERSION: v1.8.4
@@ -102,7 +104,9 @@ jobs:
     needs: changes
     if: ${{ !github.event.repository.private && needs.changes.outputs.contracts == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # A cold via-ir build of every contract and test is the slow path (well over 30 min on a 4-core runner); a cached
+    # build recompiles only what changed. The limit is for a hung job, not for the cold build.
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: contracts
@@ -113,9 +117,11 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
-      # The cold via-ir build of every contract and test is one long solc run on a 4-core runner. forge's cache is keyed
-      # on file content, so a restored out/ + cache/ from an earlier commit recompiles only what changed.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # forge's cache is keyed on file content, so a restored out/ + cache/ from an earlier commit recompiles only what
+      # changed. Restore and save are separate steps: the build is saved as soon as it succeeds, even when a later
+      # check or test fails, so one red run never forces the next run back onto the cold build.
+      - id: forge-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             contracts/out
@@ -123,6 +129,18 @@ jobs:
           key: forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('contracts/foundry.toml', 'contracts/src/**', 'contracts/test/**', 'contracts/script/**', 'contracts/lib/**') }}
           restore-keys: |
             forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-
+      # The cold build's earlier kills (exit 143 "runner has received a shutdown signal" at 11 to 18 min, "lost
+      # communication ... starves it for CPU/Memory" at 57 min) are the signature of a hosted VM running out of memory
+      # under one long via-ir solc process. 16 GB of extra swap turns memory pressure into a slower build instead of a
+      # killed VM; the monitor prints memory and swap every minute, so a kill that still happens names its cause.
+      - name: Add swap for the via-ir build
+        working-directory: .
+        run: |
+          sudo fallocate -l 16G /mnt/forge.swap
+          sudo chmod 600 /mnt/forge.swap
+          sudo mkswap /mnt/forge.swap
+          sudo swapon /mnt/forge.swap
+          free -m
       - name: check_no_failopen_pattern
         run: "! grep -rnE '!= 0\\) .*worse' src/oracle"
       - name: check_privileged_functions
@@ -136,10 +154,26 @@ jobs:
       - name: check_roles_table
         run: python3 script/ci/roles-table.py --check
       - run: forge fmt --check
-      - run: forge build
+      - name: forge build (memory and swap logged every minute)
+        run: |
+          ( while sleep 60; do free -m | awk -v t="$SECONDS" '/^Mem:/{m=$3"/"$2} /^Swap:/{print "build t=" t "s mem used " m " MB, swap used " $3 "/" $2 " MB"}'; done ) &
+          monitor=$!
+          rc=0
+          forge build || rc=$?
+          kill "$monitor"
+          free -m
+          exit "$rc"
+      - if: ${{ steps.forge-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            contracts/out
+            contracts/cache
+          key: ${{ steps.forge-cache.outputs.cache-primary-key }}
       - name: check_code_size
         run: python3 script/ci/code-size.py out
-      # Fork tests skip themselves: there is no secret RPC in CI.
+      # Fork tests skip themselves: there is no secret RPC in CI. Where one is set (ci-local) they fork the pinned
+      # block in test/utils/ForkPin.sol, never the latest block.
       - run: forge test -vv
         env:
           FOUNDRY_FUZZ_SEED: "0x5eed"
