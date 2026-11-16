@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -58,4 +59,22 @@ export async function applyMigrations(db: TestDatabase, upTo?: number): Promise<
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// One login secret per test process for the SELECT-only role (random, never written anywhere).
+const readOnlySecret = randomBytes(16).toString("hex");
+
+/** Runs scripts/api-readonly-role.sql as the test server's admin and returns a URL for that role on database `dbName`.
+ * The role is given this process's login secret: a server that checks passwords on TCP (GitHub's postgres service uses
+ * scram-sha-256, and so does the throwaway server in pg.ts) refuses the empty password a trust-auth server accepts. */
+export async function readOnlyRoleUrl(admin: Sql, dbName: string): Promise<string> {
+  const base = testDatabaseUrl();
+  if (!base) throw new Error("readOnlyRoleUrl: TEST_DATABASE_URL is not set");
+  await admin.unsafe(readFileSync(resolve(import.meta.dir, "../../scripts/api-readonly-role.sql"), "utf8"));
+  await admin.unsafe(`ALTER ROLE overdrive_api WITH LOGIN PASSWORD '${readOnlySecret}'`);
+  const url = new URL(base);
+  url.username = "overdrive_api";
+  url.password = readOnlySecret;
+  url.pathname = `/${dbName}`;
+  return url.toString();
 }

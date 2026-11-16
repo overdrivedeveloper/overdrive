@@ -1,11 +1,10 @@
 import { afterAll, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { createApiSql } from "./../db/client";
 import { optionalEnv } from "../config";
-import { applyMigrations, createTestDatabase, testDatabaseUrl } from "../testing/db";
+import { applyMigrations, createTestDatabase, readOnlyRoleUrl, testDatabaseUrl } from "../testing/db";
 import postgres from "postgres";
 
 const db = await createTestDatabase("apiboot");
@@ -21,10 +20,9 @@ async function until<T>(fn: () => Promise<T | undefined>, ms = 15_000): Promise<
 test("boots_with_production_env_shape_and_serves_quote", async () => {
   if (!db) return;
   await applyMigrations(db);
-  await db.sql.unsafe(readFileSync(join(import.meta.dir, "..", "..", "scripts", "api-readonly-role.sql"), "utf8"));
   const base = new URL(testDatabaseUrl()!);
   base.pathname = `/${db.name}`;
-  const roUrl = new URL(base.toString()); roUrl.username = "overdrive_api"; roUrl.password = "";
+  const roUrl = new URL(await readOnlyRoleUrl(db.sql, db.name)); // runs scripts/api-readonly-role.sql
   void createApiSql; void postgres; void optionalEnv;
   const apiPort = await freePort();
   const anvilPort = await freePort();

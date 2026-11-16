@@ -4,7 +4,7 @@ import { join } from "node:path";
 import postgres from "postgres";
 import { createDbClient } from "./client";
 import { assertReadOnlyRole, WritableRoleError } from "./readonly";
-import { applyMigrations, createTestDatabase, testDatabaseUrl } from "../testing/db";
+import { applyMigrations, createTestDatabase, readOnlyRoleUrl, testDatabaseUrl } from "../testing/db";
 
 const db = await createTestDatabase("readonly");
 afterAll(async () => { await db?.close(); });
@@ -14,9 +14,7 @@ test("boot_refuses_writable_role", async () => {
   await applyMigrations(db);
   // the migrating (owner) role can write: boot must refuse it
   await expect(assertReadOnlyRole(db.sql)).rejects.toBeInstanceOf(WritableRoleError);
-  await db.sql.unsafe(readFileSync(join(import.meta.dir, "..", "..", "scripts", "api-readonly-role.sql"), "utf8"));
-  const url = new URL(testDatabaseUrl()!);
-  url.username = "overdrive_api"; url.password = ""; url.pathname = `/${db.name}`;
+  const url = new URL(await readOnlyRoleUrl(db.sql, db.name)); // runs scripts/api-readonly-role.sql
   const ro = postgres(url.toString(), { max: 1, onnotice: () => undefined });
   try {
     await assertReadOnlyRole(ro); // the SELECT-only role passes

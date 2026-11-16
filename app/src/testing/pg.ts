@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -45,7 +46,7 @@ function freePort(): Promise<number> {
   });
 }
 
-/** Starts a throwaway Postgres cluster in a temp dir (trust auth, fsync off, loopback only). Returns undefined when
+/** Starts a throwaway Postgres cluster in a temp dir (password auth like GitHub's postgres service, fsync off, loopback only). Returns undefined when
  * no Postgres binaries are installed. Always call `stop()`; the preload also stops it on process exit. */
 export async function startEphemeralPostgres(): Promise<EphemeralPostgres | undefined> {
   const bin = findPostgresBin();
@@ -53,7 +54,13 @@ export async function startEphemeralPostgres(): Promise<EphemeralPostgres | unde
   const dir = mkdtempSync(join(tmpdir(), "od-pg-"));
   const data = join(dir, "data");
   const port = await freePort();
-  const init = spawnSync(join(bin, "initdb"), ["-D", data, "-U", "postgres", "--auth=trust", "-E", "UTF8", "--locale=C"], { encoding: "utf8", env: PG_ENV });
+  // scram-sha-256, not trust: CI's postgres service checks passwords, and a trust server hid tests that logged in as
+  // another role with no password (they passed here and failed on GitHub). The secret is random and lives in the temp dir.
+  const secret = randomBytes(16).toString("hex");
+  const pwfile = join(dir, "pwfile");
+  writeFileSync(pwfile, `${secret}\n`, { mode: 0o600 });
+  const init = spawnSync(join(bin, "initdb"), ["-D", data, "-U", "postgres", "--auth=scram-sha-256", `--pwfile=${pwfile}`, "-E", "UTF8", "--locale=C"], { encoding: "utf8", env: PG_ENV });
+  rmSync(pwfile, { force: true });
   if (init.status !== 0) {
     rmSync(dir, { recursive: true, force: true });
     throw new Error(`initdb failed: ${init.stderr}`);
@@ -69,7 +76,7 @@ export async function startEphemeralPostgres(): Promise<EphemeralPostgres | unde
   }
   let stopped = false;
   return {
-    url: `postgres://postgres@127.0.0.1:${port}/postgres`,
+    url: `postgres://postgres:${secret}@127.0.0.1:${port}/postgres`,
     stop: () => {
       if (stopped) return;
       stopped = true;

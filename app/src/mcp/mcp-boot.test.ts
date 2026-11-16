@@ -1,12 +1,13 @@
 import { afterAll, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getAddress } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { harness, type Harness } from "../api/test-support";
+import { readOnlyRoleUrl } from "../testing/db";
 import { writeKeystorePair } from "../testing/keystore";
 import { startFakeRpc } from "./test-rpc";
 import { fakeApi, MARKET_TSLA, NOW_S, OWNER, rig } from "./test-support";
@@ -50,8 +51,7 @@ test("http_read_only_and_stdio_send_inside_policy", async () => {
     const deploymentFile = join(dir, "deployment.json");
     writeFileSync(deploymentFile, JSON.stringify(h.deployment, (_k, v) => (typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v) ? getAddress(v) : v)));
     const base = new URL(process.env.TEST_DATABASE_URL!); base.pathname = `/${h.db.name}`;
-    const roUrl = new URL(base.toString()); roUrl.username = "overdrive_api"; roUrl.password = "";
-    await h.raw.unsafe(readFileSync(join(appRoot, "scripts", "api-readonly-role.sql"), "utf8"));
+    const roUrl = new URL(await readOnlyRoleUrl(h.raw, h.db.name)); // runs scripts/api-readonly-role.sql
     const apiPort = await freePort();
     const api = spawn("bun", ["run", join(appRoot, "src/bin/api.ts")], {
       env: { ...baseEnv(), NODE_ENV: "production", NETWORK: "fork", CHAIN_ID: "31337", DATABASE_URL: base.toString(), API_DB_READONLY_URL: roUrl.toString(), DEPLOYMENT_FILE: deploymentFile, API_PORT: String(apiPort), API_QUOTER: "mock", LOG_LEVEL: "warn" },
