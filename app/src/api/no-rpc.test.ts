@@ -19,7 +19,7 @@ test("list_routes_make_no_rpc_calls", async () => {
 
 test("the list and history route sources import no chain client", () => {
   const dir = join(import.meta.dir, "routes");
-  const rpcFree = ["gears.ts", "gear-history.ts", "tolls.ts", "governor-history.ts", "status.ts", "config.ts", "risk.ts", "hedges.ts", "account.ts", "health.ts"];
+  const rpcFree = ["gears.ts", "gear-history.ts", "tolls.ts", "governor-history.ts", "status.ts", "config.ts", "risk.ts", "hedges.ts", "account.ts", "health.ts", "stats.ts"];
   for (const f of readdirSync(dir).filter((n) => rpcFree.includes(n))) {
     const text = readFileSync(join(dir, f), "utf8");
     expect(text).not.toMatch(/deps\.chain|chain\/(clients|rpc-pool)|createPublicClient/);

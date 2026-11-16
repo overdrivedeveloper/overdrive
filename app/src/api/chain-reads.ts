@@ -49,6 +49,8 @@ export interface ApiChain {
   queuedSell(ticket: bigint): Promise<QueuedSellState>;
   /** ODStake for one account: the OVRD token, its wallet balance and the fee discount. Optional: absent in mocks that do not model staking. */
   stakeAccount?(account: string): Promise<StakeAccountState>;
+  /** balanceOf and decimals of the $OVRD token for one account (holder tiers). Optional like stakeAccount. */
+  tokenBalance?(token: string, account: string): Promise<{ balance: bigint; decimals: number }>;
   /** A transaction receipt by hash; null while unknown to the node. Optional for the same reason. */
   receipt?(hash: string): Promise<ReceiptState | null>;
   /** The latest block's timestamp (seconds). Optional: intent deadlines fall back to the wall clock without it. */
@@ -56,6 +58,7 @@ export interface ApiChain {
 }
 
 export interface StakeAccountState { ovrd: string; balance: bigint; feeDiscountBps: number; blockNumber: bigint }
+const tokenReadAbi = parseAbi(["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)"]);
 export interface ReceiptState { status: "success" | "reverted"; blockNumber: bigint }
 const stakeExtraAbi = parseAbi(["function ovrd() view returns (address)", "function balanceOf(address) view returns (uint256)"]);
 
@@ -171,6 +174,13 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
         client.readContract({ address: stake, abi: IODStakeAbi, functionName: "feeDiscountOf", args: [account as `0x${string}`], blockNumber }),
       ]);
       return { ovrd, balance, feeDiscountBps: Number(discount), blockNumber };
+    },
+    tokenBalance: async (token, account) => {
+      const [balance, decimals] = await Promise.all([
+        client.readContract({ address: token as `0x${string}`, abi: tokenReadAbi, functionName: "balanceOf", args: [account as `0x${string}`] }),
+        client.readContract({ address: token as `0x${string}`, abi: tokenReadAbi, functionName: "decimals" }),
+      ]);
+      return { balance, decimals: Number(decimals) };
     },
     receipt: async (hash) => {
       try {

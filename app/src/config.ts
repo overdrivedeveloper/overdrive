@@ -23,6 +23,20 @@ const boolFlag = (fallback: "0" | "1") =>
 
 const addressOrEmpty = z.string().regex(/^(0x[0-9a-fA-F]{40})?$/).default("");
 
+/** A csv of 0x addresses, lowercased; anything else throws at boot. */
+function addressList() {
+  return z.string().default("").transform((value, ctx): string[] => {
+    const out: string[] = [];
+    for (const raw of value.split(",")) {
+      const item = raw.trim();
+      if (item === "") continue;
+      if (!/^0x[0-9a-fA-F]{40}$/.test(item)) { ctx.addIssue({ code: "custom", message: `Not an address: ${item}` }); return z.NEVER; }
+      out.push(item.toLowerCase());
+    }
+    return out;
+  });
+}
+
 /** A job list: csv, entries trimmed. An empty entry (for example "a,,b") or an unknown name throws `Unknown job: <name>`. */
 function jobList<const T extends readonly string[]>(valid: T, fallback: string) {
   return z
@@ -118,6 +132,14 @@ const envSchema = z.object({
   API_QUOTE_MAX_RPC_PER_REQUEST: z.coerce.number().int().min(1).default(3),
   API_DB_READONLY_URL: z.union([z.literal(""), z.string().url()]).default(""),
   QUOTER_ADDRESS: addressOrEmpty,
+  // Holder perks (todo 37). The $OVRD address comes from the launchpad at launch (D11): empty = tiers report "not live" and make no RPC call.
+  OVRD_TOKEN_ADDRESS: addressOrEmpty,
+  HOLDER_TIER_HOLDER_MIN: z.coerce.number().int().positive().default(100_000),
+  HOLDER_TIER_WHALE_MIN: z.coerce.number().int().positive().default(1_000_000),
+  // Real-user counter: wallets that never count (csv of 0x addresses): team, bots, Safes. The deployment's own Safes and timelock are always excluded too.
+  USER_COUNT_EXCLUDE_TEAM: addressList(),
+  USER_COUNT_EXCLUDE_BOTS: addressList(),
+  USER_COUNT_EXCLUDE_SAFES: addressList(),
   /** "chain" = V4Quoter through the hook; "mock" = the in-process mock hook (fork network only, refused elsewhere). */
   API_QUOTER: z.enum(["chain", "mock"]).default("chain"),
 });

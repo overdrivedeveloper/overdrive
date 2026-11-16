@@ -50,3 +50,11 @@ describe("loadConfig", () => {
     expect(() => loadConfig({})).toThrow("DATABASE_URL");
   });
 });
+
+test("holder perk config: defaults, lowercased exclusion lists, bad address refused", () => {
+  const base = { DATABASE_URL: "postgres://x/y" };
+  const c = loadConfig(base);
+  expect([c.OVRD_TOKEN_ADDRESS, c.HOLDER_TIER_HOLDER_MIN, c.HOLDER_TIER_WHALE_MIN, c.USER_COUNT_EXCLUDE_TEAM]).toEqual(["", 100_000, 1_000_000, []]);
+  expect(loadConfig({ ...base, USER_COUNT_EXCLUDE_BOTS: " 0x00000000000000000000000000000000000000AB ,0x00000000000000000000000000000000000000cd" }).USER_COUNT_EXCLUDE_BOTS).toEqual(["0x00000000000000000000000000000000000000ab", "0x00000000000000000000000000000000000000cd"]);
+  expect(() => loadConfig({ ...base, USER_COUNT_EXCLUDE_TEAM: "nope" })).toThrow();
+});

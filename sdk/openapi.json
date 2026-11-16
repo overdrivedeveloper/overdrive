@@ -2496,6 +2496,195 @@
           "totals"
         ]
       },
+      "Holder": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_live",
+              "live"
+            ]
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "none",
+              "holder",
+              "whale",
+              null
+            ]
+          },
+          "perks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "analytics",
+                "alerts",
+                "agent_tools",
+                "early_access"
+              ]
+            }
+          },
+          "thresholds": {
+            "type": "object",
+            "properties": {
+              "holderMin": {
+                "type": "string"
+              },
+              "whaleMin": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "holderMin",
+              "whaleMin"
+            ]
+          },
+          "balance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "missingForNext": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "next": {
+                "type": "string",
+                "enum": [
+                  "holder",
+                  "whale"
+                ]
+              },
+              "missingTokens": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "next",
+              "missingTokens"
+            ]
+          },
+          "stakeFeeDiscountBps": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "status",
+          "tier",
+          "perks",
+          "thresholds",
+          "balance",
+          "missingForNext",
+          "stakeFeeDiscountBps",
+          "message",
+          "note"
+        ]
+      },
+      "RealUsers": {
+        "type": "object",
+        "properties": {
+          "asOfBlock": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "ISO 8601 time."
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "decimals": {
+            "type": "object",
+            "properties": {
+              "usdg": {
+                "type": "number",
+                "enum": [
+                  6
+                ]
+              },
+              "token": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              },
+              "value": {
+                "type": "number",
+                "enum": [
+                  18
+                ]
+              }
+            },
+            "required": [
+              "usdg",
+              "token",
+              "value"
+            ],
+            "description": "Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18."
+          },
+          "realUsers": {
+            "type": "number"
+          },
+          "traders": {
+            "type": "number"
+          },
+          "backers": {
+            "type": "number"
+          },
+          "both": {
+            "type": "number"
+          },
+          "firstActivityAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 8601 time."
+          },
+          "definition": {
+            "type": "string"
+          },
+          "excludedAddresses": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "asOfBlock",
+          "asOf",
+          "stale",
+          "decimals",
+          "realUsers",
+          "traders",
+          "backers",
+          "both",
+          "firstActivityAt",
+          "definition",
+          "excludedAddresses"
+        ]
+      },
       "Risk": {
         "type": "object",
         "properties": {
@@ -5943,6 +6132,87 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Fees"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/holder/{address}": {
+      "get": {
+        "summary": "Holder tier and perks from the wallet's $OVRD balance (read only)",
+        "tags": [
+          "accounts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "required": true,
+            "name": "address",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Holder"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/users": {
+      "get": {
+        "summary": "Real-user count: distinct wallets that bought, sold or backed",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealUsers"
                 }
               }
             }

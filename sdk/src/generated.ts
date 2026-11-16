@@ -1435,6 +1435,68 @@ export interface Operations {
       };
     };
   };
+  "GET /v1/holder/{address}": {
+    path: { address: string; };
+    responses: {
+      200: {
+        account: string;
+        status: "not_live" | "live";
+        tier: "none" | "holder" | "whale" | null;
+        perks: Array<"analytics" | "alerts" | "agent_tools" | "early_access">;
+        thresholds: {
+          holderMin: string;
+          whaleMin: string;
+        };
+        balance: string | null;
+        missingForNext: {
+          next: "holder" | "whale";
+          missingTokens: string;
+        } | null;
+        stakeFeeDiscountBps: number | null;
+        message: string;
+        note: string;
+      };
+      400: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
+  "GET /v1/stats/users": {
+    responses: {
+      200: {
+        asOfBlock: string;
+        /** ISO 8601 time. */
+        asOf: string;
+        stale: boolean;
+        /** Decimals of raw amounts: USDG 6, gear tokens 18, WAD values 18. */
+        decimals: {
+          usdg: 6;
+          token: 18;
+          value: 18;
+        };
+        realUsers: number;
+        traders: number;
+        backers: number;
+        both: number;
+        /** ISO 8601 time. */
+        firstActivityAt: string | null;
+        definition: string;
+        excludedAddresses: number;
+      };
+      502: {
+        error: "BAD_REQUEST" | "NOT_FOUND" | "RATE_LIMITED" | "STALE" | "PAUSED" | "CLOSED" | "CAP_REACHED" | "BELOW_MIN" | "RESERVE_FLOOR" | "UPSTREAM";
+        message: string;
+        reason?: string;
+      };
+    };
+  };
   "GET /v1/risk": {
     responses: {
       200: {
@@ -1516,6 +1578,8 @@ export const OPERATION_KEYS: readonly OperationKey[] = [
   "GET /v1/vaults/{id}",
   "GET /v1/account/{address}",
   "GET /v1/fees",
+  "GET /v1/holder/{address}",
+  "GET /v1/stats/users",
   "GET /v1/risk",
   "GET /v1/hedges"
 ];

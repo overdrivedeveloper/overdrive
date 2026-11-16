@@ -17,6 +17,8 @@ import { registerGearHistoryRoutes } from "./routes/gear-history";
 import { registerGearRoutes } from "./routes/gears";
 import { registerGovernorHistoryRoutes } from "./routes/governor-history";
 import { registerGovernorRoutes } from "./routes/governor";
+import { registerHolderRoutes } from "./routes/holder";
+import { registerStatsRoutes } from "./routes/stats";
 import { registerHealthRoutes } from "./routes/health";
 import { registerHedgeRoutes } from "./routes/hedges";
 import { registerIntentRoutes } from "./routes/intent";
@@ -88,6 +90,8 @@ export function createApiApp(deps: ApiDependencies, options: { compat?: boolean 
   registerBackerRoutes(app, deps);
   registerAccountRoutes(app, deps);
   registerFeeRoutes(app, deps);
+  registerHolderRoutes(app, deps);
+  registerStatsRoutes(app, deps);
   registerRiskRoutes(app, deps);
   registerHedgeRoutes(app, deps);
   if (options.compat !== false) {
