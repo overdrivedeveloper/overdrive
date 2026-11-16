@@ -58,6 +58,10 @@ const B05: Flow = {
     await fundRole(ctx, "backer", 100_000); await fundRole(ctx, "alice", 200_000); await fundRole(ctx, "backer2", 100_000);
     await resetMckr(ctx, row);
     // a holder with gear: its balance and the token supply must not move
+    // the rows after this one stop the liquidator service (they seal by hand): a rerun must start it again (up.sh keeps a running one)
+    (await import("./harness")).startService("liquidator");
+    // a rerun after the hedger rows finds their posts aged by the warps since (HEDGE_STALE closes buys): re-post them as the hedger does
+    await (await import("./hedger")).refreshHedges(ctx, row);
     await buyDirect(ctx, row, "alice", g, U(5000), "alice buys MCKR-RACE (a holder)");
     const aliceBal = await tokenOf(ctx, g.token, addressOf("alice"));
     const sick = await openVault(ctx, row, "backer", g, U(1000), "open vault V1 (will fall below maintenance)");

@@ -78,7 +78,7 @@ async function ensureHedgerRole(ctx: Ctx, row: Row): Promise<void> {
 
 /** Re-posts every live hedge unchanged at the current chain time (what the hedger does at half of hedgeMaxAge). Warping rows would
  * otherwise leave the Governor HEDGE_STALE for the rows that follow. */
-async function refreshHedges(ctx: Ctx, row: Row): Promise<void> {
+export async function refreshHedges(ctx: Ctx, row: Row): Promise<void> {
   for (const m of ["ETH", "MCKA", "MCKR"]) {
     const id = marketId(m);
     const h = await readGov<readonly [bigint, bigint, bigint]>(ctx, "hedgeOf", [id]);

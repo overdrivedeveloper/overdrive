@@ -272,17 +272,46 @@ const B09: Flow = {
       await row.send("withdraw all vault A collateral", "backer", { address: ctx.c.ODBacker!, abi: backerAbi, functionName: "withdraw", args: [closer, c, who], gas: G });
       row.chain("vault A withdrawn in full", (await usdgOf(ctx, who)) - u0, c);
       // existing vault B is liquidatable while paused: price up 10 percent -> Race ratio 187 percent < 200 percent maintenance
+      const blk0 = await ctx.pub.getBlockNumber({ cacheTime: 0 });
       await moveMckr(ctx, row, (MCKR_PRICE * 110n) / 100n, "MCKR price +10 percent");
       await postVol(ctx, "MCKR");
       const liq = ctx.c.ODBacker!;
       const [, , r, , maint] = await health(ctx, victim);
       row.chainTrue("vault B is below maintenance", r < maint, `${r} vs ${maint}`);
-      const rec = await row.send("seal a batch (permissionless) while minting is paused", "liquidator", { address: liq, abi: backerAbi, functionName: "sealBatch", args: [g.id, [victim]], gas: G });
-      const sealed = (await eventsOf(ctx, rec.hash, backerAbi, "BatchSealed"))[0]!.args as { batchId: bigint };
-      const [readyAt] = (await ctx.pub.readContract({ address: liq, abi: IODBackerAbi, functionName: "batchWindow", args: [sealed.batchId] })) as readonly [bigint, bigint];
+      // the live liquidator service signs with the same key and seals on its 30 s pass; when it got there first, vault B
+      // sits in its live batch and a second seal reverts SealRefused("NONE_UNHEALTHY") (ODBacker.sol:340, :346): use it
+      const sealCall = { address: liq, abi: backerAbi, functionName: "sealBatch", args: [g.id, [victim]], gas: G } as const;
+      let batchId = (await vaultOf(ctx, victim))[4];
+      if (batchId === 0n) {
+        try {
+          await ctx.pub.simulateContract({ ...sealCall, account: addressOf("liquidator") } as never);
+          const rec = await row.send("seal a batch (permissionless) while minting is paused", "liquidator", sealCall);
+          batchId = ((await eventsOf(ctx, rec.hash, backerAbi, "BatchSealed"))[0]!.args as { batchId: bigint }).batchId;
+        } catch (e) {
+          batchId = (await vaultOf(ctx, victim))[4];
+          if (batchId === 0n) throw e;
+        }
+      }
+      if (!(row.txs.some((t) => t.label.startsWith("seal a batch")))) row.note(`the liquidator service sealed vault B first (batch ${batchId}); asserted on that batch`);
+      const sealedEv = await ctx.pub.getContractEvents({ address: liq, abi: IODBackerAbi, eventName: "BatchSealed", fromBlock: blk0, args: { batchId } });
+      row.chainTrue("vault B sealed while minting is paused", sealedEv.length === 1, `batch ${batchId}`);
+      const [readyAt] = (await ctx.pub.readContract({ address: liq, abi: IODBackerAbi, functionName: "batchWindow", args: [batchId] })) as readonly [bigint, bigint];
       await (await import("./harness")).nextBlockAtLeast(ctx, readyAt);
-      const ex = await row.send("execute the batch while minting is paused", "liquidator", { address: liq, abi: backerAbi, functionName: "executeBatch", args: [sealed.batchId], gas: 6_000_000n });
-      const liqd = (await eventsOf(ctx, ex.hash, backerAbi, "Liquidated"))[0]?.args as { vaultId: bigint; debtTokens: bigint } | undefined;
+      const liqLogs = () => ctx.pub.getContractEvents({ address: liq, abi: IODBackerAbi, eventName: "Liquidated", fromBlock: blk0, args: { vaultId: victim } });
+      let done = await liqLogs();
+      if (!done.length) {
+        const execCall = { address: liq, abi: backerAbi, functionName: "executeBatch", args: [batchId], gas: 6_000_000n } as const;
+        try {
+          const now = await (await import("./harness")).nowTs(ctx);
+          await ctx.pub.simulateContract({ ...execCall, account: addressOf("liquidator"), blockOverrides: { time: readyAt > now ? readyAt : now + 1n } } as never);
+          await row.send("execute the batch while minting is paused", "liquidator", execCall);
+        } catch (e) {
+          if (!(await liqLogs()).length) throw e;
+        }
+        done = await liqLogs();
+      }
+      if (!row.txs.some((t) => t.label.startsWith("execute the batch"))) row.note("the liquidator service executed the batch first; asserted on its Liquidated event");
+      const liqd = done[0]?.args as { vaultId: bigint; debtTokens: bigint } | undefined;
       row.chain("vault B liquidated while minting is paused", liqd?.vaultId, victim);
       row.chain("liquidated debt", liqd?.debtTokens, tokensB);
       row.chain("vault B debt cleared", (await vaultOf(ctx, victim))[3], 0n);
