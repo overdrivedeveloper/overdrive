@@ -1,4 +1,8 @@
-import type { Address, Hex } from "viem";
+import { encodeAbiParameters, keccak256, type Address, type Hex } from "viem";
+
+// IDS-1: the ONE place the app turns market ids (bytes32 ASCII), pair keys and bytes32 reason text to and from strings.
+// src/indexer/ids-guard.test.ts fails on an ad-hoc bytes32 encode or decode anywhere else in app/; the vectors in
+// contracts/test/vectors/market-ids.json pin both directions (vol-engine and risk-sim keep their own, same vectors).
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 export const ZERO_BYTES32 = `0x${"0".repeat(64)}` as Hex;
@@ -44,7 +48,7 @@ export function gearStatusName(value: unknown): "active" | "paused" | "retired" 
 const SESSIONS = ["OPEN", "EXTENDED", "CLOSED", "UNKNOWN", "HALTED"] as const;
 export const sessionName = (value: unknown): string => SESSIONS[asNumber(value, -1)] ?? "UNKNOWN";
 
-/** bytes32 text (right padded) to a short string, e.g. a pause reason. */
+/** bytes32 text (right padded) to a short string, e.g. a pause reason. Zero (no reason) is "". */
 export function bytes32Text(value: unknown): string {
   const hex = String(value).replace(/^0x/, "");
   let out = "";
@@ -67,4 +71,19 @@ export function marketSymbol(id: string): string {
   const body = raw.subarray(0, end);
   for (const b of body) if (b <= 0x20 || b >= 0x7f) return id;
   return body.toString("ascii");
+}
+
+/** A market symbol to its id: the symbol's ASCII right padded with zeros to 32 bytes (SystemConfig.sol m.id).
+ *  Throws on an empty symbol, one over 32 bytes, or any byte outside printable ASCII. */
+export function marketId(symbol: string): Hex {
+  if (!/^[\x21-\x7e]{1,32}$/.test(symbol)) throw new Error(`not a market symbol: ${JSON.stringify(symbol)}`);
+  return `0x${Buffer.from(symbol, "ascii").toString("hex").padEnd(64, "0")}` as Hex;
+}
+
+/** bytes32 of short text (a reason or tag), right padded; same encoding as marketId, any printable ASCII up to 32. */
+export const bytes32OfText = (text: string): Hex => marketId(text);
+
+/** Key of a pair: numerator market `a` over denominator market `b`, keccak256(abi.encode(a, b)) (ODVolOracle.pairKey). */
+export function pairKey(a: Hex, b: Hex): Hex {
+  return keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [a, b]));
 }

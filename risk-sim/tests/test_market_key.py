@@ -19,3 +19,19 @@ def test_pair_market_key_matches_the_oracle_pair_key_vector():
     assert pair_market_key(ETH, BTC) == ETH_OVER_BTC_MARKET
     assert pair_market_key(ETH.upper().replace("0X", "0x"), BTC) == ETH_OVER_BTC_MARKET
     assert pair_market_key(BTC, ETH) != ETH_OVER_BTC_MARKET      # A over B: order matters
+
+
+def test_market_key_and_pair_key_pass_the_shared_vectors():
+    """IDS-1: same vectors as app/src/indexer/ids-guard.test.ts and vol-engine (contracts/test/vectors/market-ids.json)."""
+    import json
+    from pathlib import Path
+
+    from risk_sim.book import pair_market_key
+
+    vec = json.loads((Path(__file__).resolve().parents[2] / "contracts/test/vectors/market-ids.json").read_text())
+    for m in vec["markets"]:
+        assert market_key(m["id"]) == m["symbol"]
+    ids = {m["symbol"]: m["id"] for m in vec["markets"]}
+    for p in vec["pairs"]:
+        assert pair_market_key(ids[p["a"]], ids[p["b"]]) == p["id"]
+        assert market_key(p["id"]) == p["id"]  # a pair key is not ASCII: it passes through unchanged

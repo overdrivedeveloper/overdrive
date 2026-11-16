@@ -9,6 +9,7 @@ import {
 } from "./harness";
 import { MCKR_PRICE, moveMckr, resetMckr } from "./backers";
 import { sql } from "./liquidation";
+import { bytes32Text } from "../../../src/indexer/units";
 
 const WAD = 10n ** 18n;
 const gov = (ctx: Ctx) => ctx.c.ODGovernor!;
@@ -109,7 +110,7 @@ const G03: Flow = {
     row.chain("contract drawdown() tripped", tripped, true);
     const [paused, reason] = await read<readonly [boolean, string]>(ctx, "buysPaused");
     row.chain("contract buysPaused", paused, true);
-    row.chainTrue("pause reason is DRAWDOWN", Buffer.from(reason.slice(2), "hex").toString().replace(/\0+$/, "") === "DRAWDOWN", reason);
+    row.chainTrue("pause reason is DRAWDOWN", bytes32Text(reason) === "DRAWDOWN", reason);
     row.note(`peak ${peak} now ${now}`);
     // the indexed view (what the crank monitor cross-checks) sees the same drop
     const q = sql();

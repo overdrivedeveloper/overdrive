@@ -417,7 +417,7 @@ export async function ensureMockMarket(ctx: Ctx, symbol: string, embedded: boole
   const id = marketId(symbol);
   const guard = ctx.c.ODOracleGuard!;
   const known = (await ctx.pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "config", args: [id] })) as { feed: Address; stockToken: Address; pythId: Hex; enabled: boolean };
-  const pythId = `0x${Buffer.from(`${symbol}-mock-pyth`).toString("hex").padEnd(64, "0")}` as Hex;
+  const pythId = bytes32OfText(`${symbol}-mock-pyth`);
   if (known.enabled) {
     const m: MockMarket = { symbol, id, feed: known.feed, stock: known.stockToken, pythId: known.pythId, embedded, decimals: 8 };
     ctx.mocks.set(symbol, m);
@@ -579,7 +579,7 @@ export async function ensureCapital(ctx: Ctx, row: Row | null, usdg = 4_000_000)
 // ------------------------------------------------------------------------------------------------ deployment file sync
 
 const GEAR_NAMES = ["CRUISE", "SPORT", "RACE", "ECO", "REVERSE"] as const;
-const asciiOf = (b: Hex) => Buffer.from(b.slice(2), "hex").toString("utf8").replace(/\0+$/, "");
+const asciiOf = (b: Hex) => bytes32Text(b);
 
 /** 22a gap: up.sh lists gears AFTER the deploy file is written, so `deployment.json` has `gears: []` and the API (which
  * resolves a gear and its symbol, cap and unit only from that file) answers "Unknown gear" to every quote. This rewrites
@@ -638,6 +638,7 @@ export function startService(name: string): void {
 import { Gear as PGear, Rounding, value as formulaValue } from "../../../src/pricing";
 import { normStep } from "../../../src/pricing/norm";
 import { gapRate } from "../../../src/pricing/toll";
+import { bytes32OfText, bytes32Text } from "../../../src/indexer/units";
 
 export interface NormSt { nf: bigint; tollPerSecWad: bigint; lastAccrual: bigint; cumTollPerTokenWad: bigint }
 export const normOf = async (ctx: Ctx, id: Hex) => (await ctx.pub.readContract({ address: ctx.c.ODMinter!, abi: IODMinterAbi, functionName: "normState", args: [id] })) as unknown as NormSt;

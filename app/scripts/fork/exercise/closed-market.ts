@@ -12,6 +12,7 @@ import {
 } from "./harness";
 import { walletFor } from "../lib";
 import { gapRate } from "../../../src/pricing/toll";
+import { bytes32Text } from "../../../src/indexer/units";
 
 const P100 = 100n * 10n ** 8n;
 
@@ -59,7 +60,7 @@ const H09: Flow = {
     await pushMockFeed(ctx, row, m, P100, now - 31n * 86_400n, "feed last updated 31 days ago (maxAge 30 d)");
     const r = await priceOf(ctx, "MCKA");
     row.chain("guard session HALTED (4)", r.session, 4);
-    row.chain("guard reason HALTED", Buffer.from(r.reason.slice(2), "hex").toString().replace(/\0+$/, ""), "HALTED");
+    row.chain("guard reason HALTED", bytes32Text(r.reason), "HALTED");
     row.chainTrue("guard reference is $95", r.refP === 95n * 10n ** 18n, r.refP);
     await row.expectRevert("buy with a stale feed", "alice", { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "buy", args: [g.id, 1_000_000_000n, 0n, who, (await nowTs(ctx)) + 3600n] }, ["BuysClosed"]);
     // sell: value from min(last good $100, reference $95)

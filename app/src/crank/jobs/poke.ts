@@ -1,7 +1,8 @@
 // R14: keeps IODOracleGuard fresh. `poke(market)` is permissionless and the only call that stores lastGood and the halt latch. The
 // crank pokes every market on a cadence (5 min; 1 min while a Stock Token has a pending uiMultiplier change; at once after
 // each session boundary) and alerts on the guard's reasons. It never applies a multiplier itself, so it cannot apply one twice.
-import { encodeFunctionData, hexToString, parseAbi, type Address, type Hex } from "viem";
+import { encodeFunctionData, parseAbi, type Address, type Hex } from "viem";
+import { bytes32Text } from "../../indexer/units";
 import { IODOracleGuardAbi } from "../../abi";
 import { raiseAlert } from "../alerts";
 import type { CrankContext } from "../context";
@@ -15,7 +16,7 @@ const stockAbi = parseAbi([
   "function uiMultiplier() view returns (uint256)", "function newUIMultiplier() view returns (uint256)", "function effectiveAt() view returns (uint256)",
 ]);
 
-const reasonName = (reason: Hex): string => (/^0x0*$/.test(reason) ? "" : hexToString(reason, { size: 32 }).replace(/\0+$/g, ""));
+const reasonName = (reason: Hex): string => bytes32Text(reason);
 
 export interface PendingChange { symbol: string; token: Address; current: bigint; pending: bigint; effectiveAt: bigint }
 

@@ -1,7 +1,8 @@
 // Price policy (R4, STALE-1): a wrongful liquidation takes a backer's collateral, so the service fails closed on the price. It never
 // computes a price of its own: the verdict is always the contract's health(); this module only decides whether the oracle guard's
 // reading of the market is trustworthy enough to let that verdict act.
-import { hexToString, type Hex } from "viem";
+import type { Hex } from "viem";
+import { bytes32Text } from "../indexer/units";
 import type { PriceReading, Verdict } from "./types";
 
 /** Session enum of ODTypes.sol: OPEN, EXTENDED, CLOSED, ... Anything other than OPEN or EXTENDED is "closed" for this service. */
@@ -19,7 +20,7 @@ const FAIL_CLOSED_REASONS: Record<string, Verdict> = {
 
 export function reasonText(reason: Hex): string {
   if (!reason || /^0x0*$/.test(reason)) return "";
-  try { return hexToString(reason, { size: 32 }).replace(/\0+$/, ""); } catch { return reason; }
+  return bytes32Text(reason);
 }
 
 export interface PriceDecision { ok: boolean; verdict?: Verdict; reason?: string; closed: boolean }

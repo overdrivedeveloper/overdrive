@@ -9,6 +9,7 @@ import {
 } from "./harness";
 import { walletFor } from "../lib";
 import { marketId } from "../setup";
+import { bytes32OfText } from "../../../src/indexer/units";
 
 export const G = 3_000_000n; // explicit gas: plain estimates under-run on this fork
 export const backerAbi = IODBackerAbi as unknown as Abi;
@@ -57,7 +58,7 @@ export async function resetMckr(ctx: Ctx, row: Row | null, price = MCKR_PRICE): 
 async function settleMckr(ctx: Ctx, row: Row | null, price: bigint): Promise<void> {
   const m = await ensureMockMarket(ctx, "MCKR", true, { alwaysOpen: true, volCeil: 4000n });
   const reason = async () => (await ctx.pub.readContract({ address: ctx.c.ODOracleGuard!, abi: IODOracleGuardAbi, functionName: "buysPausedReason", args: [marketId("MCKR")] })) as Hex;
-  const CONT = `0x${Buffer.from("CONTINUITY").toString("hex").padEnd(64, "0")}`;
+  const CONT = bytes32OfText("CONTINUITY");
   await pokeMarket(ctx, row, "MCKR");
   const w = walletFor("deployer");
   for (let i = 0; i < 4 && (await reason()) === CONT; i++) {

@@ -24,12 +24,13 @@ import {
 } from "./harness";
 import { stopService, sql } from "./liquidation";
 import { privateKeyToAccount } from "viem/accounts";
+import { bytes32Text } from "../../../src/indexer/units";
 
 const HEDGER_ROLE = keccak256(stringToHex("HEDGER_ROLE"));
 const gov = (ctx: Ctx) => ctx.c.ODGovernor!;
 const readGov = <T,>(ctx: Ctx, functionName: string, args: readonly unknown[] = []) =>
   ctx.pub.readContract({ address: gov(ctx), abi: IODGovernorAbi, functionName, args } as never) as Promise<T>;
-const reasonOf = (b: string) => Buffer.from(b.slice(2), "hex").toString().replace(/\0+$/, "");
+const reasonOf = (b: string) => bytes32Text(b);
 const ethMarket: HedgeMarket = { market: marketId("ETH"), symbol: "ETH", kind: "crypto", alwaysOpen: true };
 
 /** Everything one in-process hedger needs: a chain-clock, the mock venue, the cycle deps and the post deps. */

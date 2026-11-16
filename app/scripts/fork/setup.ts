@@ -34,6 +34,7 @@ import {
   addressOf, ANVIL_URL, anvilAccounts, API_URL, asTimelock, assertFork, DATABASE_URL, DEPLOYMENT_FILE, encryptKeystore, FORK_DIR,
   forkClients, keyOf, loadDeployment, loadForkConfig, PORTS, ROOT, runOnce, walletFor, type Role,
 } from "./lib";
+import { bytes32Text, marketId as sharedMarketId } from "../../src/indexer/units";
 
 export interface Relaxation { id: string; contract: string; what: string; why: string }
 export const RELAXATIONS: readonly Relaxation[] = [
@@ -211,7 +212,7 @@ export function relaxedMarket(cfg: MarketCfg, r = loadForkConfig().relaxations):
 }
 
 /** Market ids as the deployment's ODOracleGuard knows them (bytes32 of the symbol, right-padded). */
-export const marketId = (symbol: string): Hex => `0x${Buffer.from(symbol, "utf8").toString("hex").padEnd(64, "0")}` as Hex;
+export const marketId = (symbol: string): Hex => sharedMarketId(symbol);
 
 /** Governor capital the fork seeds once, in USDG. Same path as the exercise harness (ensureCapital): fund spare2, allow it as a
  * depositor through the timelock, deposit. Without equity the Governor's cap is 0 and every buy closes with CAP. */
@@ -382,7 +383,7 @@ async function listGears(): Promise<void> {
 
 const GEAR_NAMES = ["CRUISE", "SPORT", "RACE", "ECO", "REVERSE"] as const;
 export const POWER_OF_GEAR: Record<number, string> = { 0: "1.5", 1: "2", 2: "3", 3: "0.5", 4: "-1" };
-const asciiOf = (b: Hex) => Buffer.from(b.slice(2), "hex").toString("utf8").replace(/\0+$/, "");
+const asciiOf = (b: Hex) => bytes32Text(b);
 
 /** The deployment file's `gears` rebuilt from ODGearRegistry (the deploy writes `gears: []` before the list-gears batch runs, and the
  * API resolves a gear, its symbol, cap and unit only from that file). Writes the file when the list changed; true when it did. */

@@ -1,5 +1,5 @@
 // EIP-712 typed data for a signed sigma post to ODVolOracle. Builder only: the vol engine signs with it.
-import { encodeAbiParameters, hashTypedData, keccak256 } from "viem";
+import { hashTypedData } from "viem";
 
 export type Hex = `0x${string}`;
 export type Address = `0x${string}`;
@@ -42,7 +42,5 @@ export function volPostDigest(chainId: number, verifyingContract: Address, messa
   return hashTypedData(volPostTypedData(chainId, verifyingContract, message));
 }
 
-/** Market key of a pair: numerator market `a` over denominator market `b`, as keccak256(abi.encode(a, b)). */
-export function pairMarketKey(a: Hex, b: Hex): Hex {
-  return keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [a, b]));
-}
+/** Market key of a pair (numerator `a` over denominator `b`): the shared pairKey in indexer/units (IDS-1). */
+export { pairKey as pairMarketKey } from "../indexer/units";

@@ -8,6 +8,7 @@ import {
   atNextSecond, buyDirect, formulaValueOf, fundRole, mockStockAbi, normOf, normStep, nowTs, pokeMarket, priceOf, pushMockFeed, refreshMocks, valueOf, warpBy, freshen,
   type Abi, type Ctx, type Flow, type Row,
 } from "./harness";
+import { bytes32Text } from "../../../src/indexer/units";
 
 async function splitOne(ctx: Ctx, row: Row, symbol: "MCKA" | "MCKB"): Promise<void> {
   const embedded = symbol === "MCKA";
@@ -21,7 +22,7 @@ async function splitOne(ctx: Ctx, row: Row, symbol: "MCKA" | "MCKB"): Promise<vo
   await row.send(`${symbol}: schedule 2-for-1 (multiplier 1 to 2 in 10 min)`, "deployer", { address: m.stock, abi: mockStockAbi as Abi, functionName: "setMultipliers", args: [10n ** 18n, 2n * 10n ** 18n, eff] });
   await refreshMocks(ctx);
   const pending = await priceOf(ctx, symbol);
-  row.chain(`${symbol}: buys paused for the split window`, Buffer.from(pending.reason.slice(2), "hex").toString().replace(/\0+$/, ""), "SPLIT_PENDING");
+  row.chain(`${symbol}: buys paused for the split window`, bytes32Text(pending.reason), "SPLIT_PENDING");
   await row.expectRevert(`${symbol}: buy during the split window`, "carol", { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "buy", args: [g.id, 1_000_000_000n, 0n, who, (await nowTs(ctx)) + 3600n] }, ["BuysClosed"]);
   row.chain(`${symbol}: p unchanged while pending`, pending.p, p0);
   // the switch: multiplier 2 and the feed moves with it (per-share price halves when the guard multiplies; an embedded feed already quotes per token)
