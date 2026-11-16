@@ -32,7 +32,8 @@ describe("hermes client on recorded live answers", () => {
     expect(u.updateData).toHaveLength(1);
     expect(u.updateData[0]).toMatch(/^0x504e4155/); // "PNAU", the Pyth accumulator update magic
     const parsed = (fx.open.hermes.body as { parsed: { price: { publish_time: number } }[] }).parsed[0];
-    expect(u.publishTimes.get(fx.pythId.toLowerCase())).toBe(parsed.price.publish_time);
+    expect(u.publishTimes.get(fx.pythId.toLowerCase())).toBe(parsed?.price.publish_time);
+    expect(parsed?.price.publish_time).toBeGreaterThan(0);
   });
 
   test("market closed: Hermes had no update (recorded 404), the client throws with the status, never a price", async () => {

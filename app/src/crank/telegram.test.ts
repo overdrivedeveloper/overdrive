@@ -33,8 +33,9 @@ describe("sendTelegram routes ops alerts to the ops chat only", () => {
     const { calls, impl } = recorder();
     expect(await sendTelegram(f, "Warning: test", impl)).toBe(true);
     expect(calls.length).toBe(1);
-    expect(JSON.parse(calls[0].body).chat_id).toBe("-100111");
-    expect(calls[0].body).not.toContain("-100777");
+    const body = calls[0]?.body ?? "";
+    expect(JSON.parse(body).chat_id).toBe("-100111");
+    expect(body).not.toContain("-100777");
   });
 
   test("no bot token: refuses and sends nothing", async () => {
