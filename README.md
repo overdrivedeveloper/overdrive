@@ -1,10 +1,10 @@
 # Overdrive Backend
 
-Smart contracts and backend services for Overdrive: geared tokens on Robinhood Chain (chain ID `4663`). A gear is an ERC-20 whose value follows an underlying price raised to a fixed power (1.5, 2, 3, 0.5 or -1), fully paid in USDG.
+Smart contracts and backend services for Overdrive: geared tokens on Robinhood Chain (chain ID `4663`; testnet `46630`). A gear is an ERC-20 whose value follows an underlying price raised to a fixed power (1.5, 2, 3, 0.5 or -1), fully paid in USDG.
 
 Holders are never liquidated. The cost of the gear is a daily toll, applied by shrinking a normalisation factor, so the position can lose value but never owes more than it holds. Backers fund the house book and post collateral in vaults; their vaults, not holders, face liquidation.
 
-Status: in development. Not deployed. Unaudited. Do not rely on it with funds.
+Status: in development. Not deployed. Unaudited. Do not rely on it with funds. The security model, privileged roles and known issues are in [SECURITY.md](SECURITY.md); internal review records are in [security/](security/).
 
 ## Layout
 
@@ -48,31 +48,80 @@ npm run dev                                                              # local
 
 ### Contracts (`contracts/src`)
 
+`src/gear/`
+
 | Contract | What it does |
 | --- | --- |
 | `ODGear` | The ERC-20 of one gear, deployed as a minimal clone |
 | `ODGearFactory` | Deploys one `ODGear` clone per gear at a deterministic address |
 | `ODGearRegistry` | The one list of gears: underlying, power, unit, cap, spread, status |
+
+`src/governor/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODMinter` | Buys and sells gear tokens against the house book at value plus or minus a spread; accrues the toll |
 | `ODMinterPricing` | The single pricing path of the minter (linked library) |
 | `ODGovernor` | The house book: an ERC-4626 vault of USDG owned by backers; carries exposure, the exit reserve and stress rules |
 | `ODGovernorRisk` | Per-gear book loops: liability, exposure and open interest |
 | `ODInsurance` | USDG pot that only the Governor and the backer contract may draw |
+
+`src/backer/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODBacker` | Backer vaults: post USDG collateral, mint gear tokens against it, sealed liquidation batches |
 | `ODBackerMath` | Pure arithmetic of a backer vault |
 | `ODLiquidation` | Sealed-batch liquidation: seal, wait, execute per vault, bonus and bad-debt order (insurance, then stake, then Governor); holders are never touched |
+| `ODSaleCredit` | A vault's sale credit: the proceeds of debt sold to the Governor, which never leave the Governor |
+
+`src/hook/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODHook` | Uniswap v4 hook on each gear/USDG pool; prices every swap through the minter, holds no liquidity |
 | `ODHookMiner` | Finds the CREATE2 salt that gives the hook its permission bits |
+
+`src/oracle/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODOracleGuard` | Every price that moves money passes here; Chainlink primary, fails closed |
 | `ODVolOracle` | Annualised volatility per market, posted as EIP-712 messages by the vol signer |
 | `ODMarketHours`, `ODCalendar` | Keeper-pushed US equity sessions, with an on-chain fallback calendar |
 | `ODTwapReader`, `ODTickPrice` | Uniswap v3 time-weighted price helpers |
+
+`src/fees/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODFees` | Splits fees between buckets |
 | `ODBuyBurn` | Recipient of the burn bucket; spends it on $OVRD through one admin-set route |
+| `IODSwapRoute` | The swap route interface `ODBuyBurn` uses (returns the TWAP reference price of a token) |
+
+`src/stake/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODStake` | Staked $OVRD: slashable first-loss capital behind the Governor |
+
+`src/agent/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODAgentRouter` | Lets an agent key trade for an owner inside the owner's on-chain policy; no admin, no pause |
 | `ODPaymaster` | Gas sponsorship for agent accounts |
+
+`src/math/`
+
+| Contract | What it does |
+| --- | --- |
 | `ODFixed`, `ODIndex`, `ODNorm`, `ODToll` | Maths: fixed point, the gear index r^p, the normalisation factor, the daily toll rate |
+
+`src/interfaces/`
+
+| Contract | What it does |
+| --- | --- |
 | `interfaces/` | Every `IOD*` interface, plus `ODRoles`, `ODTypes`, `ODPowers` |
 
 The cores are non-upgradeable. Admin actions go through a 48 hour timelock; the guardian can only pause or reduce risk. Libraries are vendored without git metadata (no submodules); versions and commits are in [contracts/lib/VERSIONS.md](contracts/lib/VERSIONS.md).
@@ -111,8 +160,11 @@ Intended holders at deployment. Nothing is deployed, so no address holds any rol
 | Liquidator | `bin/liquidator.ts` | Seals and executes backer liquidation batches; its key holds gas only |
 | MCP | `bin/mcp.ts` | MCP server: stdio for an agent host, or hosted read-only over HTTP |
 | Migrate | `bin/migrate.ts` | Applies Drizzle migrations from `app/drizzle` |
+| Telegram bot | `bin/telegram-bot.ts` | Team bot: answers read-only commands in the ops chat; holds no chain key and no database access, reads the local API only |
 
 Other folders: `abi/` (contract ABIs), `chain/` (RPC pool, clients, deployment loader), `db/` (schema and queries), `pricing/`, `lib/` (helpers), `config/` (vol and earnings data), `config.ts` (all environment variables).
+
+Python services (`app/python`, each with its own README and hash-pinned lock files): `vol-engine` computes sigma per market and signs EIP-712 posts for the vol oracle (the vol signer key); `risk-sim` runs the nightly stress simulation of the Governor book, recommends caps and holds no keys.
 
 ## Requirements
 
@@ -139,59 +191,18 @@ Everything here is a script in this repository; nothing is deployed yet and no a
 2. Dry run on a local fork first: `anvil --fork-url https://rpc.mainnet.chain.robinhood.com --port 8547`, then `OD_DEPLOYER=<address> ANVIL_URL=http://127.0.0.1:8547 bash app/scripts/deploy-fork.sh`. Every stage is skipped if already done, so a rerun is safe.
 3. Arm the real run: `OVERDRIVE_ALLOW_REAL_DEPLOY=1` and `OVERDRIVE_ALLOW_FILE=<a file the owner creates>`. Without both, `ODScript._guardRealBroadcast` reverts on chains 4663 and 46630. The signing key is a Foundry keystore account (`overdrive-deployer` by default, `OD_ACCOUNT` to change); no key is ever passed on a command line. **owner**
 4. Run `bash app/scripts/deploy-testnet.sh` (46630) or `bash app/scripts/deploy-mainnet.sh` (4663). Mainnet first repeats the whole deploy on a local fork at the deployer's real nonce and runs `PostDeployCheck` on it, then asks you to type the chain id. **owner**
-5. The scripts run these stages in order: `DeploySystem.s.sol` (deploys the cores, wires the once-only setters, hands every admin role to the 48 hour timelock and writes the deployments json; it seeds nothing), `TimelockHandoff.s.sol` (idempotent; finishes a handoff that stopped), `PostDeployCheck.s.sol` (read only; writes `security/audit-grade/post-deploy-<network>.txt` and reverts on any failure), then `ListGears.s.sol` (writes the Safe batch `.batches/<network>-list-gears.json`; it never executes).
+5. The scripts run these stages in order: `DeploySystem.s.sol` (deploys the cores, wires the once-only setters (minter, backer, hook, stake, coverers, notifiers) exactly once each, hands every admin role to the 48 hour timelock, with the Safe 3-of-5 as proposer, renounces the deployer's roles, gives the guardian role to the guardian Safe and writes the deployments json; it seeds nothing), `TimelockHandoff.s.sol` (idempotent; finishes a handoff that stopped), `PostDeployCheck.s.sol` (read only: chain, code present, wiring, roles, the 48 hour delay, hook address bits, pool initialisation; writes `security/audit-grade/post-deploy-<network>.txt` and reverts on any failure), then `ListGears.s.sol` (writes the Safe batch `.batches/<network>-list-gears.json`; it never executes).
 6. Schedule and execute the list-gears batch from the owner Safe (3-of-5), through the timelock. **owner**
 7. Seed each pool as set out in SECURITY.md (known residual L-7). **owner**
 8. Verify the deployed bytecode against this checkout's build: `bash contracts/script/verify-deployment.sh <mainnet|testnet> [rpc-url]` (PASS or FAIL per contract). `MineHookSalt.s.sol` is a view-only helper that prints the hook salt for a deployer.
 
-**Record.** The scripts write `app/deployments/mainnet.json` or `app/deployments/testnet.json` (local and fork runs write `app/deployments/local/`, git-ignored; `app/deployments/anvil.json` is the committed local record). Commit the file, then run `python3 .github/scripts/readme-deployments.py` to regenerate the Deployment section above and `cd sdk && bun run generate` to regenerate the SDK address table. CI fails if either is out of date, so this README cannot disagree with the files.
+**Record.** The scripts write `app/deployments/mainnet.json` or `app/deployments/testnet.json` (local and fork runs write `app/deployments/local/`, git-ignored; `app/deployments/anvil.json` is the committed local record). The services and the SDK read addresses only from it. Commit the file, then run `python3 .github/scripts/readme-deployments.py` to regenerate the Deployment section above and `cd sdk && bun run generate` to regenerate the SDK address table. CI fails if either is out of date, so this README cannot disagree with the files.
 
 **Servers** (`app/scripts/server`, one shared box, only `overdrive*` things are touched; see its [README](app/scripts/server/README.md))
 
 1. `deploy.sh --provision --preflight <host>` (read only), then `deploy.sh --provision <host>`; fill `/etc/overdrive/overdrive.env` and copy the keystores into `/etc/overdrive/keys`; run `provision.sh --service-users`. **owner**
 2. `deploy.sh --ref <40-hex sha> <host>` releases a commit: it migrates first, restarts in order, health-checks each service and returns to the previous release on any failure. **owner**
 3. `deploy.sh --check <host>` health-checks without changing anything. Rollback is described in the server README.
-
-## Services (`app/src`)
-
-| Service | Entry | What it does |
-| --- | --- | --- |
-| API | `bin/api.ts` | Read-only REST API (Hono). Reads only from Postgres; builds unsigned intents, sends nothing |
-| Indexer | `bin/indexer.ts` | The only process that polls the chain. Writes events and snapshots to Postgres |
-| Crank | `bin/crank.ts` | Scheduled jobs that send transactions: `sessions`, `toll`, `poke`, `vol-watch`, `queued-sells`, `fees`, `risk-monitor`, `admin-watch`, `gas-watch`, `pyth-push`, `heartbeat` |
-| Hedger | `bin/hedger.ts` | Hedges the Governor's exposure on outside venues; dry run by default; never moves funds off the system |
-| Liquidator | `bin/liquidator.ts` | Seals and executes backer liquidation batches; its key holds gas only |
-| MCP | `bin/mcp.ts` | MCP server: stdio for an agent host, or hosted read-only over HTTP |
-| Migrate | `bin/migrate.ts` | Applies Drizzle migrations from `app/drizzle` |
-
-Other folders: `abi/` (contract ABIs), `chain/` (RPC pool, clients, deployment loader), `db/` (schema and queries), `pricing/`, `lib/` (helpers), `config/` (vol and earnings data), `config.ts` (all environment variables).
-
-## Requirements
-
-- [Bun](https://bun.sh) 1.4+
-- [Foundry](https://getfoundry.sh) (solc version is set in `contracts/foundry.toml`)
-- Postgres 16
-- Python 3.11+ for `app/python/vol-engine/` and `app/python/risk-sim/`; install them only from their lock files with `pip install --require-hashes --no-deps -r requirements-dev.lock` (see each README)
-
-## Contracts
-
-```sh
-cd contracts
-forge build
-forge test
-```
-
-## Deploy
-
-Deploy scripts arrive with todo 11. Until then there is no deploy command in this repository and no address is published. The planned order, taken from the todo, is:
-
-1. Run the deploy script against a fork or local node first; a mainnet broadcast needs an explicit owner approval and an armed flag.
-2. Deploy the cores with their constructor arguments, mining the hook salt for the real deployer.
-3. Wire the once-only setters (minter, backer, hook, stake, coverers, notifiers) exactly once each.
-4. List the launch gears and initialise their pools; seed each pool as set out in SECURITY.md (known residual L-7).
-5. Hand every admin role to the timelock, with the Safe 3-of-5 as proposer, and renounce the deployer's roles; set the guardian Safe 2-of-5.
-6. Run the read-only post-deploy check: chain, code present, wiring, roles, the 48 hour delay, hook address bits, pool initialisation.
-7. Verify the deployed bytecode against the local build and write `app/deployments/<chain>.json`; the services and the SDK read addresses only from it.
 
 ## Services
 
