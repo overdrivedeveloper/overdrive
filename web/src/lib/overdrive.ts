@@ -64,7 +64,7 @@ export const MARKETS: readonly Market[] = [
   market('ETH', 'Ethereum', 'Crypto'),
   market('BTC', 'Bitcoin', 'Crypto'),
   market('NVDA/AMD', 'NVIDIA / AMD', 'Pairs'),
-  market('HOOD/COIN', 'Robinhood / Coinbase', 'Pairs'),
+  market('COIN/MSTR', 'Coinbase / Strategy', 'Pairs'),
   market('QQQ/SPY', 'QQQ / SPY', 'Pairs'),
 ];
 export const MARKET_GROUPS: readonly MarketGroup[] = ['Mega-caps', 'Retail favourites', 'Index ETFs', 'Crypto', 'Pairs'];
