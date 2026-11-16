@@ -1,6 +1,6 @@
 // Governor rows G03 and G04 (todo 22c). G01 and G02 (donations) are in first-money.ts.
 import { readFileSync } from "node:fs";
-import { IODGearRegistryAbi, IODGovernorAbi } from "../../../src/abi";
+import { IODGearRegistryAbi, IODGovernorAbi, IODOracleGuardAbi } from "../../../src/abi";
 import { addressOf, FORK_DIR } from "../lib";
 import { POWER_OF } from "./harness";
 import {
@@ -32,15 +32,18 @@ const G04: Flow = {
     let delta = 0n, gamma = 0n, open = 0n;
     const POW: Record<number, bigint> = { 0: 15n * WAD / 10n, 1: 2n * WAD, 2: 3n * WAD, 3: WAD / 2n, 4: -WAD };
     for (const id of ids) {
-      const cfg = (await ctx.pub.readContract({ address: ctx.c.ODGearRegistry!, abi: IODGearRegistryAbi, functionName: "gear", args: [id] })) as { gear: number; token: `0x${string}`; marketB: string };
-      if (/^0x0+$/.test(cfg.marketB) === false) continue; // pairs are covered by the contract; this row sums single names
+      const cfg = (await ctx.pub.readContract({ address: ctx.c.ODGearRegistry!, abi: IODGearRegistryAbi, functionName: "gear", args: [id] })) as { gear: number; token: `0x${string}`; marketA: `0x${string}`; marketB: `0x${string}` };
       const net = (await totalSupply(ctx, cfg.token)) - (await read<bigint>(ctx, "backerDebt", [id]));
       if (net === 0n) continue;
-      const info: GearInfo = { id, token: cfg.token, key: id, gear: cfg.gear, marketA: market, marketB: "0x" as never };
+      // the getter sums every gear listed under the market, pairs included (ODGovernorRisk.exposure): a pair is valued at the
+      // guard's ratio price and counts with -power when this market is its denominator
+      const isPair = !/^0x0+$/.test(cfg.marketB);
+      const px = isPair ? ((await ctx.pub.readContract({ address: ctx.c.ODOracleGuard!, abi: IODOracleGuardAbi, functionName: "readRatio", args: [cfg.marketA, cfg.marketB] })) as { p: bigint }).p : p;
+      const info: GearInfo = { id, token: cfg.token, key: id, gear: cfg.gear, marketA: cfg.marketA, marketB: (isPair ? cfg.marketB : "0x") as never };
       const nf = (await writtenNorm(ctx, id)).nf;
-      const v = await formulaValueOf(ctx, info, p, nf);
+      const v = await formulaValueOf(ctx, info, px, nf);
       const val = net * v / WAD;
-      const pw = POW[cfg.gear]!;
+      const pw = isPair && cfg.marketB.toLowerCase() === market.toLowerCase() ? -POW[cfg.gear]! : POW[cfg.gear]!;
       delta += pw * val / WAD;
       gamma += (pw * (pw - WAD) / WAD) * val / WAD;
       open += val < 0n ? -val : val;
