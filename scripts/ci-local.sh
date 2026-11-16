@@ -18,11 +18,12 @@ if [ -z "${RHC_RPC_URL:-}" ] && [ -f "$HOME/.config/overdrive/rpc.env" ]; then s
 FORK_FLAGS="--compute-units-per-second 100"
 JOBS="hygiene semgrep contracts app guard scripts python web sdk slither"
 # deep is manual (15 to 25 min per seed, 100,000 handler calls): `scripts/ci-local.sh --only deep`; never in the default run.
+# coverage is manual too (`--only coverage`, floor in .audit-grade/coverage.md). Halmos is NOT in ci-local: scripts/formal.sh.
 RUNJOBS="$JOBS"
 only=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --only) only="$2"; RUNJOBS="$JOBS deep"; shift 2 ;;
+    --only) only="$2"; RUNJOBS="$JOBS deep coverage"; shift 2 ;;
     --list) for j in $JOBS; do echo "$j"; done; exit 0 ;;
     *) echo "ci-local: unknown argument $1" >&2; exit 2 ;;
   esac
@@ -56,6 +57,8 @@ check_audit_scope() { (cd contracts && python3 script/ci/audit-scope.py --check)
 # NatSpec: every public or external function under contracts/src has a NatSpec comment (@inheritdoc counts).
 # Slither inline exceptions: every slither-disable in contracts/src has a justified row in contracts/SLITHER.md.
 check_slither_exceptions() { (cd contracts && python3 script/ci/slither-exceptions.py --check); }
+# PRIV-2: contracts/ROLES.md and the deploy configs agree with the published role holders.
+check_roles_table() { (cd contracts && python3 script/ci/roles-table.py --check); }
 check_natspec() { (cd contracts && python3 script/ci/natspec.py --self-test && python3 script/ci/natspec.py --check); }
 # Todo 11 R11: every src contract stays under the 24,576-byte EIP-170 limit (reads the forge build output).
 check_code_size() { (cd contracts && python3 script/ci/code-size.py out >/dev/null); }
@@ -65,7 +68,7 @@ job_hygiene() {
     && gitleaks git . --config .github/gitleaks.toml --redact --no-banner
 }
 job_semgrep() { bash .github/scripts/semgrep.sh; }
-job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && check_audit_scope && check_natspec && check_slither_exceptions && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
+job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && check_audit_scope && check_natspec && check_slither_exceptions && check_roles_table && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
 job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh && bash scripts/pre-push.test.sh; }
@@ -73,6 +76,7 @@ job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.te
 job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build && bun test); }
 job_sdk() { (cd sdk && bun install --frozen-lockfile && bun run generate:check && bun test && bunx tsc --noEmit -p tsconfig.json); }
 job_deep() { bash scripts/deep-gate.sh; }
+job_coverage() { bash scripts/coverage.sh && python3 scripts/coverage-floor.py contracts/coverage/summary.md .audit-grade/coverage.md; }
 job_python() { bash scripts/check-python-locks.sh; }
 
 failed=0
