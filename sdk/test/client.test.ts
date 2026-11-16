@@ -53,6 +53,8 @@ const CALLS: Record<OperationKey, { run: (c: Overdrive) => Promise<unknown>; met
   "GET /v1/fees": { run: (c) => c.fees(), method: "GET", url: /^\/v1\/fees$/ },
   "GET /v1/risk": { run: (c) => c.risk(), method: "GET", url: /^\/v1\/risk$/ },
   "GET /v1/hedges": { run: (c) => c.hedges(), method: "GET", url: /^\/v1\/hedges$/ },
+  "GET /v1/stats/users": { run: (c) => c.userStats(), method: "GET", url: /^\/v1\/stats\/users$/ },
+  "GET /v1/holder/{address}": { run: (c) => c.holder(ADDR), method: "GET", url: new RegExp(`^/v1/holder/${ADDR}$`) },
 };
 
 describe("SDK client", () => {

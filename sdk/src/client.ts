@@ -129,9 +129,13 @@ export class Overdrive {
   fees() { return this.get<Response200<"GET /v1/fees">>("/v1/fees"); }
   risk() { return this.get<Response200<"GET /v1/risk">>("/v1/risk"); }
   hedges() { return this.get<Response200<"GET /v1/hedges">>("/v1/hedges"); }
+  /** Real-user count: distinct wallets that bought, sold or backed. */
+  userStats() { return this.get<Response200<"GET /v1/stats/users">>("/v1/stats/users"); }
 
   // ------------------------------------------------------------------ accounts
   account(address: string) { return this.get<Response200<"GET /v1/account/{address}">>(`/v1/account/${enc(address)}`); }
+  /** Holder tier and perks for a wallet, from its $OVRD balance. */
+  holder(address: string) { return this.get<Response200<"GET /v1/holder/{address}">>(`/v1/holder/${enc(address)}`); }
   backer(address: string) { return this.get<Response200<"GET /v1/backers/{address}">>(`/v1/backers/${enc(address)}`); }
   vault(id: string | number | bigint) { return this.get<Response200<"GET /v1/vaults/{id}">>(`/v1/vaults/${enc(String(id))}`); }
 
