@@ -10,6 +10,15 @@ import {
 const lc = (s: string) => s.toLowerCase();
 interface Meta { asOfBlock: string }
 
+/** First block at or before `hi` whose timestamp is >= ts (binary search over the fork's own blocks). */
+async function blockAtOrAfter(ctx: Ctx, ts: bigint, hi: bigint): Promise<bigint> {
+  const tsOf = async (n: bigint) => (await ctx.pub.getBlock({ blockNumber: n })).timestamp;
+  let lo = hi > 200_000n ? hi - 200_000n : 0n;
+  if ((await tsOf(lo)) >= ts) return lo;
+  while (hi - lo > 1n) { const mid = (lo + hi) / 2n; if ((await tsOf(mid)) >= ts) hi = mid; else lo = mid; }
+  return hi;
+}
+
 async function parity(ctx: Ctx, row: Row): Promise<void> {
   const gov = ctx.c.ODGovernor!;
   const [gearsApi, govApi, exitApi] = await Promise.all([
@@ -21,7 +30,15 @@ async function parity(ctx: Ctx, row: Row): Promise<void> {
   // gears
   for (const g of gearsApi.gears) {
     const b = at(gearsApi);
-    const ns = (await ctx.pub.readContract({ address: ctx.c.ODMinter!, abi: IODMinterAbi, functionName: "normState", args: [g.id as `0x${string}`], ...b })) as { nf: bigint };
+    let ns = (await ctx.pub.readContract({ address: ctx.c.ODMinter!, abi: IODMinterAbi, functionName: "normState", args: [g.id as `0x${string}`], ...b })) as { nf: bigint; lastAccrual: bigint };
+    // the API projects nf to its wall-clock "now" (gear-view projectNf, dt clamped at 0); normState projects to the block's own time.
+    // The fork warps days ahead of the wall clock, so once lastAccrual is past the wall clock the API shows the stored nf: compare
+    // against normState at the block that wrote that accrual (dt 0 there), the value the API is defined to show at its clock.
+    const wall = BigInt(Math.floor(Date.now() / 1000));
+    if (ns.lastAccrual > 0n && ns.lastAccrual >= wall) {
+      const at0 = await blockAtOrAfter(ctx, ns.lastAccrual, b.blockNumber);
+      ns = (await ctx.pub.readContract({ address: ctx.c.ODMinter!, abi: IODMinterAbi, functionName: "normState", args: [g.id as `0x${string}`], blockNumber: at0 })) as typeof ns;
+    }
     const cfg = (await ctx.pub.readContract({ address: ctx.c.ODGearRegistry!, abi: IODGearRegistryAbi, functionName: "gear", args: [g.id as `0x${string}`], ...b })) as { capUsdWad: bigint; status: number };
     // the API projects nf forward from the last accrual to its own wall-clock "now" (gear-view projectNf); the stored chain nf is
     // as of the last accrual, so the two differ by at most the toll of the gap: compare within 1e-6 relative
