@@ -1,0 +1,21 @@
+{
+ "note": "Public holder addresses of every deploy role (PRIV-2). Testnet: the roles of the 2026-11-15 testnet deploy (owner and guardian from its deployment record, timelock 0x55cf30F8...). Mainnet: the owner Safe 3-of-5 and guardian Safe 2-of-5 created on 4663 and the bot wallets. script/ci/roles-table.py --check fails when a config role is set to anything else, or when ROLES.md is out of date.",
+ "testnet": {
+  "ownerSafe": "0x2Bf1e30f8fb14328ab4ca110514CC4f59477F046",
+  "guardianSafe": "0xb05B79AdB99F2a2dA61FaDEedE6D5a5bD1a7d8E5",
+  "keeper": "0xfD5D958e94dd1374E90909Dd995cc260348435e3",
+  "hedger": "0xe878f67F5C47495A88A1aCAa1Fa61956CeDc4c8a",
+  "volSigner": "0xCECF4b72c3bbA60dB8FD9e58C182BAC029743a37",
+  "paymasterSigner": "0xb05B79AdB99F2a2dA61FaDEedE6D5a5bD1a7d8E5",
+  "treasury": "0x2Bf1e30f8fb14328ab4ca110514CC4f59477F046"
+ },
+ "mainnet": {
+  "ownerSafe": "0x176F3d70fB5f10A90f0Ed822A6BB7910485f8A27",
+  "guardianSafe": "0x1818B7DA01e1F36E54FdFdA15Ac6212762cAb483",
+  "keeper": "0x94B37EEb014E6d01E09c7b1E73Cfb2F2633370A6",
+  "hedger": "0xB93269E8Bc3bc73D914CbF2bf410573236cE57FD",
+  "volSigner": "0xefFa1BC8Efe955eD8Ec8CA42B23442Abb6b73264",
+  "paymasterSigner": "0x272117dbFc195F7E1452986Da15576ccAd29A0A5",
+  "treasury": "0x176F3d70fB5f10A90f0Ed822A6BB7910485f8A27"
+ }
+}

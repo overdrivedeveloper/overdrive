@@ -92,6 +92,8 @@ jobs:
         run: python3 script/ci/natspec.py --self-test && python3 script/ci/natspec.py --check
       - name: check_slither_exceptions
         run: python3 script/ci/slither-exceptions.py --check
+      - name: check_roles_table
+        run: python3 script/ci/roles-table.py --check
       - run: forge fmt --check
       - run: forge build
       - name: check_code_size
