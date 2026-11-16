@@ -19,6 +19,8 @@ export const AREAS: Record<string, () => Promise<Area>> = {
   liquidation: async () => import("./liquidation"),
   governor: async () => import("./governor"),
   hedger: async () => import("./hedger"),
+  ledger: async () => import("./ledger"),
+  shutdown: async () => import("./shutdown"),
 };
 
 export function parseArgs(argv: string[]): { areas: string[]; only: string[]; resume: boolean } {

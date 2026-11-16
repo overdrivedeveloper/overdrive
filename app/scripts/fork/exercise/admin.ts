@@ -52,7 +52,7 @@ const ownerWallet = () => walletFor("owner");
 
 /** Schedules `calls` through the timelock as the owner Safe and returns what is needed to execute. Single call uses schedule,
  * several use scheduleBatch (runbook 03). */
-async function scheduleOp(ctx: Ctx, row: Row, label: string, calls: { to: Address; abi: Abi; fn: string; args: readonly unknown[] }[]) {
+export async function scheduleOp(ctx: Ctx, row: Row, label: string, calls: { to: Address; abi: Abi; fn: string; args: readonly unknown[] }[]) {
   const tl = getAddress(ctx.dep.admin.timelock);
   const salt = keccak256(toHex(`od-fork-${label}-${Date.now()}`));
   const targets = calls.map((c) => c.to), values = calls.map(() => 0n);
@@ -74,7 +74,7 @@ async function scheduleOp(ctx: Ctx, row: Row, label: string, calls: { to: Addres
 }
 
 /** Early execute (immediately, then 60 s before ready) must revert; then warp to ready and execute. */
-async function runOp(ctx: Ctx, row: Row, label: string, op: Awaited<ReturnType<typeof scheduleOp>>) {
+export async function runOp(ctx: Ctx, row: Row, label: string, op: Awaited<ReturnType<typeof scheduleOp>>) {
   await row.expectRevert(`${label}: execute straight after schedule`, "owner", op.execReq, ["TimelockUnexpectedOperationState"]);
   const now = await nowTs(ctx);
   await warpBy(ctx, Number(op.ready - now) - 60);
