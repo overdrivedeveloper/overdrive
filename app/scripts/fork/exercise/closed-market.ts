@@ -7,7 +7,7 @@ import { addressOf, erc20Abi } from "../lib";
 import { refreshPyth } from "../setup";
 import {
   GEAR, gotoSession, atNextSecond, buyDirect, ensureCapital, ensureGear, ensureMockMarket, formulaValueOf, freshen, fundRole, minterQuote, mockPythAbi, mockStockAbi,
-  normOf, normStep, writtenNorm, nowTs, pokeMarket, priceOf, pushMockFeed, refreshMocks, sellDirect, tokenOf, usdgOf, warpBy, approveMinter, type Abi, type Ctx, type Flow,
+  pollApi, normOf, normStep, writtenNorm, nowTs, pokeMarket, priceOf, pushMockFeed, refreshMocks, sellDirect, tokenOf, usdgOf, warpBy, approveMinter, type Abi, type Ctx, type Flow,
   type GearInfo, type MockMarket, type Row,
 } from "./harness";
 import { walletFor } from "../lib";
@@ -172,7 +172,10 @@ async function H11body(row: Row, ctx: Ctx): Promise<void> {
     row.chain("ticket A cleared (by the crank or its own job)", a[3], 0n);
     row.chainTrue("owner received proceeds for A", (await usdgOf(ctx, who)) > u1 || a[3] === 0n, "");
     row.chain("alice holds no more gear than before", await tokenOf(ctx, g.token, who), b0);
-    const acct = await (await fetch(`${(await import("../lib")).API_URL}/v1/account/${who}`)).json() as { queuedSells: unknown[] };
+    // the API reads the index, which follows the crank's fill a few blocks later: poll, then compare
+    const acctUrl = `${(await import("../lib")).API_URL}/v1/account/${who}`;
+    const acct = await pollApi(async () => (await (await fetch(acctUrl)).json()) as { queuedSells: unknown[] }, (x) => x.queuedSells.length === 0, 60_000)
+      .catch(async () => (await (await fetch(acctUrl)).json()) as { queuedSells: unknown[] });
     row.api("API queued sells empty after fill", acct.queuedSells.length, 0);
   }
 }
