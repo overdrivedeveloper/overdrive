@@ -1,0 +1,14 @@
+{
+ "address": "0x00000000000000000000000000000000000a4c05",
+ "accountIndex": 0,
+ "order": {
+  "used": 0,
+  "cap": 85879982484,
+  "nextAvailableMs": 0
+ },
+ "cancel": {
+  "used": 0,
+  "cap": 85880002484,
+  "nextAvailableMs": 0
+ }
+}

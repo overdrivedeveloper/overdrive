@@ -50,4 +50,40 @@ describe("routes", () => {
     expect(await h3.netPositionUsd("TSLA")).toBe(USD(50_000));
     expect(r3.names.TSLA!.hedged).toBe(true);
   });
+
+  test("spy_qqq_go_to_arcus_when_configured_and_hl_proxy_is_overflow", async () => {
+    // Hyperliquid mainnet hedges SPY and QQQ only through index proxies (hlRoute: xyz:SP500, xyz:XYZ100)
+    const hl = new MockVenue({ name: "hyperliquid", marks: { SPY: PX(800), QQQ: PX(640), TSLA: PX(400) }, alwaysOpen: true, proxies: ["SPY", "QQQ"] });
+    const arcus = new MockVenue({ name: "arcus", marks: { SPY: PX(800), QQQ: PX(640) }, alwaysOpen: true });
+    for (const sym of ["SPY", "QQQ"]) expect(routeFor(market(sym), [hl, arcus]).map((v) => v.name)).toEqual(["arcus", "hyperliquid"]);
+    // a proxy venue goes after a native one even when the kind order puts it first
+    expect(routeFor({ symbol: "SPY", kind: "crypto" }, [hl, arcus]).map((v) => v.name)).toEqual(["arcus", "hyperliquid"]);
+    // Arcus not configured: the Hyperliquid route is unchanged
+    expect(routeFor(market("SPY"), [hl]).map((v) => v.name)).toEqual(["hyperliquid"]);
+    expect(routeFor(market("ETH", true), [arcus, hl]).map((v) => v.name)).toEqual(["hyperliquid", "arcus"]);
+
+    const { deps, gov } = makeDeps({ markets: [market("SPY"), market("QQQ")], venues: [hl, arcus] });
+    deps.routeFor = routeFor;
+    gov.delta.set("SPY", USD(100_000));
+    gov.delta.set("QQQ", USD(-80_000));
+    const r = await runHedgeCycle(deps);
+    expect(r.names.SPY!.fills.map((f) => f.venue)).toEqual(["arcus"]);
+    expect(await arcus.netPositionUsd("SPY")).toBe(USD(100_000));
+    expect(await arcus.netPositionUsd("QQQ")).toBe(USD(-80_000));
+    expect(hl.calls.trade).toBe(0);
+  });
+
+  test("a_market_hl_lacks_goes_to_arcus_and_one_nobody_lists_fails_closed", async () => {
+    const hl = new MockVenue({ name: "hyperliquid", marks: { TSLA: PX(400) }, alwaysOpen: true });
+    const arcus = new MockVenue({ name: "arcus", marks: { HOOD: PX(80) }, alwaysOpen: true });
+    const { deps, gov } = makeDeps({ markets: [market("HOOD"), market("ZZZZ")], venues: [hl, arcus] });
+    deps.routeFor = routeFor;
+    gov.delta.set("HOOD", USD(50_000));
+    gov.delta.set("ZZZZ", USD(50_000));
+    const r = await runHedgeCycle(deps);
+    expect(await arcus.netPositionUsd("HOOD")).toBe(USD(50_000));
+    expect(r.names.ZZZZ!.reason).toBe("no_venue");
+    expect(r.names.ZZZZ!.hedged).toBe(false);
+    expect(hl.calls.trade + arcus.calls.trade).toBe(1);
+  });
 });

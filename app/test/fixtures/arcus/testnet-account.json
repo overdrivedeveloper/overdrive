@@ -1,0 +1,62 @@
+{
+ "accountIndex": 0,
+ "address": "0x00000000000000000000000000000000000a4c05",
+ "netQuoteBalance": "326450.840078118",
+ "equity": "289443.616886233",
+ "freeCollateral": "287583.095264299",
+ "netDeposits": "1000000",
+ "pendingDeposits": "0",
+ "pendingWithdrawals": "0",
+ "positions": {
+  "42": {
+   "address": "0x00000000000000000000000000000000000a4c05",
+   "accountIndex": 0,
+   "marketId": 42,
+   "marketDisplayName": "XRP-USD",
+   "side": "SHORT",
+   "size": "-38740.94051",
+   "averageEntryPrice": "1.5138",
+   "cumulativeFunding": {
+    "allTime": "422194.713489668",
+    "sinceOpen": "413369.005829077",
+    "sinceChange": "2287.075207952"
+   },
+   "leverage": "20",
+   "marginMode": "CROSS",
+   "borrowedCapital": "58647.145383263",
+   "marginUsed": "1846.974338814",
+   "positionValueNotional": "-36939.486776285",
+   "unrealizedPnl": "21707.658606978",
+   "markPx": "0.9535"
+  },
+  "49": {
+   "address": "0x00000000000000000000000000000000000a4c05",
+   "accountIndex": 0,
+   "marketId": 49,
+   "marketDisplayName": "BOT-USD",
+   "side": "SHORT",
+   "size": "-3.7631342",
+   "averageEntryPrice": "31.6",
+   "cumulativeFunding": {
+    "allTime": "31575.804507909",
+    "sinceOpen": "31047.260414977",
+    "sinceChange": "158.895512935"
+   },
+   "leverage": "5",
+   "marginMode": "CROSS",
+   "borrowedCapital": "118.945833597",
+   "marginUsed": "13.54728312",
+   "positionValueNotional": "-67.7364156",
+   "unrealizedPnl": "51.209417997",
+   "markPx": "18"
+  }
+ },
+ "sequenceNumber": 49509110,
+ "netDepositsByAsset": [
+  {
+   "spotAssetId": 0,
+   "spotAssetDisplayName": "USDG",
+   "netAmount": "1000000"
+  }
+ ]
+}

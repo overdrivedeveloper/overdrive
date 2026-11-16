@@ -1,12 +1,12 @@
 // Arcus venue (R15). The adapter speaks to an ArcusPort: orders go out through the port (the live port routes them through
 // the transaction queue, todo 14, to the Arcus contracts named in the deployment file), positions and equity are read on
 // chain, and postsEquity is false because the Governor can read Arcus equity itself.
-// Live status: the Arcus perp ABI and addresses are not verified (chain-facts records the deployment contracts but the
-// perp venue is documented as an off-chain order book with API keys), so only MockArcusPort exists and the live port
-// refuses to build. No address is invented here.
-import type { Deployment } from "../../chain/deployment";
+// Live: Arcus perps are an off-chain order book with Ed25519 API keys (docs.arcus.xyz); LiveArcusPort in arcus-live.ts
+// speaks its REST API. Its account is off chain, so a live venue posts its equity (postsEquity true) like Hyperliquid, and
+// it cannot deposit (owner's runbook), so it is built with fundable false. The defaults keep the mock's on-chain model.
 import { USDG_TO_WAD, WAD } from "../../lib/fixed";
 import type { IHedgeVenue, VenueFill } from "../types";
+import { ARCUS_API_URL, ArcusHttp, LiveArcusPort, loadArcusSigner, type ArcusFetch, type ArcusNetwork } from "./arcus-live";
 
 export interface ArcusPort {
   /** markets listed on Arcus, by underlying symbol; open = the market accepts orders right now */
@@ -27,10 +27,13 @@ export interface ArcusPort {
 
 export class ArcusVenue implements IHedgeVenue {
   readonly name = "arcus" as const;
-  readonly postsEquity = false;
-  readonly fundable = true;
+  readonly postsEquity: boolean;
+  readonly fundable: boolean;
   private listed = new Map<string, { open: boolean; proxy: boolean }>();
-  constructor(private readonly port: ArcusPort, private readonly now: () => number = () => Date.now()) {}
+  constructor(private readonly port: ArcusPort, private readonly now: () => number = () => Date.now(), opts: { fundable?: boolean; postsEquity?: boolean } = {}) {
+    this.fundable = opts.fundable ?? true;
+    this.postsEquity = opts.postsEquity ?? false;
+  }
 
   readonly basis = (underlying: string) => (this.listed.get(underlying)?.proxy ? { proxy: true, note: "index proxy on Arcus" } : { proxy: false });
 
@@ -71,11 +74,16 @@ export class ArcusVenue implements IHedgeVenue {
   }
 }
 
-/** The live port needs verified Arcus contracts in the deployment file; until then it refuses (never an invented address). */
-export function createLiveArcusPort(deployment: Pick<Deployment, "contracts">): ArcusPort {
-  const needed = ["ArcusPerp", "ArcusAccount"];
-  const missing = needed.filter((name) => !deployment.contracts[name]);
-  throw new Error(`Arcus contracts unverified: the deployment file has no ${missing.join(", ") || needed.join(", ")} entry and the Arcus perp ABI is not verified (todo 00)`);
+/**
+ * The live port (arcus-live.ts). Refuses to build without an account address, and outside dry run without the Ed25519
+ * API signing key file. In dry run it reads only (no signer), like the Hyperliquid venue.
+ */
+export function createLiveArcusPort(o: { network: ArcusNetwork; baseUrl?: string; account: string; accountIndex: number; signingKeyFile?: string; dryRun: boolean; fetch?: ArcusFetch }): LiveArcusPort {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(o.account)) throw new Error("Arcus credentials missing: HEDGER_VENUES includes arcus but ARCUS_ACCOUNT_ADDRESS is not set");
+  if (!o.dryRun && !o.signingKeyFile) throw new Error("Arcus credentials missing: HEDGER_DRY_RUN=0 needs ARCUS_API_SIGNING_KEY_FILE");
+  const signer = !o.dryRun && o.signingKeyFile ? loadArcusSigner(o.signingKeyFile) : undefined;
+  const http = new ArcusHttp({ baseUrl: o.baseUrl || ARCUS_API_URL[o.network], ...(o.fetch ? { fetch: o.fetch } : {}) });
+  return new LiveArcusPort({ http, account: o.account, accountIndex: o.accountIndex, ...(signer ? { signer } : {}) });
 }
 
 /** An in-memory Arcus: on-chain style reads, IOC fills at the limit or better, session-bound markets. */

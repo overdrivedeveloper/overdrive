@@ -44,6 +44,13 @@ const hedgerSchema = z.object({
   HL_API_URL: z.string().url().default("https://api.hyperliquid.xyz"),
   HL_NETWORK: z.enum(["mainnet", "testnet"]).default("mainnet"),
   HL_ACCOUNT_ADDRESS: z.string().regex(/^(0x[0-9a-fA-F]{40})?$/).default(""),
+  // Arcus (docs.arcus.xyz): master wallet the API key is registered to, its subaccount, and the path of the Ed25519 signing
+  // key file (chmod 600; the key itself is never an env value). ARCUS_API_URL defaults from ARCUS_NETWORK.
+  ARCUS_NETWORK: z.enum(["mainnet", "testnet"]).default("mainnet"),
+  ARCUS_API_URL: z.union([z.literal(""), z.string().url()]).default(""),
+  ARCUS_ACCOUNT_ADDRESS: z.string().regex(/^(0x[0-9a-fA-F]{40})?$/).default(""),
+  ARCUS_ACCOUNT_INDEX: int(0, 0, 9),
+  ARCUS_API_SIGNING_KEY_FILE: z.string().default(""),
 });
 
 export type HedgerEnv = z.infer<typeof hedgerSchema>;

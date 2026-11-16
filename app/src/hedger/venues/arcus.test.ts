@@ -31,9 +31,8 @@ describe("arcus venue", () => {
     expect(port.orders).toHaveLength(1);
   });
 
-  test.skip("live Arcus port (skip: Arcus contracts unverified)", () => undefined);
-
-  test("live_port_refuses_without_verified_contracts", () => {
-    expect(() => createLiveArcusPort({ contracts: {} })).toThrow("Arcus contracts unverified");
+  test("live_port_refuses_without_credentials", () => {
+    expect(() => createLiveArcusPort({ network: "mainnet", account: "", accountIndex: 0, dryRun: true })).toThrow("Arcus credentials missing");
+    expect(() => createLiveArcusPort({ network: "mainnet", account: "0x00000000000000000000000000000000000a4c05", accountIndex: 0, dryRun: false })).toThrow("Arcus credentials missing");
   });
 });

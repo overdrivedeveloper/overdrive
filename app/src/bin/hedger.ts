@@ -88,7 +88,10 @@ try {
   const env = boot!.env;
   venues = buildVenues(venueNames, {
     mock: () => defaultMockVenue(markets.map((m) => m.symbol)),
-    arcus: () => new ArcusVenue(createLiveArcusPort(deployment!)),
+    arcus: () => new ArcusVenue(createLiveArcusPort({
+      network: env.ARCUS_NETWORK, baseUrl: env.ARCUS_API_URL, account: env.ARCUS_ACCOUNT_ADDRESS, accountIndex: env.ARCUS_ACCOUNT_INDEX,
+      signingKeyFile: env.ARCUS_API_SIGNING_KEY_FILE, dryRun: settings.dryRun,
+    }), undefined, { fundable: false, postsEquity: true }),
     hyperliquid: () => {
       if (!/^0x[0-9a-fA-F]{40}$/.test(env.HL_ACCOUNT_ADDRESS)) throw new Error("HEDGER_VENUES includes hyperliquid but HL_ACCOUNT_ADDRESS is not set");
       return new HyperliquidVenue({

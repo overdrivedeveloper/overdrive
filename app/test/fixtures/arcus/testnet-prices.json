@@ -1,0 +1,56 @@
+{
+ "28": {
+  "marketDisplayName": "NVDA-USD",
+  "oraclePrice": "156.98",
+  "markPrice": "157.76",
+  "sequencer": 5106672263
+ },
+ "49": {
+  "marketDisplayName": "BOT-USD",
+  "oraclePrice": "17.84",
+  "markPrice": "18.01",
+  "sequencer": 5106672131
+ },
+ "21": {
+  "marketDisplayName": "SLV-USD",
+  "oraclePrice": "42.98",
+  "markPrice": "43.15",
+  "sequencer": 5106672263
+ },
+ "2": {
+  "marketDisplayName": "ETH-USD",
+  "oraclePrice": "1795.95",
+  "markPrice": "1788.77",
+  "sequencer": 5106672263
+ },
+ "1": {
+  "marketDisplayName": "BTC-USD",
+  "oraclePrice": "64048.3",
+  "markPrice": "63888.2",
+  "sequencer": 5106672253
+ },
+ "23": {
+  "marketDisplayName": "SPY-USD",
+  "oraclePrice": "749.56",
+  "markPrice": "751.05",
+  "sequencer": 5106672263
+ },
+ "24": {
+  "marketDisplayName": "QQQ-USD",
+  "oraclePrice": "670.71",
+  "markPrice": "673.39",
+  "sequencer": 5106672263
+ },
+ "29": {
+  "marketDisplayName": "TSLA-USD",
+  "oraclePrice": "386.33",
+  "markPrice": "390.1",
+  "sequencer": 5106672131
+ },
+ "42": {
+  "marketDisplayName": "XRP-USD",
+  "oraclePrice": "0.9495",
+  "markPrice": "0.9542",
+  "sequencer": 5106671902
+ }
+}
