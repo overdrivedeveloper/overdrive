@@ -7,6 +7,8 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+from Crypto.Hash import keccak
+
 from .config import SPEC_GROUPS, floor_for, is_crypto
 from .index import NAMES
 
@@ -119,6 +121,20 @@ def market_key(key: str) -> str:
     return key
 
 
+def pair_market_key(market_a: str, market_b: str) -> str:
+    """The oracle's pair key (ODVolOracle.pairKey, R9): keccak256(abi.encode(a, b)) over the two bytes32 market ids exactly as the
+    chain and the indexer store them (gears.market_a / market_b, 0x + 64 hex). Lowercase 0x hex, the form the indexer writes to
+    vol_posts.gear_or_underlying."""
+    raw = b""
+    for m in (market_a, market_b):
+        h = m[2:] if m.startswith(("0x", "0X")) else m
+        b = bytes.fromhex(h)
+        if len(b) != 32:
+            raise ValueError(f"not a bytes32 market id: {m}")
+        raw += b
+    return "0x" + keccak.new(digest_bits=256, data=raw).hexdigest()
+
+
 def load_book(conn, as_of: datetime) -> Book:
     """Reads the indexer schema (todo 13) with a read-only connection. Units: USDG raw 6 dp, tokens and NF WAD."""
     cur = conn.cursor()
@@ -135,10 +151,13 @@ def load_book(conn, as_of: datetime) -> Book:
     er = cur.fetchone()
     floor = float(er[1]) / USDG if er else 0.0
     reserve = float(er[0]) / USDG if er else reserve
-    cur.execute("SELECT id, underlying, underlying_b, power, token, cap_usd FROM gears WHERE status <> 'retired' ORDER BY id")
+    cur.execute("SELECT id, underlying, underlying_b, power, token, cap_usd, market_a, market_b FROM gears WHERE status <> 'retired' ORDER BY id")
     gear_rows = cur.fetchall()
     gears = []
-    for gid, ua, ub, power, token, cap in gear_rows:
+    pair_alias: dict[str, str] = {}      # oracle pair key (lowercase hex) -> the gear's readable key "A/B"
+    for gid, ua, ub, power, token, cap, ma, mb in gear_rows:
+        if ub and ma and mb:
+            pair_alias[pair_market_key(ma, mb)] = f"{ua}/{ub}"
         cur.execute("SELECT coalesce(sum(balance),0) FROM balances WHERE token = %s AND account <> %s",
                     (token, "0x0000000000000000000000000000000000000000"))
         supply = float(cur.fetchone()[0]) / WAD
@@ -151,7 +170,7 @@ def load_book(conn, as_of: datetime) -> Book:
         gears.append(GearPos(id=gid, key=f"{ua}/{ub}" if ub else ua, power=float(power), supply_tokens=supply, backer_debt_tokens=debt,
                              value_per_token=float(v[0]) / WAD, cap_usd=float(cap) / USDG))
     cur.execute("SELECT DISTINCT ON (gear_or_underlying) gear_or_underlying, sigma_bps FROM vol_posts ORDER BY gear_or_underlying, ts DESC")
-    sigma = {market_key(r[0]): float(r[1]) for r in cur.fetchall()}
+    sigma = {pair_alias.get(r[0].lower(), market_key(r[0])): float(r[1]) for r in cur.fetchall()}
     cur.execute("SELECT max(ts) FROM prices")
     price_ts = cur.fetchone()[0]
     cur.execute("SELECT meta FROM service_status WHERE job = 'hedger'")

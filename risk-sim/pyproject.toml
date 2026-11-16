@@ -11,6 +11,7 @@ dependencies = [
   "numpy==2.4.6; python_version < '3.12'",
   "numpy==2.5.3; python_version >= '3.12'",
   "psycopg[binary]==3.3.6",
+  "pycryptodome==3.24.0",
 ]
 
 [project.optional-dependencies]

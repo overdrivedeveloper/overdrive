@@ -97,3 +97,34 @@ def test_nightly_boots_with_real_env_shape(pg, tmp_path, monkeypatch):
     with psycopg.connect(host + "/overdrive_lane18") as c:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             c.execute("DELETE FROM risk_runs")
+
+
+def test_pair_gear_sigma_is_found_under_the_oracle_pair_key(pg):
+    """Regression: the oracle posts a pair's sigma under keccak256(abi.encode(a, b)); the book used to look for "ETH/BTC" and
+    every nightly run went stale_inputs (sigma_missing:ETH/BTC) once a pair gear had traded."""
+    from datetime import datetime, timezone
+
+    from risk_sim.book import freshness, load_book, parse_ts
+
+    eth = "0x" + "ETH".encode().hex().ljust(64, "0")
+    btc = "0x" + "BTC".encode().hex().ljust(64, "0")
+    pair = "0x53a0b92e86a2442720353fd0555f985c34c582969c5f45ba30cf5194eaff582d"  # not-a-key: the ETH/BTC oracle pair key
+    now_iso = "2026-11-13T01:58:00Z"
+    with psycopg.connect(pg, autocommit=True) as c:
+        c.execute("INSERT INTO gears (id, market_a, market_b, underlying, underlying_b, power, power_wad, token, cap_usd, spread_bps, status) VALUES "
+                  "('0xgp', %s, %s, 'ETH', 'BTC', 2, 2000000000000000000, '0xtp', 1000000000000, 60, 'active'),"
+                  "('0xge', %s, NULL, 'ETH', NULL, 2, 2000000000000000000, '0xte', 1000000000000, 60, 'active')", (eth, btc, eth))
+        c.execute("INSERT INTO balances VALUES ('0xtp','0xh1',1000000000000000000000),('0xte','0xh1',1000000000000000000000)")
+        for g in ("0xgp", "0xge"):
+            c.execute("INSERT INTO trades (tx_hash, log_index, block, ts, gear, account, side, tokens, usdg, value_per_token, via) "
+                      "VALUES (%s,0,1,%s,%s,'0xh1','buy',1,1,1000000000000000000,'minter')", ("0x" + g, now_iso, g))
+        c.execute("INSERT INTO governor_ledger (ts, underlying, delta, gamma, hedge_delta, equity, exit_reserve, block) "
+                  "VALUES (%s,'ETH',0,0,0,400000000000,1500000000000,1)", (now_iso,))
+        c.execute("INSERT INTO prices (underlying, ts, price_wad) VALUES ('ETH',%s,3000000000000000000000)", (now_iso,))
+        # the indexer writes the event's bytes32 market lowercased: ETH's ASCII id, and the pair's hash
+        c.execute("INSERT INTO vol_posts VALUES (%s,%s,1,'0xv1',0,6000,NULL,NULL),(%s,%s,1,'0xv2',0,4200,NULL,NULL)", (eth, now_iso, pair, now_iso))
+    with psycopg.connect(pg) as c:
+        book = load_book(c, datetime(2026, 11, 13, 2, 0, tzinfo=timezone.utc))
+    assert sorted(g.key for g in book.gears) == ["ETH", "ETH/BTC"]
+    assert book.sigma_bps["ETH/BTC"] == 4200.0 and book.sigma_bps["ETH"] == 6000.0
+    assert not [r for r in freshness(book, parse_ts("2026-11-13T02:00:00Z"), 3600, 3600) if r.startswith("sigma_missing")]
