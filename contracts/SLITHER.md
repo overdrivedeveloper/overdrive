@@ -54,3 +54,17 @@ Fix round 11 moved 27 results (line shifts in `ODOracleGuard`, `ODMinter` and `O
 entry word for word apart from line numbers, reasons kept) and added none. 151 triaged results, 0 open.
 
 To re-triage: `cd contracts && slither . --config-file slither.config.json`, read the new results, then add them to the db.
+
+## Inline exceptions in deployable source
+
+Three `// slither-disable-next-line` comments sit in `contracts/src`, all one detector in one contract. Each is
+read and justified here; `script/ci/slither-exceptions.py --check` (contracts job) fails when a disable line is
+added, moved to another function or detector, or removed without this table changing. The comments stay inline
+(rather than as `slither.db.json` entries) because the source in the audit tag already carries them, so moving
+them would change the audited source for no safety gain.
+
+| File | Function | Detector | Why it is safe |
+|---|---|---|---|
+| `src/agent/ODAgentRouter.sol` | `buyFor` | arbitrary-send-erc20 | `from` is `owner`, but `_active(owner)` first loads `_policies[owner][msg.sender]` and reverts without a live, unrevoked, unexpired policy the owner signed for this caller; `_requireGear` and `_charge` bound the market, per-trade cap and lifetime budget. The USDG pays the owner's own buy and the tokens go to `owner`; the call reverts if the router keeps any balance. Tests: `test/agent/AgentRouter.t.sol` `test_StrangerNoPolicy`, `test_Revoked`, `test_Expired`, `test_MarketNotAllowed`, `test_BudgetLifetime` |
+| `src/agent/ODAgentRouter.sol` | `sellFor` | arbitrary-send-erc20 | Same policy gate, plus `canSell`; it pulls the owner's gear tokens only up to the owner's own approval, the minter pays `owner`, and the sell is charged against cap and budget (L-4). Tests: `test_L4_SellChargedAgainstCapAndBudget`, `testFuzz_L4_BudgetCoversEveryAction`, `test_StrangerNoPolicy` |
+| `src/agent/ODAgentRouter.sol` | `backFor` | arbitrary-send-erc20 | Same policy gate, plus `canBack`; collateral only ever moves into a vault owned by `owner` (a new vault is opened for `owner`, an existing one must be `owner`'s and on the gear), and mint proceeds stay with the vault. Tests: `test_BackForRefusesOthersVault`, `test_BackCountsBudget` |

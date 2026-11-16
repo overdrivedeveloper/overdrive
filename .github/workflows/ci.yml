@@ -90,6 +90,8 @@ jobs:
         run: python3 script/ci/audit-scope.py --check
       - name: check_natspec
         run: python3 script/ci/natspec.py --self-test && python3 script/ci/natspec.py --check
+      - name: check_slither_exceptions
+        run: python3 script/ci/slither-exceptions.py --check
       - run: forge fmt --check
       - run: forge build
       - name: check_code_size
