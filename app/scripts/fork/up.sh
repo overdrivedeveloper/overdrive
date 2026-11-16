@@ -135,7 +135,7 @@ else
     /bin/bash "$APP/scripts/deploy-fork.sh" >"$FORK_DIR/logs/deploy.log" 2>&1 || { tail -30 "$FORK_DIR/logs/deploy.log" >&2; die "deploy failed"; }
   cp "$STACK_DEPLOYMENT" "$FORK_DIR/deployment.json"
   grep '^stage' "$FORK_DIR/logs/deploy.log" | sed 's/^/up: /'
-  cp "$ROOT/.audit-grade/post-deploy-fork.txt" "$FORK_DIR/post-deploy-check.txt"
+  cp "$ROOT/security/audit-grade/post-deploy-fork.txt" "$FORK_DIR/post-deploy-check.txt"
 fi
 
 # 5. Env files (keystore form, FORK_DIR only), migrations, fork relaxations and the gear listing (once), services.
@@ -160,11 +160,11 @@ if want hedger; then start hedger none -- "$BUN" src/bin/hedger.ts; fi
 if want liquidator; then start liquidator none -- "$BUN" src/bin/liquidator.ts; fi
 if want mcp; then start mcp "any:http://127.0.0.1:$MCP_PORT/mcp" -- "$BUN" src/bin/mcp.ts --http; fi
 if want vol-engine; then
-  VOL_PY="${VOL_ENGINE_PYTHON:-$ROOT/vol-engine/.venv/bin/python}"
+  VOL_PY="${VOL_ENGINE_PYTHON:-$ROOT/app/python/vol-engine/.venv/bin/python}"
   if [ -x "$VOL_PY" ] && "$VOL_PY" -c "import vol_engine" 2>/dev/null; then
     start vol-engine none -- "$VOL_PY" -m vol_engine.cli post --loop --interval 60
   else
-    echo "up: vol-engine not started: no Python with vol_engine installed (python3 -m venv vol-engine/.venv && vol-engine/.venv/bin/pip install -e vol-engine, or set VOL_ENGINE_PYTHON)"
+    echo "up: vol-engine not started: no Python with vol_engine installed (python3 -m venv app/python/vol-engine/.venv && app/python/vol-engine/.venv/bin/pip install -e app/python/vol-engine, or set VOL_ENGINE_PYTHON)"
   fi
 fi
 # Governor capital, once (its totalSupply is the marker): with no equity the cap is 0 and every buy closes with CAP.

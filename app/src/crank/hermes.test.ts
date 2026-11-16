@@ -1,5 +1,5 @@
 // ORACLE-SRC: the Hermes client against LIVE Hermes answers recorded for TSLA with the market open and closed
-// (contracts/test/fixtures/oracle-sources/TSLA.json, scripts/record-oracle-fixtures.sh). The stub replays the recorded
+// (contracts/test/fixtures/oracle-sources/TSLA.json, .github/scripts/record-oracle-fixtures.sh). The stub replays the recorded
 // status and body for the URL it was recorded under and answers 404 for any other id, like Hermes; it never returns the
 // open item for any URL.
 import { describe, expect, test } from "bun:test";

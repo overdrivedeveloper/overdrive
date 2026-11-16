@@ -285,3 +285,12 @@ export function optionalEnv(name: OptionalEnvName | TestEnvName): string | undef
   const value = process.env[name]?.trim();
   return value ? value : undefined;
 }
+
+/** Environment of the team Telegram bot (src/bin/telegram-bot.ts). The bot holds no key and no database, so it does not
+ * need loadConfig; it reads only these names, here, so every env read stays in this file. */
+export const TELEGRAM_BOT_ENV_KEYS = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_OPS_CHAT_ID", "TELEGRAM_ALLOWED_USER_IDS", "TELEGRAM_BOT_RATE_PER_MINUTE", "TELEGRAM_BOT_API_URL", "TELEGRAM_API_BASE", "API_PORT"] as const;
+export function telegramBotEnv(source: Record<string, string | undefined> = process.env): { envFile: string; env: Record<string, string | undefined> } {
+  const env: Record<string, string | undefined> = {};
+  for (const key of TELEGRAM_BOT_ENV_KEYS) env[key] = source[key];
+  return { envFile: source.TELEGRAM_ENV_FILE ?? "", env };
+}

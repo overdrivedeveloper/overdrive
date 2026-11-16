@@ -65,7 +65,7 @@ test("pair_gear_sigma_is_read_under_the_oracle_pair_key_not_leg_a", async () => 
 });
 
 test("the formula page is the vol engine's document, constant for constant", async () => {
-  const doc = join(import.meta.dir, "..", "..", "..", "..", "vol-engine", "FORMULA.md");
+  const doc = join(import.meta.dir, "..", "..", "..", "python", "vol-engine", "FORMULA.md");
   const file = readFileSync(doc, "utf8");
   expect(FORMULA_MD).toBe(file);
   expect(Object.keys(formulaConstants(file)).length).toBeGreaterThan(25);

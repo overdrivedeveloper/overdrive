@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # pre-push hook: refuse to push a commit whose exact tree has no all-green ci-local stamp.
-# GitHub Actions is skipped on the private repo, so scripts/ci-local.sh is the CI; it writes
+# GitHub Actions is skipped on the private repo, so .github/scripts/ci-local.sh is the CI; it writes
 # .ci-local/green/<sha>.json (commit, tree, jobs, time, tool versions) on an all-green run on a clean tree.
 # A stamp counts when its tree hash equals the pushed commit's tree (so a fast-forward or a rebase onto the same
 # content is fine) and its "jobs" list (the jobs that run really ran: an --only run records only its subset) holds
@@ -121,7 +121,7 @@ if [ "$bad" -eq 1 ]; then
     echo "pre-push: OD_SKIP_CI_GATE set, push allowed and logged to .ci-local/overrides.log" >&2
     exit 0
   fi
-  echo "pre-push: commit the work, then run every job: bash scripts/ci-local.sh" >&2
+  echo "pre-push: commit the work, then run every job: bash .github/scripts/ci-local.sh" >&2
   echo "pre-push: required jobs: $required (a stamp from an --only subset does not count)" >&2
   echo "pre-push: emergency only: OD_SKIP_CI_GATE=\"<reason>\" git push (the reason is logged)" >&2
   exit 1

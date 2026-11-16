@@ -3,7 +3,7 @@
 # version (gitleaks is also checked against its published SHA-256). .github/scripts/check-hygiene.py enforces the pins.
 #
 # Every job is skipped on a private repository (a skipped job needs no runner and costs nothing).
-# The private-side CI is scripts/ci-local.sh, which runs these same jobs.
+# The private-side CI is .github/scripts/ci-local.sh, which runs these same jobs.
 name: ci
 
 on:
@@ -203,7 +203,7 @@ jobs:
       - name: Install slither
         run: python -m pip install --disable-pip-version-check "slither-analyzer==${SLITHER_VERSION}"
       - name: slither (any result not in slither.db.json fails)
-        run: bash ../scripts/slither.sh
+        run: bash ../.github/scripts/slither.sh
 
   guard:
     if: ${{ !github.event.repository.private }}
@@ -216,18 +216,18 @@ jobs:
       # The word denylist is private by design: the public sync excludes .githooks/public-guard.denylist from every
       # public copy, and the guard refuses to run without it (it never skips
       # silently). The word check is enforced before anything is published: the private pre-commit hook,
-      # scripts/ci-local.sh (job_guard, unchanged) and the pre-push hook, which accepts a public copy only when its tree is
+      # .github/scripts/ci-local.sh (job_guard, unchanged) and the pre-push hook, which accepts a public copy only when its tree is
       # the private tree minus the denylist. A tree without the denylist (the public copy) skips these two steps with a
       # notice that says so; a tree with it runs them.
       - name: public guard (word denylist, private trees only)
         run: |
           if [ -f .githooks/public-guard.denylist ]; then
             .githooks/public-guard.sh
-            bash scripts/guard.test.sh
+            bash .github/scripts/guard.test.sh
           else
             echo "::notice title=public guard skipped::the word denylist is private and excluded from this public copy; the private pre-commit, ci-local and pre-push gates ran the guard before it was published"
           fi
-      - run: bash scripts/pre-push.test.sh
+      - run: bash .github/scripts/pre-push.test.sh
 
   scripts:
     name: scripts (exit page, quiet runner, ABI export, server deploy scripts)
@@ -249,9 +249,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: exit page tests
         run: |
-          if [ -f exit/test/exit.test.mjs ]; then node --test exit/test/exit.test.mjs; else echo "no exit page in this tree"; fi
-      - run: bash scripts/quiet-run.test.sh
-      - run: scripts/export-abis.sh
+          if [ -f web/exit/test/exit.test.mjs ]; then node --test web/exit/test/exit.test.mjs; else echo "no exit page in this tree"; fi
+      - run: bash .github/scripts/quiet-run.test.sh
+      - run: .github/scripts/export-abis.sh
       - run: bash app/scripts/server/deploy-local.test.sh
       - run: bash contracts/script/ci/sourcify-verify.test.sh
 
@@ -306,4 +306,4 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: bash scripts/check-python-locks.sh
+      - run: bash .github/scripts/check-python-locks.sh

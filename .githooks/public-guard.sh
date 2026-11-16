@@ -3,7 +3,7 @@
 #
 # Denylist lookup (first match wins):
 #   1. public-guard.denylist next to this script (e.g. .githooks/public-guard.denylist when the guard lives in .githooks/)
-#   2. scripts/public-guard.denylist at the repo root (old layout, kept as a fallback)
+#   2. .github/scripts/public-guard.denylist (next to the CI scripts, kept as a fallback)
 #   3. .githooks/public-guard.denylist at the repo root
 # If no denylist is found, or it holds no patterns, the guard FAILS (exit 2). It never skips the word check silently.
 set -uo pipefail
@@ -13,12 +13,12 @@ cd "$root"
 root_real="$(pwd -P)"
 
 deny=""
-for cand in "$script_dir/public-guard.denylist" "$root_real/scripts/public-guard.denylist" "$root_real/.githooks/public-guard.denylist"; do
+for cand in "$script_dir/public-guard.denylist" "$root_real/.github/scripts/public-guard.denylist" "$root_real/.githooks/public-guard.denylist"; do
   if [ -f "$cand" ]; then deny="$cand"; break; fi
 done
 if [ -z "$deny" ]; then
   echo "public-guard: ERROR no denylist found. Looked for:" >&2
-  printf '%s\n' "$script_dir/public-guard.denylist" "$root_real/scripts/public-guard.denylist" "$root_real/.githooks/public-guard.denylist" \
+  printf '%s\n' "$script_dir/public-guard.denylist" "$root_real/.github/scripts/public-guard.denylist" "$root_real/.githooks/public-guard.denylist" \
     | awk '!seen[$0]++ { print "public-guard:   " $0 }' >&2
   echo "public-guard: put public-guard.denylist next to public-guard.sh. Refusing to pass without the private-word check." >&2
   exit 2

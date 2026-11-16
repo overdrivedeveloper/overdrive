@@ -1,5 +1,5 @@
 {
-  "description": "Live responses of every price source of TSLA on Robinhood Chain mainnet (4663), recorded by scripts/record-oracle-fixtures.sh: once with the market OPEN (latest block) and once CLOSED (archive block at 1794675600). Hermes is the HTTP answer as received (status and body); pythOnchain is the Pyth contract the guard reads. ORACLE-SRC.",
+  "description": "Live responses of every price source of TSLA on Robinhood Chain mainnet (4663), recorded by .github/scripts/record-oracle-fixtures.sh: once with the market OPEN (latest block) and once CLOSED (archive block at 1794675600). Hermes is the HTTP answer as received (status and body); pythOnchain is the Pyth contract the guard reads. ORACLE-SRC.",
   "symbol": "TSLA",
   "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
   "pool": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",

@@ -1,6 +1,6 @@
 # Security policy
 
-Overdrive is in development and not yet deployed on mainnet. There is no outside audit. The contracts have had internal review rounds only, graded 8.9 of 10 at the tag `audit-2026-11-15` (the list is in `.audit-grade/audit-history.md`); review the code yourself before committing funds.
+Overdrive is in development and not yet deployed on mainnet. There is no outside audit. The contracts have had internal review rounds only, graded 8.9 of 10 at the tag `audit-2026-11-15` (the list is in `security/audit-grade/audit-history.md`); review the code yourself before committing funds.
 
 ## Reporting a vulnerability
 
@@ -8,13 +8,13 @@ Use GitHub private vulnerability reporting: open the repository's Security tab a
 
 ## Scope
 
-Reviewed commit: the commit that carries the audit tag `audit-2026-11-15` (private dev commit `96d4225`). Since the tag, the only change under `contracts/src` is NatSpec comments (`git diff audit-2026-11-15 -- contracts/src`). `contracts/AUDIT-SCOPE.md` lists every contract file in scope and is checked against `contracts/src` by `scripts/ci-local.sh`, so the list is exact at whichever commit is tagged. The contracts are frozen at that commit and findings are reported against it. Nothing is deployed, so there are no addresses in scope yet.
+Reviewed commit: the commit that carries the audit tag `audit-2026-11-15` (private dev commit `96d4225`). Since the tag, the only change under `contracts/src` is NatSpec comments (`git diff audit-2026-11-15 -- contracts/src`). `contracts/AUDIT-SCOPE.md` lists every contract file in scope and is checked against `contracts/src` by `.github/scripts/ci-local.sh`, so the list is exact at whichever commit is tagged. The contracts are frozen at that commit and findings are reported against it. Nothing is deployed, so there are no addresses in scope yet.
 
 In scope:
 
 - Solidity contracts under `contracts/src`, file by file in `contracts/AUDIT-SCOPE.md` (the deploy scripts under `contracts/script` are listed there as supporting files).
 - The services under `app/src` (API, indexer, crank, hedger, liquidator, MCP server), including key handling and the intent routes.
-- `sdk/`, `mcp/`, `vol-engine/` and `risk-sim/`.
+- `sdk/`, `sdk/mcp/`, `app/python/vol-engine/` and `app/python/risk-sim/`.
 
 Out of scope: third-party infrastructure (Robinhood Chain, Chainlink, Pyth, Uniswap, venues the hedger trades on), vendored libraries under `contracts/lib` (report those upstream), and findings that need a compromised owner machine or a leaked key.
 
@@ -222,7 +222,7 @@ Known and accepted for the first release, stated generically:
 - A stock gear cannot be sold at once while its market is closed, unknown or halted unless Pyth has a print inside `refMaxAge` (I7-1 below): the sell is refused with `UseQueue`, the holder queues it, and it fills at the first live feed round after the reopen. Pyth does not print stock prices at the weekend, so in practice a weekend exit waits for Sunday 20:00 Eastern plus the first feed round. Queued tokens keep paying the toll and can be cancelled at any time.
 - A backer vault minted at the minimum ratio can become sealable at a market reopen after a weekend if the reference price moves against it.
 - Off-chain components (volatility signer, keeper, hedger) can be late; on-chain guards bound the effect of stale data but do not remove it.
-- No outside audit (owner decision D40, 2026-11-15): launch rests on the internal reviews listed in `.audit-grade/audit-history.md` (8.9 of 10 at tag `audit-2026-11-15`, mutation score 90.6%). An internal review is a strong pre-audit signal, not a substitute for a human audit before large deposits.
+- No outside audit (owner decision D40, 2026-11-15): launch rests on the internal reviews listed in `security/audit-grade/audit-history.md` (8.9 of 10 at tag `audit-2026-11-15`, mutation score 90.6%). An internal review is a strong pre-audit signal, not a substitute for a human audit before large deposits.
 - No L2 sequencer uptime feed (ORC-7). Robinhood Chain (4663) publishes no Chainlink sequencer uptime feed, so `ODOracleGuard` is deployed with `sequencerFeed` = 0 (`script/lib/SystemDeployer.sol:139`, last constructor argument) and `_sequencerDown` (`ODOracleGuard.sol:656`) is never consulted. A sequencer outage is covered instead by the staleness rules below: a feed round older than its window reads HALTED, so buys and any action that needs a live price stop (fail closed), and a stock sell needs a Pyth print inside `refMaxAge` or it queues. The post-deploy check fails with `SEQUENCER` if a feed is ever set on 4663 or 46630 (`script/lib/SystemChecks.sol` `_checkSequencer`, test `PostDeployCheck.t.sol:test_FailsOnSequencerFeedOnRhc`). If a feed appears it needs a new guard, through the timelock.
 
 ### Known residuals
@@ -298,7 +298,7 @@ killed by the hermetic forge suites that own each contract. Score (killed / comp
 `test/oracle/OracleGuardMutationKills.t.sol`). Every sampled survivor left is one of the 13 equivalent mutants
 (each proved in the review), so the score with them left out is 100%. Per contract after: ODMinter 100%,
 ODMarketHours 92.3%, ODGovernor 92.0%, ODBacker 91.7%, ODOracleGuard 84.0%, ODHook 83.3%.
-Rerun: `scripts/mutation.sh` (about 2 hours at 4 jobs; `MUTATION_SAMPLE`, `MUTATION_JOBS`, `MUTATION_ONLY`, `MUTATION_EXCLUDE` in its header).
+Rerun: `.github/scripts/mutation.sh` (about 2 hours at 4 jobs; `MUTATION_SAMPLE`, `MUTATION_JOBS`, `MUTATION_ONLY`, `MUTATION_EXCLUDE` in its header).
 
 ## Follow-ups
 

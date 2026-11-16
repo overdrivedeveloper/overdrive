@@ -268,7 +268,7 @@ const G07: Flow = {
   id: "G07", area: "services", kind: "success",
   name: "risk-sim nightly on the live fork book writes risk_runs, risk_scenario_results and risk_caps rows and recommends only",
   async run(row, ctx) {
-    const py = `${import.meta.dir}/../../../../risk-sim/.venv/bin/risk-sim`;
+    const py = `${import.meta.dir}/../../../python/risk-sim/.venv/bin/risk-sim`;
     const q = sql();
     try {
       const url = `postgres://${process.env.USER ?? "postgres"}@127.0.0.1:${5433 + Number(process.env.PORT_OFFSET ?? 0)}/od_fork`;
@@ -385,9 +385,9 @@ const G09: Flow = {
     const nonce = (await ctx.pub.readContract({ address: vol, abi: IODVolOracleAbi, functionName: "lastNonce", args: [market] })) as bigint;
     row.chainTrue("the oracle nonce advanced with the accepted post", nonce >= 1n, nonce);
     // a step too large: the engine's guard ramps it; the contract refuses an un-ramped one
-    const venvPy = `${import.meta.dir}/../../../../vol-engine/.venv/bin/python`;
+    const venvPy = `${import.meta.dir}/../../../python/vol-engine/.venv/bin/python`;
     const prior = Number(r0.sigmaBps);
-    const g = Bun.spawnSync([venvPy, "-I", "-c", `from vol_engine.guard import clamp_step; print(clamp_step(${prior * 3}, ${prior}, 500, 20000))`], { env: { ...process.env, PYTHONPATH: `${import.meta.dir}/../../../../vol-engine/src` }, stdout: "pipe", stderr: "pipe" });
+    const g = Bun.spawnSync([venvPy, "-I", "-c", `from vol_engine.guard import clamp_step; print(clamp_step(${prior * 3}, ${prior}, 500, 20000))`], { env: { ...process.env, PYTHONPATH: `${import.meta.dir}/../../../python/vol-engine/src` }, stdout: "pipe", stderr: "pipe" });
     const outG = g.stdout.toString().trim();
     row.note(`engine guard for a 3x target against prior ${prior}: ${outG}`);
     const rampedTo = Number(/\((\d+),/.exec(outG)?.[1] ?? 0);
@@ -407,7 +407,7 @@ const G09: Flow = {
     await ctx.test.increaseTime({ seconds: 3 * 86_400 }); await ctx.test.mine({ blocks: 1 });
     const env = { ...process.env, ...Object.fromEntries((await Bun.file(`${process.env.FORK_DIR}/env/vol-engine.env`).text()).split("\n").filter((l) => /^[A-Z_]+=/.test(l) && !/KEY|PASS/.test(l.split("=")[0]!) ).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)])), VOL_SEND: "0" };
     const nonceBefore = (await ctx.pub.readContract({ address: vol, abi: IODVolOracleAbi, functionName: "lastNonce", args: [market] })) as bigint;
-    const p = Bun.spawnSync([`${import.meta.dir}/../../../../vol-engine/.venv/bin/vol-engine`, "post", "--once"], { env: { ...env, VOL_SIGNER_KEYSTORE: `${process.env.FORK_DIR}/keys/volSigner.json`, VOL_SIGNER_KEYSTORE_PASSWORD_FILE: `${process.env.FORK_DIR}/keys/password`, VOL_SENDER_KEYSTORE: `${process.env.FORK_DIR}/keys/volSender.json`, VOL_SENDER_KEYSTORE_PASSWORD_FILE: `${process.env.FORK_DIR}/keys/password` }, stdout: "pipe", stderr: "pipe", timeout: 120_000 });
+    const p = Bun.spawnSync([`${import.meta.dir}/../../../python/vol-engine/.venv/bin/vol-engine`, "post", "--once"], { env: { ...env, VOL_SIGNER_KEYSTORE: `${process.env.FORK_DIR}/keys/volSigner.json`, VOL_SIGNER_KEYSTORE_PASSWORD_FILE: `${process.env.FORK_DIR}/keys/password`, VOL_SENDER_KEYSTORE: `${process.env.FORK_DIR}/keys/volSender.json`, VOL_SENDER_KEYSTORE_PASSWORD_FILE: `${process.env.FORK_DIR}/keys/password` }, stdout: "pipe", stderr: "pipe", timeout: 120_000 });
     const text = `${p.stdout.toString()}\n${p.stderr.toString()}`;
     row.note(`vol-engine --once after a 3 day jump (no send): exit ${p.exitCode}; ${text.replace(/\s+/g, " ").slice(-400)}`);
     row.chain("a stale pass still exits 0 (it warns, never crashes)", p.exitCode, 0);

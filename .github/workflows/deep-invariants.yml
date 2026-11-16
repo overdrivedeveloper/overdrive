@@ -1,4 +1,4 @@
-# Manual deep invariant run at the 100,000-call floor (scripts/deep-gate.sh). Dispatch it on the launch commit and after
+# Manual deep invariant run at the 100,000-call floor (.github/scripts/deep-gate.sh). Dispatch it on the launch commit and after
 # any change under contracts/src. Skipped on a private repository, like every job in ci.yml. Pins match ci.yml.
 name: deep-invariants
 
@@ -23,4 +23,4 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
-      - run: bash scripts/deep-gate.sh
+      - run: bash .github/scripts/deep-gate.sh

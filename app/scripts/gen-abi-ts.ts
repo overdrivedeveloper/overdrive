@@ -1,4 +1,4 @@
-// Regenerates the typed ABI modules in src/abi from the IOD*.json files that scripts/export-abis.sh writes.
+// Regenerates the typed ABI modules in src/abi from the IOD*.json files that .github/scripts/export-abis.sh writes.
 //   bun run scripts/gen-abi-ts.ts            write src/abi/*.ts
 //   bun run scripts/gen-abi-ts.ts --check    exit 1 if any generated file differs from the JSON (CI)
 // Optional: --json-dir <dir> --out-dir <dir> (tests).

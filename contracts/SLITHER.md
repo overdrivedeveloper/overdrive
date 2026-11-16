@@ -1,7 +1,7 @@
 # Slither triage
 
-Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI and in `scripts/ci-local.sh`
-(`scripts/slither.sh`). The run fails on any result that is not already triaged. Nothing here loosens another scanner.
+Slither 0.11.6 runs over `contracts/src` (not `lib`, `test` or `script`) in CI and in `.github/scripts/ci-local.sh`
+(`.github/scripts/slither.sh`). The run fails on any result that is not already triaged. Nothing here loosens another scanner.
 
 ## Files
 

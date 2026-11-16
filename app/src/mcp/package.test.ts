@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const pkgDir = join(import.meta.dir, "..", "..", "..", "mcp");
+const pkgDir = join(import.meta.dir, "..", "..", "..", "sdk", "mcp");
 const pkg = () => JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
 
 describe("R12 package", () => {

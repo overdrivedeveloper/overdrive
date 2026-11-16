@@ -9,7 +9,7 @@ import {MarketConfig, PriceReading, Session} from "../../src/interfaces/ODTypes.
 
 /// ORACLE-SRC: every external price source of TSLA replayed from LIVE responses recorded on Robinhood Chain mainnet
 /// with the market OPEN (Mon 2026-11-16) and CLOSED (Sat 2026-11-14), test/fixtures/oracle-sources/TSLA.json, written
-/// by scripts/record-oracle-fixtures.sh. Sources: the Chainlink proxy round, Pyth (the Hermes answer the crank would
+/// by .github/scripts/record-oracle-fixtures.sh. Sources: the Chainlink proxy round, Pyth (the Hermes answer the crank would
 /// push, and the on-chain Pyth price as it stood), and the v3 pool TWAP (the recorded tick cumulatives). The session
 /// comes from the real ODMarketHours calendar (built-in weekly schedule) with the mainnet holidays at the recorded block timestamps, and the
 /// market uses the mainnet config's ages and bands.

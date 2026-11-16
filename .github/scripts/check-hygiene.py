@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Repository hygiene gate (CI and scripts/ci-local.sh). Prints one FAIL line per problem and exits 1 on any:
+"""Repository hygiene gate (CI and .github/scripts/ci-local.sh). Prints one FAIL line per problem and exits 1 on any:
 
-  - dependencies: exact versions (no ^, ~, ranges, tags) in every Bun package (app/, sdk/, mcp/, and web/ or exit/
+  - dependencies: exact versions (no ^, ~, ranges, tags) in every Bun package (app/, sdk/, sdk/mcp/, and web/ or web/exit/
     when they have a package.json); a committed bun.lock and a bunfig.toml minimumReleaseAge guard in each;
     install hooks that run `bun install` use --frozen-lockfile;
   - Solidity: deployable contracts in contracts/src use a fixed pragma (`pragma solidity 0.8.x;`); interfaces and
     shared libraries may keep a range;
-  - runtimes: bun, node, python and foundry are pinned exactly in CI (workflow env), `.tool-versions`, `.python-version`
+  - runtimes: bun, node, python and foundry are pinned exactly in CI (workflow env), `.github/.tool-versions`, `app/python/.python-version`
     and the `packageManager` / `engines` fields of app, sdk and mcp, and all of them agree;
   - CI: every `uses:` in .github/workflows is pinned to a full commit SHA, and every workflow sets `permissions:`.
 """
@@ -17,8 +17,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 EXACT = re.compile(r"^(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?|file:.+|workspace:.+|link:.+)$")
-PACKAGES = ("app", "sdk", "mcp", "web", "exit")
-OPTIONAL = ("web", "exit")  # checked only when the folder has a package.json
+PACKAGES = ("app", "sdk", "sdk/mcp", "web", "web/exit")
+OPTIONAL = ("web", "web/exit")  # checked only when the folder has a package.json
 problems = []
 
 
@@ -100,17 +100,17 @@ for tool, ver in pins.items():
     if ver and not re.fullmatch(r"\d+\.\d+\.\d+", ver):
         bad(f"ci.yml: {tool} '{ver}' is not an exact x.y.z version")
 tv = {}
-tv_file = ROOT / ".tool-versions"
+tv_file = ROOT / ".github" / ".tool-versions"
 if tv_file.exists():
     for line in tv_file.read_text().split("\n"):
         parts = line.split()
         if len(parts) == 2:
             tv[parts[0]] = parts[1]
 else:
-    bad(".tool-versions is missing")
+    bad(".github/.tool-versions is missing")
 for tool, ver in pins.items():
     if ver and tv.get(tool) != ver:
-        bad(f".tool-versions: {tool} is '{tv.get(tool)}', ci.yml says '{ver}'")
+        bad(f".github/.tool-versions: {tool} is '{tv.get(tool)}', ci.yml says '{ver}'")
 # the server provision script pins the same Bun and Foundry as CI
 prov = ROOT / "app" / "scripts" / "server" / "provision.sh"
 if prov.exists():
@@ -128,10 +128,10 @@ if deep_wf.exists():
     dm = re.search(r"^\s*FOUNDRY_VERSION:\s*\"?v?([0-9][^\"\s]*)\"?\s*$", deep_wf.read_text(), re.M)
     if not dm or dm.group(1) != pins.get("foundry"):
         bad(f"deep-invariants.yml: FOUNDRY_VERSION is '{dm.group(1) if dm else None}', ci.yml says '{pins.get('foundry')}'")
-py_file = ROOT / ".python-version"
+py_file = ROOT / "app" / "python" / ".python-version"
 if not py_file.exists() or py_file.read_text().strip() != pins["python"]:
-    bad(f".python-version must be {pins['python']} (as in ci.yml)")
-for pkg_dir in ("app", "sdk", "mcp"):
+    bad(f"app/python/.python-version must be {pins['python']} (as in ci.yml)")
+for pkg_dir in ("app", "sdk", "sdk/mcp"):
     pj = ROOT / pkg_dir / "package.json"
     if not pj.exists():
         continue
@@ -141,9 +141,9 @@ for pkg_dir in ("app", "sdk", "mcp"):
     eng = pkg.get("engines", {})
     if eng.get("bun") != pins["bun"]:
         bad(f"{pkg_dir}/package.json: engines.bun must be {pins['bun']}")
-    if pkg_dir not in ("mcp", "sdk") and eng.get("node") != pins["nodejs"]:  # mcp and sdk are published: their node range is for consumers
+    if pkg_dir not in ("sdk/mcp", "sdk") and eng.get("node") != pins["nodejs"]:  # mcp and sdk are published: their node range is for consumers
         bad(f"{pkg_dir}/package.json: engines.node must be {pins['nodejs']}")
-    if pkg_dir in ("mcp", "sdk") and "node" not in eng:
+    if pkg_dir in ("sdk/mcp", "sdk") and "node" not in eng:
         bad(f"{pkg_dir}/package.json: engines.node is missing")
 
 for p in problems:

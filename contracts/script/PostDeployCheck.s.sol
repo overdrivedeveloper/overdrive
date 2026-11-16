@@ -6,7 +6,7 @@ import {SystemChecks} from "./lib/SystemChecks.sol";
 
 /// @title PostDeployCheck
 /// @notice Read-only: checks a live deployment against its config (rule R8) and writes the result to
-/// `.audit-grade/post-deploy-<network>.txt`. Reverts when any check fails, so an owner script stops on it.
+/// `security/audit-grade/post-deploy-<network>.txt`. Reverts when any check fails, so an owner script stops on it.
 /// Usage: OD_NETWORK=mainnet forge script script/PostDeployCheck.s.sol --rpc-url $RPC
 contract PostDeployCheck is SystemChecks {
     function run() external returns (string[] memory failures) {
@@ -21,7 +21,7 @@ contract PostDeployCheck is SystemChecks {
             console2.log("FAIL", failures[i]);
         }
         report = string.concat(report, failures.length == 0 ? "PASS\n" : "FAILED\n");
-        string memory dir = string.concat(vm.projectRoot(), "/../.audit-grade");
+        string memory dir = string.concat(vm.projectRoot(), "/../security/audit-grade");
         vm.createDir(dir, true);
         vm.writeFile(string.concat(dir, "/post-deploy-", network, ".txt"), report);
         if (failures.length != 0) {

@@ -1,4 +1,4 @@
-// Pure generator: turns the IOD*.json ABIs (written by scripts/export-abis.sh from the forge build) into typed `as const` modules.
+// Pure generator: turns the IOD*.json ABIs (written by .github/scripts/export-abis.sh from the forge build) into typed `as const` modules.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 

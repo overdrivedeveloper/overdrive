@@ -7,9 +7,9 @@ Nothing is released or deployed yet. What exists in the repository:
 - Contracts: gear token, factory and registry; minter with a single pricing path; Governor house book with risk loops and insurance; backer vaults with sealed liquidation batches; Uniswap v4 hook and miner; oracle guard, volatility oracle, market hours and TWAP readers; fees, buy-burn and stake; agent router and paymaster; maths libraries. Non-upgradeable cores, admin through a 48 hour timelock.
 - Services: API, indexer, crank, hedger, liquidator, MCP server and migrations, with all configuration in `app/src/config.ts`.
 - `sdk/` TypeScript client generated from the API spec.
-- `mcp/` agent MCP package and guide.
-- `vol-engine/` volatility engine and `risk-sim/` stress simulation.
-- `scripts/ci-local.sh` local CI, pre-commit public guard and commit-msg guard.
+- `sdk/mcp/` agent MCP package and guide.
+- `app/python/vol-engine/` volatility engine and `app/python/risk-sim/` stress simulation.
+- `.github/scripts/ci-local.sh` local CI, pre-commit public guard and commit-msg guard.
 
 Fix round 12 (independent check 9):
 
@@ -22,7 +22,7 @@ Fix round 11 (audit rescore 8 and independent check 8):
 - `ODMarketHours.closedBetween` measures a close over its whole length: a feed round printed before or inside an out-of-session stretch of 24 hours or more is not live after it, at any age. The guard asks the calendar for every in-session round of a stock market (the under 24 hours shortcut is gone) (I8-1). Signature unchanged, meaning changed: see the NatSpec.
 - `ODMinter.fillQueued`: anyone but the ticket's owner may fill only while buys are open on the reading (reference inside the band, no pause). The owner may fill on any live reading with a reference (I8-2).
 - API: a queued sell's suggested minimum comes from the last good value less 5% when the minter quotes no amount, never 0; `POST /v1/intent/sell` refuses to build a queued sell with no minimum (409 `QUEUE_MIN_UNKNOWN`) unless `minOut` is sent; `queue.minUsdgOutSuggested` may be null. `API_QUOTE_MAX_RPC_PER_REQUEST` default is 3 (one more read for that case). The exit page fills the same minimum.
-- `scripts/coverage.sh` leaves out the gas ceiling tests that fail only under instrumentation and runs green again.
+- `.github/scripts/coverage.sh` leaves out the gas ceiling tests that fail only under instrumentation and runs green again.
 - SECURITY.md: R8-1, R8-2, I8-1 and I8-2 entries; I7-2 residuals updated.
 
 Fix round 10 (independent check 7):

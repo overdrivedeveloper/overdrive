@@ -9,19 +9,19 @@ Status: in development. Not deployed. Unaudited. Do not rely on it with funds.
 ## Layout
 
 ```
-contracts/    Solidity contracts (Foundry): src/<area>/, src/interfaces/, test/ (with test/mocks/), lib/ (vendored)
-app/          Bun services: API, indexer, crank, hedger, liquidator, MCP, migrations; deployments/, drizzle/, src/abi/
-sdk/          TypeScript client for the API (second deliverable, not yet published)
-mcp/          Agent MCP package (bundles app/src/mcp into one file) and its guide, MCP.md
-vol-engine/   Python volatility engine: computes sigma per market and signs EIP-712 posts for the vol oracle
-risk-sim/     Python nightly stress simulation of the Governor book; recommends caps, holds no keys
-web/          Website and dashboard (Vite, React, Tailwind): landing page and the Overdrive dashboard, static build
-exit/         Standalone exit page: one static HTML file (build.mjs, lib.cjs, tests) that works with no website and no API
-scripts/      CI and tooling: ci-local.sh, quiet-run.sh, export-abis.sh and their tests
-.githooks/    pre-commit public guard and commit-msg guard
-.github/      CI workflow and SECURITY.md
+contracts/        Solidity contracts (Foundry): src/<area>/, src/interfaces/, test/ (with test/mocks/), lib/ (vendored)
+app/              Bun services: API, indexer, crank, hedger, liquidator, MCP, migrations; deployments/, drizzle/, src/abi/
+app/python/       Python services: vol-engine/ (computes sigma per market and signs EIP-712 posts for the vol oracle) and
+                  risk-sim/ (nightly stress simulation of the Governor book; recommends caps, holds no keys); .python-version
+sdk/              TypeScript client for the API (second deliverable, not yet published)
+sdk/mcp/          Agent MCP package (bundles app/src/mcp into one file) and its guide, MCP.md
+web/              Website and dashboard (Vite, React, Tailwind): landing page and the Overdrive dashboard, static build
+web/exit/         Standalone exit page: one static HTML file (build.mjs, lib.cjs, tests) that works with no website and no API
+security/         audit-grade/: internal review history, coverage and mutation records, post-deploy check output
+.githooks/        pre-commit public guard and commit-msg guard
+.github/          CI workflows; scripts/ (ci-local.sh, quiet-run.sh, export-abis.sh, formal.sh, coverage, mutation and their tests)
+                  .tool-versions: the exact bun, node, python and foundry versions CI pins (checked by check-hygiene.py)
 ```
-
 The website and dashboard live in `web/` (built by the design team, imported unchanged). The dashboard reads the API through the `/v1/compat` routes.
 
 ### Frontend (`web/`)
@@ -44,7 +44,7 @@ cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build   # outpu
 npm run dev                                                              # local dev server
 ```
 
-`web/vercel.json` serves `index.html` for `/dashboard` and its query-string views; real assets are served as files. CI and `scripts/ci-local.sh` run the `web` job (install, typecheck, `bun test`, build).
+`web/vercel.json` serves `index.html` for `/dashboard` and its query-string views; real assets are served as files. CI and `.github/scripts/ci-local.sh` run the `web` job (install, typecheck, `bun test`, build).
 
 ### Contracts (`contracts/src`)
 
@@ -119,7 +119,7 @@ Other folders: `abi/` (contract ABIs), `chain/` (RPC pool, clients, deployment l
 - [Bun](https://bun.sh) 1.4+
 - [Foundry](https://getfoundry.sh) (solc version is set in `contracts/foundry.toml`)
 - Postgres 16
-- Python 3.11+ for `vol-engine/` and `risk-sim/`; install them only from their lock files with `pip install --require-hashes --no-deps -r requirements-dev.lock` (see each README)
+- Python 3.11+ for `app/python/vol-engine/` and `app/python/risk-sim/`; install them only from their lock files with `pip install --require-hashes --no-deps -r requirements-dev.lock` (see each README)
 
 ## Contracts
 
@@ -139,7 +139,7 @@ Everything here is a script in this repository; nothing is deployed yet and no a
 2. Dry run on a local fork first: `anvil --fork-url https://rpc.mainnet.chain.robinhood.com --port 8547`, then `OD_DEPLOYER=<address> ANVIL_URL=http://127.0.0.1:8547 bash app/scripts/deploy-fork.sh`. Every stage is skipped if already done, so a rerun is safe.
 3. Arm the real run: `OVERDRIVE_ALLOW_REAL_DEPLOY=1` and `OVERDRIVE_ALLOW_FILE=<a file the owner creates>`. Without both, `ODScript._guardRealBroadcast` reverts on chains 4663 and 46630. The signing key is a Foundry keystore account (`overdrive-deployer` by default, `OD_ACCOUNT` to change); no key is ever passed on a command line. **owner**
 4. Run `bash app/scripts/deploy-testnet.sh` (46630) or `bash app/scripts/deploy-mainnet.sh` (4663). Mainnet first repeats the whole deploy on a local fork at the deployer's real nonce and runs `PostDeployCheck` on it, then asks you to type the chain id. **owner**
-5. The scripts run these stages in order: `DeploySystem.s.sol` (deploys the cores, wires the once-only setters, hands every admin role to the 48 hour timelock and writes the deployments json; it seeds nothing), `TimelockHandoff.s.sol` (idempotent; finishes a handoff that stopped), `PostDeployCheck.s.sol` (read only; writes `.audit-grade/post-deploy-<network>.txt` and reverts on any failure), then `ListGears.s.sol` (writes the Safe batch `.batches/<network>-list-gears.json`; it never executes).
+5. The scripts run these stages in order: `DeploySystem.s.sol` (deploys the cores, wires the once-only setters, hands every admin role to the 48 hour timelock and writes the deployments json; it seeds nothing), `TimelockHandoff.s.sol` (idempotent; finishes a handoff that stopped), `PostDeployCheck.s.sol` (read only; writes `security/audit-grade/post-deploy-<network>.txt` and reverts on any failure), then `ListGears.s.sol` (writes the Safe batch `.batches/<network>-list-gears.json`; it never executes).
 6. Schedule and execute the list-gears batch from the owner Safe (3-of-5), through the timelock. **owner**
 7. Seed each pool as set out in SECURITY.md (known residual L-7). **owner**
 8. Verify the deployed bytecode against this checkout's build: `bash contracts/script/verify-deployment.sh <mainnet|testnet> [rpc-url]` (PASS or FAIL per contract). `MineHookSalt.s.sol` is a view-only helper that prints the hook salt for a deployer.
@@ -171,7 +171,7 @@ Other folders: `abi/` (contract ABIs), `chain/` (RPC pool, clients, deployment l
 - [Bun](https://bun.sh) 1.4+
 - [Foundry](https://getfoundry.sh) (solc version is set in `contracts/foundry.toml`)
 - Postgres 16
-- Python 3.11+ for `vol-engine/` and `risk-sim/`; install them only from their lock files with `pip install --require-hashes --no-deps -r requirements-dev.lock` (see each README)
+- Python 3.11+ for `app/python/vol-engine/` and `app/python/risk-sim/`; install them only from their lock files with `pip install --require-hashes --no-deps -r requirements-dev.lock` (see each README)
 
 ## Contracts
 
@@ -334,18 +334,18 @@ bun test
 
 The protocol invariants and the tests that check them are listed in [contracts/INVARIANTS.md](contracts/INVARIANTS.md).
 
-**Coverage.** `bash scripts/coverage.sh` runs `forge coverage --ir-minimum` over the hermetic suite (no fork RPC) and writes `contracts/coverage/lcov.info` and `contracts/coverage/summary.md` (not committed). Measured 2026-11-15 at 16acffc, contracts/src: lines 95.67% (3159/3302), branches 83.31% (998/1198), functions 95.78% (454/474). ODGovernor 96.82% lines, 78.45% branches; ODBacker 96.61%, 74.80%; ODMinter 95.22%, 72.97%; ODOracleGuard 95.61%, 86.01%. Left out of the coverage run only: the stateful system invariant suite (its handler, test/invariant/SystemHandler.sol, is stack too deep under `--ir-minimum`) and the gas ceiling tests, named `..._GasBound` (five tests: the instrumented, unoptimised build uses more gas than the ceilings they assert). All of them still run in `forge test`. No file in contracts/src is excluded. Under `--ir-minimum` source maps are approximate.
+**Coverage.** `bash .github/scripts/coverage.sh` runs `forge coverage --ir-minimum` over the hermetic suite (no fork RPC) and writes `contracts/coverage/lcov.info` and `contracts/coverage/summary.md` (not committed). Measured 2026-11-15 at 16acffc, contracts/src: lines 95.67% (3159/3302), branches 83.31% (998/1198), functions 95.78% (454/474). ODGovernor 96.82% lines, 78.45% branches; ODBacker 96.61%, 74.80%; ODMinter 95.22%, 72.97%; ODOracleGuard 95.61%, 86.01%. Left out of the coverage run only: the stateful system invariant suite (its handler, test/invariant/SystemHandler.sol, is stack too deep under `--ir-minimum`) and the gas ceiling tests, named `..._GasBound` (five tests: the instrumented, unoptimised build uses more gas than the ceilings they assert). All of them still run in `forge test`. No file in contracts/src is excluded. Under `--ir-minimum` source maps are approximate.
 
 The whole suite (contracts, app, guard, scripts), the same jobs as the CI workflow:
 
 ```sh
-bash scripts/ci-local.sh                       # every job
-bash scripts/ci-local.sh --only app,sdk,guard  # some jobs
+bash .github/scripts/ci-local.sh                       # every job
+bash .github/scripts/ci-local.sh --only app,sdk,guard  # some jobs
 ```
 
 Jobs: hygiene, semgrep, contracts, app, guard, scripts, python, web, sdk, slither.
 
-**The push gate.** GitHub Actions skips every job on the private repository, so `scripts/ci-local.sh` is its CI. A run in which every job passed, on a clean tree, writes a stamp `.ci-local/green/<sha>.json` (commit, tree hash, job list, UTC time, tool versions). The `.githooks/pre-push` hook (enabled by `git config core.hooksPath .githooks`) refuses a push whose head commit has no stamp for its exact tree listing every job (hygiene, semgrep, contracts, app, guard, scripts, python, web, sdk, slither). The stamp records the jobs that ran and `"scope": "full"` or `"subset"`; a stamp from an `--only` run does not open the gate. `OD_REQUIRED_JOBS` replaces the required set, and a set that drops a job is logged to `.ci-local/overrides.log`. The emergency override is `OD_SKIP_CI_GATE="<reason>" git push`; the reason is appended to `.ci-local/overrides.log`. `bash scripts/pre-push.test.sh` proves the hook in a temporary repository. The public repository runs the same jobs in GitHub Actions (`.github/workflows/ci.yml`), with two differences: the word denylist is private, so the public copy skips the guard's two denylist steps (this gate ran them before the copy was published), and the contracts job runs only when a push changes `contracts/` or the workflow (pull requests and manual runs always run it).
+**The push gate.** GitHub Actions skips every job on the private repository, so `.github/scripts/ci-local.sh` is its CI. A run in which every job passed, on a clean tree, writes a stamp `.ci-local/green/<sha>.json` (commit, tree hash, job list, UTC time, tool versions). The `.githooks/pre-push` hook (enabled by `git config core.hooksPath .githooks`) refuses a push whose head commit has no stamp for its exact tree listing every job (hygiene, semgrep, contracts, app, guard, scripts, python, web, sdk, slither). The stamp records the jobs that ran and `"scope": "full"` or `"subset"`; a stamp from an `--only` run does not open the gate. `OD_REQUIRED_JOBS` replaces the required set, and a set that drops a job is logged to `.ci-local/overrides.log`. The emergency override is `OD_SKIP_CI_GATE="<reason>" git push`; the reason is appended to `.ci-local/overrides.log`. `bash .github/scripts/pre-push.test.sh` proves the hook in a temporary repository. The public repository runs the same jobs in GitHub Actions (`.github/workflows/ci.yml`), with two differences: the word denylist is private, so the public copy skips the guard's two denylist steps (this gate ran them before the copy was published), and the contracts job runs only when a push changes `contracts/` or the workflow (pull requests and manual runs always run it).
 
 ## License
 

@@ -12,12 +12,12 @@ Type=simple
 User=overdrive-vol-engine
 Group=overdrive-vol-engine
 Slice=overdrive.slice
-WorkingDirectory=/opt/overdrive/current/vol-engine
+WorkingDirectory=/opt/overdrive/current/app/python/vol-engine
 EnvironmentFile=/etc/overdrive/overdrive.env
 EnvironmentFile=/etc/overdrive/db.env
 EnvironmentFile=/etc/overdrive/vol-engine.env
 Environment=NODE_ENV=production
-ExecStart=/opt/overdrive/current/vol-engine/.venv/bin/vol-engine post --loop --interval 300
+ExecStart=/opt/overdrive/current/app/python/vol-engine/.venv/bin/vol-engine post --loop --interval 300
 Restart=on-failure
 RestartSec=5
 MemoryMax=192M

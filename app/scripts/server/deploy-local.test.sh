@@ -90,9 +90,9 @@ run "no host and no --local: usage, exit 2"   2 "deploy.sh --ref" "" --check
 
 
 # ---------------------------------------------------------------- a small repo (two commits) and a fake provisioned root
-G="$T/src"; mkdir -p "$G/app/src" "$G/vol-engine" "$G/risk-sim"
+G="$T/src"; mkdir -p "$G/app/src" "$G/app/python/vol-engine" "$G/app/python/risk-sim"
 git -C "$G" init -q
-printf 'export const x = 1;\n' >"$G/app/src/x.ts"; echo 'x = 1' >"$G/vol-engine/x.py"; echo 'y = 1' >"$G/risk-sim/y.py"; echo MIT >"$G/LICENSE"; echo readme >"$G/README.md"
+printf 'export const x = 1;\n' >"$G/app/src/x.ts"; echo 'x = 1' >"$G/app/python/vol-engine/x.py"; echo 'y = 1' >"$G/app/python/risk-sim/y.py"; echo MIT >"$G/LICENSE"; echo readme >"$G/README.md"
 gc() { git -C "$G" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q "$@"; }
 git -C "$G" add -A && gc -m one; SHA1="$(git -C "$G" rev-parse HEAD)"
 echo 'export const x = 2;' >"$G/app/src/x.ts"; git -C "$G" add -A && gc -m two; SHA2="$(git -C "$G" rev-parse HEAD)"
@@ -117,7 +117,7 @@ snapshot() { (cd "$1" && find . -path ./own.log -prune -o -print | LC_ALL=C sort
 # ---------------------------------------------------------------- B: release dirs (umask, bare repo, retry)
 out="$(umask 077; DEPLOY_SH_SOURCE_ONLY=1 bash -c '. "$1"; umask; stage_release "$2" "$3" "$4" "$5" && echo staged' _ "$DEPLOY" "$T/queue.git" "$SHA1" "$T/rel1" "$T/dep" 2>&1)"
 check "stage_release: umask 022 over the caller's 077, works from a bare repo" bash -c '[ "$(printf "%s" "$1" | head -1)" = 0022 ] && printf "%s" "$1" | grep -qx staged' _ "$out"
-check "release dir drwxr-xr-x, files -rw-r--r--, vol-engine and risk-sim shipped" bash -c '[ "$(ls -ld "$1" | cut -c1-10)" = drwxr-xr-x ] && [ "$(ls -l "$1/app/deployments/4663.json" | cut -c1-10)" = -rw-r--r-- ] && [ -f "$1/vol-engine/x.py" ] && [ -f "$1/risk-sim/y.py" ]' _ "$T/rel1"
+check "release dir drwxr-xr-x, files -rw-r--r--, vol-engine and risk-sim shipped" bash -c '[ "$(ls -ld "$1" | cut -c1-10)" = drwxr-xr-x ] && [ "$(ls -l "$1/app/deployments/4663.json" | cut -c1-10)" = -rw-r--r-- ] && [ -f "$1/app/python/vol-engine/x.py" ] && [ -f "$1/app/python/risk-sim/y.py" ]' _ "$T/rel1"
 cat >"$T/flaky" <<'EOF'
 #!/bin/bash
 n=$(( $(cat "$1" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$1"; [ "$n" -ge "$2" ]
@@ -344,7 +344,7 @@ APP="$HERE/../.."; REPO="$APP/.."
 check "env_example_loads_and_job_names_valid: every name is known to the code" bash -c '
   bad=0
   for name in $(grep -oE "^[A-Z][A-Z0-9_]*=" "$1/env.example" | tr -d =); do
-    grep -rqw -- "$name" "$2/app/src" "$2/vol-engine/src" "$2/risk-sim/src" --include=*.ts --include=*.py 2>/dev/null || { echo "unknown name in env.example: $name"; bad=1; }
+    grep -rqw -- "$name" "$2/app/src" "$2/app/python/vol-engine/src" "$2/app/python/risk-sim/src" --include=*.ts --include=*.py 2>/dev/null || { echo "unknown name in env.example: $name"; bad=1; }
   done; exit $bad' _ "$HERE" "$REPO"
 BUNBIN="$(command -v bun || echo /opt/homebrew/bin/bun)"
 if [ -d "$APP/node_modules" ] && [ -x "$BUNBIN" ]; then
@@ -365,7 +365,7 @@ check "  ... env.example holds no key, password or token value" bash -c '! grep 
 check "  ... every Environment= name in the units is a known name" bash -c '
   for name in $(grep -hoE "^Environment=[A-Z_]+" "$1"/systemd/*.service | cut -d= -f2 | sort -u); do
     case "$name" in PYTHON*) continue;; esac
-    grep -rqw -- "$name" "$2/app/src" "$2/vol-engine/src" "$2/risk-sim/src" || { echo "unknown: $name"; exit 1; }
+    grep -rqw -- "$name" "$2/app/src" "$2/app/python/vol-engine/src" "$2/app/python/risk-sim/src" || { echo "unknown: $name"; exit 1; }
   done' _ "$HERE" "$REPO"
 
 # ---------------------------------------------------------------- J: units (R14)
@@ -404,7 +404,7 @@ check "  ... and fails when check-keys fails" [ "$rc" == 1 ]
 R3="$T/root-volkeys"; mkroot "$R3"
 out="$(dep "$R3" "$SHA1" OD_SETTLE=0 OD_PRE_SLEEP=0)"; rc=$?
 vk_prev="$(readlink "$R3/opt/overdrive/current")"
-sleep 1; stub_vk='mkdir -p vol-engine/.venv/bin && printf "#!/bin/sh\necho \"vol-engine check-keys: TSLA: engine key 0xab but the deployment reads 0xcd\" >&2\nexit 1\n" >vol-engine/.venv/bin/vol-engine && chmod +x vol-engine/.venv/bin/vol-engine'
+sleep 1; stub_vk='mkdir -p app/python/vol-engine/.venv/bin && printf "#!/bin/sh\necho \"vol-engine check-keys: TSLA: engine key 0xab but the deployment reads 0xcd\" >&2\nexit 1\n" >app/python/vol-engine/.venv/bin/vol-engine && chmod +x app/python/vol-engine/.venv/bin/vol-engine'
 out="$(dep "$R3" "$SHA2" OD_SETTLE=0 OD_PRE_SLEEP=0 OD_TEST_BUILD_CMD="$stub_vk")"; rc=$?
 check "a vol engine key that does not match the deployment stops before the switch (exit 75), current unchanged" \
   bash -c '[ "$1" = 75 ] && grep -q "market keys do not match 4663.json" <<<"$2" && grep -q "TSLA: engine key" <<<"$2" && [ "$(readlink "$3/opt/overdrive/current")" = "$4" ]' _ "$rc" "$out" "$R3" "$vk_prev"

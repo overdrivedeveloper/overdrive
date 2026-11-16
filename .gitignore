@@ -54,20 +54,20 @@ coverage/
 # Repository tooling and the Python engines.
 .logs/
 .ci-local/
-vol-engine/.venv/
-vol-engine/**/__pycache__/
-vol-engine/*.egg-info/
-vol-engine/.pytest_cache/
-vol-engine/tests/fixtures/test.*
+app/python/vol-engine/.venv/
+app/python/vol-engine/**/__pycache__/
+app/python/vol-engine/*.egg-info/
+app/python/vol-engine/.pytest_cache/
+app/python/vol-engine/tests/fixtures/test.*
 
 # Dry-run outputs of the deploy scripts (todo 11): fork/anvil deployments, post-deploy reports, timelock batches.
 /app/deployments/local/
-# .audit-grade/ is committed (public audit evidence); only local dry-run reports stay out.
-/.audit-grade/post-deploy-anvil.txt
-/.audit-grade/post-deploy-fork.txt
+# security/audit-grade/ is committed (public audit evidence); only local dry-run reports stay out.
+/security/audit-grade/post-deploy-anvil.txt
+/security/audit-grade/post-deploy-fork.txt
 /.batches/
 
-# Coverage output (scripts/coverage.sh); reproduce it, never commit it.
+# Coverage output (.github/scripts/coverage.sh); reproduce it, never commit it.
 contracts/coverage/
 lcov.info
 .mutation/

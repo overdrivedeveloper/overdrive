@@ -18,7 +18,7 @@
 #
 # A deploy:
 #   1. takes the build lock (builds on this box run ONE at a time, so a deploy never starves the other project);
-#   2. ships the committed tree at <ref> (git archive of app/, vol-engine/, risk-sim/; uncommitted changes never ship) plus
+#   2. ships the committed tree at <ref> (git archive of app/, which holds app/python/vol-engine and app/python/risk-sim; uncommitted changes never ship) plus
 #      app/deployments/<chain id>.json (from OVERDRIVE_DEPLOYMENTS_SRC) to /opt/overdrive/releases/<UTC time>-<sha12>;
 #   3. checks /etc/overdrive/overdrive.env (no CHANGE_ME left, NETWORK/CHAIN_ID/DEPLOYMENT_FILE agree, RPC answers that chain
 #      id, oracle address matches the deployment file, no raw key in any env file) and every keystore in /etc/overdrive/keys
@@ -75,8 +75,8 @@ stage_release() {
   local root="$1" sha="$2" dir="$3" dep="$4" name="${5:-4663.json}"
   mkdir -m 0755 "$dir" || return 1
   chmod 0755 "$dir" || return 1
-  git -C "$root" archive --format=tar "$sha" app vol-engine risk-sim LICENSE README.md 2>/dev/null | tar -xf - -C "$dir" --no-same-owner \
-    || { git -C "$root" archive --format=tar "$sha" app vol-engine risk-sim | tar -xf - -C "$dir" --no-same-owner || return 1; }
+  git -C "$root" archive --format=tar "$sha" app LICENSE README.md 2>/dev/null | tar -xf - -C "$dir" --no-same-owner \
+    || { git -C "$root" archive --format=tar "$sha" app | tar -xf - -C "$dir" --no-same-owner || return 1; }
   mkdir -p "$dir/app/deployments" && chmod 0755 "$dir/app/deployments" || return 1
   cat "$dep/$name" >"$dir/app/deployments/$name" || return 1
   chmod -R go-w,a+rX "$dir"
@@ -317,7 +317,7 @@ server_main() {
     local pyd
     for pyd in vol-engine risk-sim; do
       s_log "$pyd virtualenv (hash-pinned: requirements.lock, --require-hashes)"
-      venv_build() { (cd "$R/$pyd" && capped runuser -u overdrive -- env HOME=/var/lib/overdrive PATH=/usr/bin:/bin \
+      venv_build() { (cd "$R/app/python/$pyd" && capped runuser -u overdrive -- env HOME=/var/lib/overdrive PATH=/usr/bin:/bin \
         bash -c 'python3 -m venv .venv && ./.venv/bin/pip install --quiet --no-cache-dir --require-hashes --no-deps -r requirements.lock && ./.venv/bin/pip install --quiet --no-cache-dir --no-deps --no-build-isolation .'); }
       s_retry "$pyd virtualenv" venv_build || s_die "could not build the $pyd virtualenv (tried 3 times); /opt/overdrive/current is unchanged"
     done
@@ -327,7 +327,7 @@ server_main() {
     chmod 0755 "$R"
     chmod -R go-w,a+rX "$R"
   fi
-  local vbin="$R/vol-engine/.venv/bin/vol-engine"
+  local vbin="$R/app/python/vol-engine/.venv/bin/vol-engine"
   if [[ -z "$P" || -x "$vbin" ]]; then # a test root has no virtualenv unless its build command stubs one
     s_log "vol keys: every market and pair gear in $CHAIN.json is posted under the id its oracle reads"
     vol_keys_check "$vbin" "$(envval VOL_KEYS)" "$R/app/deployments/$CHAIN.json" \
@@ -531,7 +531,7 @@ if [[ "$LOCAL" == 1 ]]; then
   stage_release "$ROOT" "$SHA" "$BASE_DIR/releases/$REL" "$DEP_SRC" "$DEP_NAME" || { abandon_release "$BASE_DIR" "$REL"; die_unswitched "could not write the release dir $BASE_DIR/releases/$REL"; }
 else
   log "deploying ${SHA:0:12} to $HOST as release $REL"
-  git -C "$ROOT" archive --format=tar "$SHA" app vol-engine risk-sim LICENSE README.md | gzip -c \
+  git -C "$ROOT" archive --format=tar "$SHA" app LICENSE README.md | gzip -c \
     | ssh_ "set -e; umask 022; test -d /opt/overdrive/releases || { echo 'not provisioned: run deploy.sh --provision first' >&2; exit 1; }; mkdir -m 0755 /opt/overdrive/releases/$REL; tar -xzf - -C /opt/overdrive/releases/$REL --no-same-owner" \
     || die_unswitched "upload to $HOST failed"
   ssh_ "umask 022; mkdir -p /opt/overdrive/releases/$REL/app/deployments"

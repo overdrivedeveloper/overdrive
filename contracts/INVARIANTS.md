@@ -46,7 +46,7 @@ Run one suite: `cd contracts && forge test --match-contract <Contract>`. Deep pr
 | --- | --- | --- |
 | 22 | The stress figure equals an independent brute-force computation | `governor/Stress.t.sol : testFuzz_StressMatchesBruteForce` |
 | 23 | Stake: assets held cover shares, rewards stay solvent, shares add up and never outlive their assets (exits round down against the leaver, so a dust slash cannot leave shares with totalAssets = 0) | `stake/StakeInvariant.t.sol : invariant_AssetsHeld`, `invariant_RewardsSolvent`, `invariant_SharesAddUp`; `poc/StakeDustShares.t.sol : test_Repro_DustSlashLeavesSharesWithNoAssets` |
-| 24 | Stake: only the Governor and the Backer can slash; stake is read by the cores only through the fee discount and the slash | `stake/Stake.t.sol : test_SlashOnlyCallers`, `test_CoresUseOnlyDiscountAndSlash`; CI also greps for stake reads outside `src/stake` (`scripts/ci-local.sh : check_stake_usage`) |
+| 24 | Stake: only the Governor and the Backer can slash; stake is read by the cores only through the fee discount and the slash | `stake/Stake.t.sol : test_SlashOnlyCallers`, `test_CoresUseOnlyDiscountAndSlash`; CI also greps for stake reads outside `src/stake` (`.github/scripts/ci-local.sh : check_stake_usage`) |
 
 ## Privilege limits
 

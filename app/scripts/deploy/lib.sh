@@ -19,7 +19,7 @@ od_init() {
   [ -x "$FORGE" ] || die "forge not found at $FORGE"
   [ -x "$CAST" ] || die "cast not found at $CAST"
   [ -n "${OD_DEPLOYER:-}" ] || die "set OD_DEPLOYER to the deployer's public address"
-  mkdir -p "$(dirname "$OUT")" "$BACKEND/.audit-grade" "$BACKEND/.batches"
+  mkdir -p "$(dirname "$OUT")" "$BACKEND/security/audit-grade" "$BACKEND/.batches"
   CHAIN_ID="$("$CAST" chain-id --rpc-url "$RPC")"
   SIGN_ARGS="--account ${OD_ACCOUNT:-overdrive-deployer}"
   if [ -n "${OD_KEYSTORE:-}" ]; then
@@ -73,21 +73,21 @@ stage_handoff() {
 
 stage_check() {
   if (cd "$CONTRACTS" && "$FORGE" script script/PostDeployCheck.s.sol --rpc-url "$RPC" -q >/dev/null 2>&1); then
-    say "stage check: PASS (read-only, .audit-grade/post-deploy-$NETWORK.txt)"
+    say "stage check: PASS (read-only, security/audit-grade/post-deploy-$NETWORK.txt)"
   else
-    cat "$BACKEND/.audit-grade/post-deploy-$NETWORK.txt" 2>/dev/null || true
+    cat "$BACKEND/security/audit-grade/post-deploy-$NETWORK.txt" 2>/dev/null || true
     die "post-deploy check failed"
   fi
 }
 
 # DEP-1: publish source to Sourcify from the real broadcast and require exact_match for every created contract.
-# Never on a local anvil node (Sourcify does not know it); the result is .audit-grade/sourcify-<network>.txt.
+# Never on a local anvil node (Sourcify does not know it); the result is security/audit-grade/sourcify-<network>.txt.
 stage_sourcify() {
   case "$("$CAST" rpc web3_clientVersion --rpc-url "$RPC")" in *anvil/*) say "stage sourcify: skip (local anvil node)"; return 0 ;; esac
   local run="$CONTRACTS/broadcast/DeploySystem.s.sol/$CHAIN_ID/run-latest.json"
-  bash "$CONTRACTS/script/sourcify-verify.sh" "$run" "$CHAIN_ID" "$BACKEND/.audit-grade/sourcify-$NETWORK.txt" >/dev/null \
-    || { cat "$BACKEND/.audit-grade/sourcify-$NETWORK.txt" 2>/dev/null || true; die "Sourcify verification is not exact_match for every contract"; }
-  say "stage sourcify: ALL exact_match (.audit-grade/sourcify-$NETWORK.txt)"
+  bash "$CONTRACTS/script/sourcify-verify.sh" "$run" "$CHAIN_ID" "$BACKEND/security/audit-grade/sourcify-$NETWORK.txt" >/dev/null \
+    || { cat "$BACKEND/security/audit-grade/sourcify-$NETWORK.txt" 2>/dev/null || true; die "Sourcify verification is not exact_match for every contract"; }
+  say "stage sourcify: ALL exact_match (security/audit-grade/sourcify-$NETWORK.txt)"
 }
 
 stage_batch() {

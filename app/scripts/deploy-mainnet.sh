@@ -22,17 +22,17 @@ if bad:
     print("placeholders: " + ", ".join(bad), file=sys.stderr)
     sys.exit(1)
 PY
-mkdir -p "$BACKEND/.audit-grade"
+mkdir -p "$BACKEND/security/audit-grade"
 # Dry run: a local anvil fork at the deployer's real nonce, the same script and config, then PostDeployCheck.
 PORT="${OD_DRY_PORT:-8590}"
-"$HOME/.foundry/bin/anvil" --fork-url "$MAINNET_RPC" --port "$PORT" >"$BACKEND/.audit-grade/mainnet-dry-anvil.log" 2>&1 &
+"$HOME/.foundry/bin/anvil" --fork-url "$MAINNET_RPC" --port "$PORT" >"$BACKEND/security/audit-grade/mainnet-dry-anvil.log" 2>&1 &
 ANVIL_PID=$!
 trap 'kill "$ANVIL_PID" 2>/dev/null || true' EXIT
 DRY="http://127.0.0.1:$PORT"
 i=0; until "$CAST" chain-id --rpc-url "$DRY" >/dev/null 2>&1; do i=$((i + 1)); [ "$i" -lt 60 ] || die "dry-run anvil did not start"; sleep 1; done
 case "$("$CAST" rpc web3_clientVersion --rpc-url "$DRY")" in *anvil/*) ;; *) die "the dry-run node is not anvil" ;; esac
 "$CAST" rpc anvil_impersonateAccount "$OD_DEPLOYER" --rpc-url "$DRY" >/dev/null
-DRY_OUT="$BACKEND/.audit-grade/mainnet-dry.json"
+DRY_OUT="$BACKEND/security/audit-grade/mainnet-dry.json"
 (cd "$CONTRACTS" && OD_NETWORK=mainnet OD_DEPLOYMENTS_OUT="$DRY_OUT" \
   "$FORGE" script script/DeploySystem.s.sol --rpc-url "$DRY" --sender "$OD_DEPLOYER" --unlocked --broadcast --slow -q >/dev/null) \
   || die "dry run on the fork failed"

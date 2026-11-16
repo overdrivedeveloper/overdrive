@@ -276,7 +276,7 @@ contract StakeTest is ODTest {
     }
 
     /// No core contract reads stake beyond `feeDiscountOf` and `slash` (the vote never moves toll maths, NF or pricing).
-    /// Mirrors `check_stake_usage` in scripts/ci-local.sh.
+    /// Mirrors `check_stake_usage` in .github/scripts/ci-local.sh.
     function test_CoresUseOnlyDiscountAndSlash() public view {
         Vm.DirEntry[] memory entries = vm.readDir(string.concat(vm.projectRoot(), "/src"), 4);
         string[6] memory banned =
