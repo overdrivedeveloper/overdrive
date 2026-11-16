@@ -7,7 +7,7 @@ const risks = [
   {title:'Time has a cost.', body:'The daily toll accumulates even when the underlying price goes nowhere.'},
   {title:'Stock feeds have market hours.', body:'Prices can pause overnight, on weekends, or when a feed is interrupted.'},
   {title:'The Governor can lose.', body:'Violent unhedged moves can cause losses. Caps and insurance cannot remove every risk.'},
-  {title:'Audit status matters.', body:'The protocol is unaudited until its audit milestone is complete. Review the status before committing funds.'},
+  {title:'Audit status matters.', body:'There is no outside audit. The contracts have had internal reviews only, graded 8.9 of 10 at the tag audit-2026-11-15. Review them before committing funds.'},
 ];
 const safeguards = [
   {title:'No holder liquidation.', body:'Fully paid ERC-20s have no holder margin calls. Backers have separate collateral rules and can be liquidated.'},
@@ -20,7 +20,7 @@ const stages = [
   ['Sport & Cruise', 'ETH, BTC, NVDA, TSLA and SPY; the Governor and exit reserve come first.'],
   ['Eco & Reverse', 'Coming soon: the remaining mega-caps, plus weekend and stock-split handling.'],
   ['Race & pairs', 'Coming soon: Race on SPY / QQQ at volatility up to 40%, and the three Sport pair gears.'],
-  ['Retail favourites', 'HOOD, COIN, MSTR and PLTR, with tighter open-value caps.'],
+  ['Retail favourites', 'COIN, MSTR and PLTR when listed, with tighter open-value caps.'],
   ['Open participation', 'Backer access, agent access and router allowlisting.'],
 ];
 function StatusIcon({positive}:{positive:boolean}) {

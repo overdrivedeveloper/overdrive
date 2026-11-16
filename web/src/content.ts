@@ -82,7 +82,7 @@ export const integrations = {
   eyebrow:'The market family',title:['The names you know.', 'More ways to hold them.'],pill:'Overdrive',pillNote:'one family',
   caption:'Stocks. Index ETFs. Crypto. Pair gears.',
   body:'Mega-caps, retail favourites, SPY and QQQ, ETH and BTC - with gears matched to each market. Crypto runs 24/7; equity feeds follow their market sessions.',
-  marks:['NVDA','TSLA','AAPL','MSFT','META','AMZN','HOOD','COIN','SPY','QQQ','ETH','BTC'],
+  marks:['NVDA','TSLA','AAPL','MSFT','META','AMZN','MSTR','SPY','QQQ','ETH','BTC'],
 };
 export const compare = {
   eyebrow:'Know your role',title:['Hold a geared token.', 'Understand the other side.'],

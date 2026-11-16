@@ -33,7 +33,7 @@ export function Mechanics() {
         <div className="mechanics-pairs-copy"><span className="extras-kicker">Pair gears</span><h3>One name<br/>against another.</h3><p>Sport on a price ratio.<br/>Your view on which one leads.</p></div>
         <div className="mechanics-pair-stack">
           <div className="mechanics-pair-chip"><span>NVDA / AMD</span><MarketMark symbol="NVDA/AMD" size={30} decorative/></div>
-          <div className="mechanics-pair-chip"><span>HOOD / COIN</span><MarketMark symbol="HOOD/COIN" size={30} decorative/></div>
+          <div className="mechanics-pair-chip"><span>COIN / MSTR</span><MarketMark symbol="COIN/MSTR" size={30} decorative/></div>
           <div className="mechanics-pair-chip"><span>QQQ / SPY</span><MarketMark symbol="QQQ/SPY" size={30} decorative/></div>
           <span className="mechanics-pair-badge">SPORT · POWER 2</span>
         </div>
