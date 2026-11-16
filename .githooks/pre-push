@@ -7,6 +7,12 @@
 # every required job. The required set is every ci-local job, contracts (forge test) and slither included. Only the
 # "jobs" line is read, so a tool name elsewhere in the stamp ("python", "forge") never stands in for a job.
 # Stamps are searched in this checkout and every worktree.
+# Public copies: sync-public.py pushes to the public remote a commit whose tree is the private tree minus the state's
+# "excludePaths" (the private denylist), so its tree never has a stamp of its own. It sets OD_SYNC_STATE (the state file)
+# for the push. A push to that state's "publicRemote" is accepted ONLY when the private source of the pushed commit
+# (the sync journal <state>.pending.json, else the map <state>.map.jsonl) has a full stamp for its tree AND the pushed
+# tree equals that stamped tree after removing exactly the excludePaths (temporary index: read-tree, rm --cached,
+# write-tree). One changed byte, a missing source, or a source without a stamp is refused as before.
 # Emergency override: OD_SKIP_CI_GATE="<reason>" git push ...   (the reason is mandatory and appended to
 # .ci-local/overrides.log). OD_REQUIRED_JOBS replaces the required set; a set that drops any default job is an
 # override too and is logged to the same file.
@@ -46,12 +52,63 @@ stamped() { # $1 = tree hash
   return 1
 }
 
+# public_ok <pushed sha> <pushed tree> <remote>: 0 when the pushed public commit is the exact stamped private tree
+# minus excludePaths (see the header). Prints its reason on refusal.
+public_ok() {
+  local st="${OD_SYNC_STATE:-}" info premote priv ptree tmpd etree
+  [ -n "$st" ] && [ -f "$st" ] || return 1
+  info="$(python3 -I - "$st" "$1" <<'PY'
+import json, os, sys
+st_path, pushed = sys.argv[1], sys.argv[2]
+st = json.load(open(st_path))
+print("remote\t" + str(st.get("publicRemote", "")))
+priv = ""
+pend = st_path + ".pending.json"
+if os.path.exists(pend):
+    j = json.load(open(pend))
+    if j.get("publicSha") == pushed:
+        priv = j.get("privateSha", "")
+if not priv and os.path.exists(st_path + ".map.jsonl"):
+    for line in open(st_path + ".map.jsonl"):
+        line = line.strip()
+        if line and json.loads(line).get("public") == pushed:
+            priv = json.loads(line).get("private", "")
+print("priv\t" + priv)
+for p in st.get("excludePaths") or []:
+    print("x\t" + p)
+PY
+)" || { echo "pre-push: cannot read sync state $st" >&2; return 1; }
+  premote="$(printf '%s\n' "$info" | sed -n 's/^remote	//p')"
+  [ -n "$premote" ] && [ "$3" = "$premote" ] || return 1
+  priv="$(printf '%s\n' "$info" | sed -n 's/^priv	//p')"
+  if [ -z "$priv" ] || ! git cat-file -e "$priv^{commit}" 2>/dev/null; then
+    echo "pre-push: public push $1: no private source commit in the sync journal or map" >&2; return 1
+  fi
+  ptree="$(git rev-parse "$priv^{tree}")"
+  if ! stamped "$ptree"; then
+    echo "pre-push: public push $1: private source $priv has no all-green ci-local stamp for tree $ptree" >&2; return 1
+  fi
+  tmpd="$(mktemp -d)"
+  GIT_INDEX_FILE="$tmpd/index" git read-tree "$ptree" || { rm -rf "$tmpd"; return 1; }
+  printf '%s\n' "$info" | sed -n 's/^x	//p' | while IFS= read -r p; do
+    [ -n "$p" ] && GIT_INDEX_FILE="$tmpd/index" git rm --cached -r -f -q --ignore-unmatch -- "$p" >/dev/null
+  done
+  etree="$(GIT_INDEX_FILE="$tmpd/index" git write-tree)"
+  rm -rf "$tmpd"
+  if [ "$etree" != "$2" ]; then
+    echo "pre-push: public push $1: tree $2 is not the stamped private tree $ptree minus excludePaths ($etree)" >&2; return 1
+  fi
+  echo "pre-push: public push $1 accepted: tree = stamped private $priv minus excludePaths" >&2
+  return 0
+}
+
+remote="${1:-}"
 bad=0
 while read -r lref lsha rref rsha; do
   [ -n "${lsha:-}" ] || continue
   [ "$lsha" = "$zero" ] && continue   # deleting a ref pushes no code
   tree="$(git rev-parse "$lsha^{tree}" 2>/dev/null)" || continue
-  if ! stamped "$tree"; then
+  if ! stamped "$tree" && ! public_ok "$lsha" "$tree" "$remote"; then
     echo "pre-push: refusing $lref ($lsha): no all-green ci-local stamp for tree $tree" >&2
     bad=1
   fi
