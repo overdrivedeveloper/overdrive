@@ -7,7 +7,7 @@ type Provider = {
   on?: (event: string, listener: (value: unknown) => void) => void;
   removeListener?: (event: string, listener: (value: unknown) => void) => void;
 };
-const injected = (): Provider | undefined => (window as Window & { ethereum?: Provider }).ethereum;
+const injected = (): Provider | undefined => typeof window === 'undefined' ? undefined : (window as Window & { ethereum?: Provider }).ethereum;
 const accountFrom = (value: unknown): string => Array.isArray(value) && typeof value[0] === 'string' && /^0x[0-9a-f]{40}$/i.test(value[0]) ? value[0] : '';
 const chainFrom = (value: unknown): number | null => {
   const n = typeof value === 'string' || typeof value === 'number' ? Number(value) : NaN;

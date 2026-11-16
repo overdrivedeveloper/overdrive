@@ -64,7 +64,7 @@ function BackerReview({backer,label,onClose}:{backer:ReturnType<typeof useBacker
 }
 
 export default function PeopleNine({navigate}:{navigate:(p:string)=>void}){
- const [active,setActive]=useState<Tab>(()=>{const p=new URLSearchParams(location.search).get('view');return TABS.find(t=>t.toLowerCase()===p)||'Dashboard'});
+ const [active,setActive]=useState<Tab>(()=>{const p=new URLSearchParams(typeof location==='undefined'?'':location.search).get('view');return TABS.find(t=>t.toLowerCase()===p)||'Dashboard'});
  const [market,setMarket]=useState('TSLA');const [gear,setGear]=useState<Gear>('Sport');const [query,setQuery]=useState('');const [group,setGroup]=useState('All markets');const [sort,setSort]=useState('Featured');
  const [watch,setWatch]=useState<string[]>(()=>{const raw=stored<unknown>('overdrive-watchlist',['TSLA','NVDA','SPY','ETH','BTC']);return Array.isArray(raw)?raw.filter(x=>typeof x==='string'&&MARKETS.some(m=>m.symbol===x)):[]});
  const [events,setEvents]=useState<Event[]>(()=>{const raw=stored<unknown>('overdrive-activity',[]);return Array.isArray(raw)?raw.filter(e=>e&&typeof e.id==='string'&&typeof e.title==='string'&&typeof e.time==='string'):[]});
