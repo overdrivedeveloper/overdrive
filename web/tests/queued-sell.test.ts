@@ -39,7 +39,7 @@ describe('closed-market sell review', () => {
 
   test('copy rules: no em dashes (the public guard covers the word list)', () => {
     const all = JSON.stringify([closedSellView(sell('immediate', 'instant_min')), closedSellView(sell('queued', 'queued'))]);
-    expect(all).not.toContain('—');
+    expect(all).not.toContain('\u2014');
   });
 });
 

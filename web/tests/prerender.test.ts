@@ -52,7 +52,7 @@ describe('pre-rendered public routes', () => {
   });
 
   test('copy rules hold in the head tags (no em dashes)', () => {
-    for (const p of PAGES) expect(read(p.file).match(/<head>.*<\/head>/s)?.[0]).not.toContain('—');
+    for (const p of PAGES) expect(read(p.file).match(/<head>.*<\/head>/s)?.[0]).not.toContain('\u2014');
   });
 
   test('Vercel serves the static files by clean URL', () => {
