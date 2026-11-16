@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CHAIN_HEX, CHAIN_ID } from '../lib/overdrive';
+import { CHAIN_ID } from '../lib/overdrive';
+import { addChainParams, isUnknownChain, switchOrAddChain } from '../lib/chains';
 
 type Provider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -16,7 +17,7 @@ const messageFor = (error: unknown): string => {
   const value = error as { code?: number; message?: string };
   if (value?.code === 4001) return 'Connection cancelled. You can try again when you are ready.';
   if (value?.code === -32002) return 'A wallet request is already open. Check your wallet to continue.';
-  if (value?.code === 4902) return 'Add Robinhood Chain to your wallet, then try switching again.';
+  if (isUnknownChain(value)) return addChainParams(CHAIN_ID) ? 'Your wallet could not add Robinhood Chain. Add it in your wallet, then try switching again.' : 'Add this network to your wallet, then try switching again.';
   return 'Your wallet could not complete the request. Check your wallet and try again.';
 };
 
@@ -88,7 +89,7 @@ export function useOverdriveWallet() {
     if (!wallet) { setError('Connect an EVM wallet to switch networks.'); return false; }
     setError('');
     try {
-      await wallet.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_HEX }] });
+      await switchOrAddChain(wallet, CHAIN_ID);
       if (mounted.current) setChainId(chainFrom(await wallet.request({ method: 'eth_chainId' })));
       return true;
     } catch (cause) {
