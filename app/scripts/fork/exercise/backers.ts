@@ -113,6 +113,7 @@ const B01: Flow = {
     for (const c of cases) {
       await fundRole(ctx, c.role, 50_000);
       await freshen(ctx, ["ETH", "MCKR"]);
+      const held0 = await tokenOf(ctx, c.g.token, addressOf(c.role));
       const vid = await openVault(ctx, row, c.role, c.g, U(1000), `open ${c.g.key} vault, 1000 USDG`);
       const tokens = await mintMax(ctx, row, c.role, vid, `mint the maximum on ${c.g.key}`);
       const [coll, debtWad, ratio, required] = await health(ctx, vid);
@@ -121,7 +122,7 @@ const B01: Flow = {
       row.chainTrue(`${c.g.key} ratio within 1 bp of required (exactly at the limit)`, ratio <= c.req + 1n, ratio);
       row.chain(`${c.g.key} vault debt`, (await vaultOf(ctx, vid))[3], tokens);
       row.chainTrue(`${c.g.key} collateral intact`, coll > 0n && debtWad > 0n);
-      row.chain(`${c.g.key} owner holds the minted tokens`, await tokenOf(ctx, c.g.token, addressOf(c.role)), tokens);
+      row.chain(`${c.g.key} owner received the minted tokens`, (await tokenOf(ctx, c.g.token, addressOf(c.role))) - held0, tokens);
       const names = await row.expectRevert(`${c.g.key} one more token over the limit`, c.role, { address: ctx.c.ODBacker!, abi: backerAbi, functionName: "mint", args: [vid, 10n ** 15n, false, 0n] }, ["Undercollateralized"]);
       void names;
       const api = await apiVault(vid, (v) => v.debtTokens === tokens.toString());
