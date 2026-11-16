@@ -55,7 +55,7 @@ export function Mechanics() {
         <div className="mechanics-toll-chart" role="img" aria-label={`Illustrative token-value reduction from the toll with a flat underlying: ${tollDays.map((d,i)=>`${d} days, ${reductions[i].toFixed(2)} percent`).join('; ')}`}>
           {tollDays.map((day,i)=><div key={day}><div className="mechanics-toll-track"><div className={`mechanics-toll-bar ${i===6?'is-last':''}`} style={{height:`${reductions[i]/reductions[6]*100}%`}}><b>{reductions[i].toFixed(2)}<span>%</span></b></div></div><small>{day}d</small></div>)}
         </div>
-        <p className="mechanics-chart-caption">TSLA Sport · 60% annual volatility · flat price. Value reduction from the formula component only; usage and spreads excluded. Eco usually receives toll.</p>
+        <p className="mechanics-chart-caption">TSLA Sport · 60% annual volatility · flat price. Value reduction from the formula component only; usage and spreads excluded.</p>
       </article>
 
       <article className="mechanics-card mechanics-availability" data-reveal="mosaic">

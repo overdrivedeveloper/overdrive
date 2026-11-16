@@ -11,15 +11,15 @@ const risks = [
 ];
 const safeguards = [
   {title:'No holder liquidation.', body:'Fully paid ERC-20s have no holder margin calls. Backers have separate collateral rules and can be liquidated.'},
-  {title:'A published toll formula.', body:'Review the quoted daily toll before buying. Eco usually receives toll; your token balance stays unchanged.'},
+  {title:'A published toll formula.', body:'Review the quoted daily toll before buying. Your token balance stays unchanged.'},
   {title:'Fresh-price guards.', body:'Stale-price buys are blocked. Sell at the lower of last and live-pool value, or queue for a fresh feed.'},
   {title:'A separate exit reserve.', body:'The Governor nets and hedges exposure. Ring-fenced USDG, caps and insurance are intended to limit risk.'},
   {title:'Limits before expansion.', body:'Availability expands in phases. Parameter changes wait 48 hours; the guardian can only reduce risk immediately.'},
 ];
 const stages = [
   ['Sport & Cruise', 'ETH, BTC, NVDA, TSLA and SPY; the Governor and exit reserve come first.'],
-  ['Eco & Reverse', 'The remaining mega-caps, plus weekend and stock-split handling.'],
-  ['Race & pairs', 'Race on SPY / QQQ at volatility up to 40%, and the three Sport pair gears.'],
+  ['Eco & Reverse', 'Coming soon: the remaining mega-caps, plus weekend and stock-split handling.'],
+  ['Race & pairs', 'Coming soon: Race on SPY / QQQ at volatility up to 40%, and the three Sport pair gears.'],
   ['Retail favourites', 'HOOD, COIN, MSTR and PLTR, with tighter open-value caps.'],
   ['Open participation', 'Backer access, agent access and router allowlisting.'],
 ];

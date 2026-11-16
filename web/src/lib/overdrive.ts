@@ -9,7 +9,10 @@ export type GearDefinition = {
   power: number;
   description: string;
   tollLabel: string;
+  /** Not live at launch: shown with a Coming soon label and never selectable. */
+  soon?: boolean;
 };
+export const COMING_SOON = 'Coming soon';
 export type Market = {
   symbol: string;
   name: string;
@@ -28,10 +31,11 @@ export const SETTLEMENT = 'USDG';
 export const GEARS: readonly GearDefinition[] = [
   { id: 'Cruise', title: 'Cruise', power: 1.5, description: 'A measured step up from the underlying market.', tollLabel: 'Low daily toll' },
   { id: 'Sport', title: 'Sport', power: 2, description: 'More response to every move, in both directions.', tollLabel: 'Medium daily toll' },
-  { id: 'Race', title: 'Race', power: 3, description: 'The strongest response, for eligible markets only.', tollLabel: 'Higher daily toll' },
-  { id: 'Eco', title: 'Eco', power: 0.5, description: 'A gentler response; the toll usually pays the holder.', tollLabel: 'Usually received' },
-  { id: 'Reverse', title: 'Reverse', power: -1, description: 'Rises when the underlying falls, without holder liquidation.', tollLabel: 'Medium daily toll' },
+  { id: 'Race', title: 'Race', power: 3, description: 'The strongest response, for eligible markets only.', tollLabel: 'Higher daily toll', soon: true },
+  { id: 'Eco', title: 'Eco', power: 0.5, description: 'A gentler response; the toll usually pays the holder.', tollLabel: 'Usually received', soon: true },
+  { id: 'Reverse', title: 'Reverse', power: -1, description: 'Rises when the underlying falls, without holder liquidation.', tollLabel: 'Medium daily toll', soon: true },
 ];
+export const isGearLive = (gear: Gear): boolean => !GEARS.find((g) => g.id === gear)?.soon;
 export const POWERS: Record<Gear, number> = { Cruise: 1.5, Sport: 2, Race: 3, Eco: 0.5, Reverse: -1 };
 const ALL_GEARS: readonly Gear[] = ['Cruise', 'Sport', 'Race', 'Eco', 'Reverse'];
 const STOCK_GEARS: readonly Gear[] = ['Cruise', 'Sport', 'Eco', 'Reverse'];
@@ -81,6 +85,7 @@ export function getMarket(symbol: string): Market | undefined {
  */
 export function isGearAllowed(symbol: string, gear: Gear, annualVolatilityPct?: number): boolean {
   const item = getMarket(symbol);
+  if (!isGearLive(gear)) return false;
   if (!item?.gears.includes(gear)) return false;
   if (gear === 'Race' && item.group === 'Index ETFs' && annualVolatilityPct !== undefined) {
     return Number.isFinite(annualVolatilityPct) && annualVolatilityPct >= 0 && annualVolatilityPct <= 40;

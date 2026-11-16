@@ -35,7 +35,7 @@ function WorthPanel() {
         {w.title}
         <Arrow className="text-slate" />
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {w.figures.map((f) => (
           <div key={f.label}>
             <p className="text-[0.82rem] font-medium tracking-[-0.03em]">{f.value}</p>

@@ -78,7 +78,7 @@ export function Layers({reduced}: {reduced: boolean}) {
         </Reveal>
 
         <Reveal className="relative mt-6 md:-mt-10">
-          <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full overflow-visible max-sm:-ml-[35%] max-sm:w-[170%]" aria-label="The Governor connected to all five Overdrive gears">
+          <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full overflow-visible max-sm:-ml-[35%] max-sm:w-[170%]" aria-label="The Governor connected to Cruise and Sport, with Race, Eco and Reverse coming soon">
             {/* perspective plane */}
             <g stroke="var(--color-line)" strokeWidth="1" fill="none" opacity="0.8">
               {[0, 1, 2, 3, 4].map((i) => (

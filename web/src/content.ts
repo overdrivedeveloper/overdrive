@@ -17,7 +17,7 @@ export const dashboard = {
   workspace: 'Overdrive', plan: 'Geared token', user: 'TSLA · Tesla', role: 'Market explorer',
   nav: [
     {label: 'Overview', active: true}, {label: 'Markets'}, {label: 'Your gears'},
-    {label: 'Gear family', open: true, children: ['Cruise', 'Sport', 'Reverse']},
+    {label: 'Gear family', open: true, children: ['Cruise', 'Sport', 'Race · Coming soon', 'Eco · Coming soon', 'Reverse · Coming soon']},
     {label: 'The Governor'},
   ],
   range: 'Underlying move · +10%', date: 'Before costs', netLabel: 'Sport · token response',
@@ -25,21 +25,19 @@ export const dashboard = {
   holdings: [
     {label: 'Cruise', value: 15.4, dot: '#c7c7c9'},
     {label: 'Sport', value: 21, dot: '#d8473d'},
-    {label: 'Reverse', value: -9.1, dot: '#242426'},
   ],
   stats: [{label: 'Settlement', value: 'USDG'}, {label: 'Token', value: 'ERC-20'}],
-  tabs: ['Cruise', 'Sport', 'Reverse'],
+  tabs: ['Cruise', 'Sport'],
   rows: [
     {name: 'TSLA-CRUISE', kind: 'Cruise', value: '+15.4%', change: '−14.6%'},
     {name: 'TSLA-SPORT', kind: 'Sport', value: '+21.0%', change: '−19.0%'},
-    {name: 'TSLA-REV', kind: 'Reverse', value: '−9.1%', change: '+11.1%'},
   ],
 };
 export const features = {
   eyebrow: 'The Overdrive idea', title: ['Familiar markets.', 'A different gear.'],
-  aside: 'Choose how you move with stocks and crypto - from a measured Cruise to a Reverse view, held as a token in your wallet.',
+  aside: 'Choose how you move with stocks and crypto - from a measured Cruise to a stronger Sport, held as a token in your wallet.',
   items: [
-    {n: '01', title: 'Choose your exposure', body: 'Cruise, Sport, Race, Eco and Reverse. Five distinct responses, with availability and limits set for each market.'},
+    {n: '01', title: 'Choose your exposure', body: 'Two gears at launch, Cruise and Sport. Race, Eco and Reverse are coming soon. Availability and limits are set for each market.'},
     {n: '02', title: 'Know what moves you', body: 'Sport gains about 21% on a 10% rise, and loses about 19% on a 10% fall. Both figures are before toll and costs.'},
     {n: '03', title: 'One clear fee split', body: 'Protocol fees support the Governor and exit reserve, the treasury, slashable staking capital and token burns.'},
   ],
@@ -47,9 +45,9 @@ export const features = {
 export const featureCards = {
   worth: {
     title: 'Gear response · +10% move',
-    figures: [{label: 'Cruise', value: '+15.4%'}, {label: 'Sport', value: '+21%'}, {label: 'Reverse', value: '−9.1%'}],
+    figures: [{label: 'Cruise', value: '+15.4%'}, {label: 'Sport', value: '+21%'}],
     bars: [0.36,0.40,0.44,0.48,0.53,0.58,0.63,0.69,0.75,0.82,0.90],
-    rows: [{label: 'Cruise power', value: '1.5'}, {label: 'Sport power', value: '2'}, {label: 'Reverse power', value: '−1'}],
+    rows: [{label: 'Cruise power', value: '1.5'}, {label: 'Sport power', value: '2'}],
   },
   returns: {
     title: 'TSLA-SPORT · +10% move', figure: 21,
@@ -72,11 +70,11 @@ export const signal = {
 export const layers = {
   titleA:'One risk book.', titleB:'Every gear connected.', core:'The Governor',
   coreNote:['The protocol’s house book','Exposure across every gear','A ring-fenced exit reserve'],
-  nodes:[{id:'cruise',label:'Cruise · 1.5',x:0.12,y:0.5},{id:'sport',label:'Sport · 2',x:0.86,y:0.2},{id:'race',label:'Race · 3',x:0.88,y:0.78},{id:'eco',label:'Eco · ½',x:0.3,y:0.86},{id:'reverse',label:'Reverse · −1',x:0.3,y:0.14}],
+  nodes:[{id:'cruise',label:'Cruise · 1.5',x:0.12,y:0.5},{id:'sport',label:'Sport · 2',x:0.86,y:0.2},{id:'race',label:'Race · Coming soon',x:0.88,y:0.78},{id:'eco',label:'Eco · Coming soon',x:0.3,y:0.86},{id:'reverse',label:'Reverse · Coming soon',x:0.3,y:0.14}],
   eyebrow:'Under the hood', capsTitle:['Built for every','side of the market'],
   caps:[
-    {title:'One connected book',body:'Eco offsets Sport and Race exposure. Reverse offsets direction. The Governor hedges what remains.'},
-    {title:'A daily toll',body:'A published formula adjusts token value. Your balance stays the same. Eco usually receives the toll.'},
+    {title:'One connected book',body:'Gears offset each other inside one book, and the Governor hedges what remains. Race, Eco and Reverse are coming soon.'},
+    {title:'A daily toll',body:'A published formula adjusts token value. Your balance stays the same.'},
     {title:'An exit reserve',body:'USDG is ring-fenced for holder exits. When prices pause, sells use the lower price or queue for a fresh feed.'},
   ],
 };
@@ -101,10 +99,10 @@ export const compare = {
 };
 export const cta = {
   eyebrow:'Your next move',lineA:['Pick','your','gear'],lineB:['hold','the','token'],
-  body:'From Cruise to Reverse, find the exposure that matches your view. Holders are never liquidated, but token value can fall towards zero.',
+  body:'From Cruise to Sport, find the exposure that matches your view. Holders are never liquidated, but token value can fall towards zero.',
   request:'Explore the gears',open:'Open app',feedTitle:'The Overdrive essentials',
   feed:[
-    {title:'Five gears',body:'Cruise · Sport · Race · Eco · Reverse'},
+    {title:'Two gears at launch',body:'Cruise · Sport. Race, Eco and Reverse are coming soon.'},
     {title:'Fully paid tokens',body:'No liquidation for holders'},
     {title:'A daily toll',body:'Shown before you buy a gear'},
     {title:'USDG settlement',body:'Built on Robinhood Chain'},
