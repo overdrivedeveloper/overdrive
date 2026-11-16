@@ -53,6 +53,8 @@ check_stake_usage() {
 check_privileged_functions() { (cd contracts && python3 script/ci/privileged-functions.py --check); }
 # Audit scope: contracts/AUDIT-SCOPE.md lists every file under contracts/src (the list the audit tag freezes).
 check_audit_scope() { (cd contracts && python3 script/ci/audit-scope.py --check); }
+# NatSpec: every public or external function under contracts/src has a NatSpec comment (@inheritdoc counts).
+check_natspec() { (cd contracts && python3 script/ci/natspec.py --self-test && python3 script/ci/natspec.py --check); }
 # Todo 11 R11: every src contract stays under the 24,576-byte EIP-170 limit (reads the forge build output).
 check_code_size() { (cd contracts && python3 script/ci/code-size.py out >/dev/null); }
 # hygiene and semgrep need gitleaks and semgrep on PATH (brew install gitleaks; pipx install semgrep); a missing tool fails.
@@ -61,7 +63,7 @@ job_hygiene() {
     && gitleaks git . --config .github/gitleaks.toml --redact --no-banner
 }
 job_semgrep() { bash .github/scripts/semgrep.sh; }
-job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && check_audit_scope && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
+job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && check_audit_scope && check_natspec && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
 job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh && bash scripts/pre-push.test.sh; }

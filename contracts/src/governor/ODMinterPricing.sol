@@ -314,6 +314,9 @@ library ODMinterPricing {
         v = high ? Math.max(v, w) : Math.min(v, w);
     }
 
+    /// @notice Gear value per token at price `p` (0 means the gear's base price p0) and normalisation factor `nf`.
+    /// @return v Value per token in USD WAD (ODIndex.value), rounded down.
+    /// @return inDomain False outside the gear's domain (buys blocked, settlement).
     function valueAt(GearConfig memory cfg, uint256 p, uint256 nf) external pure returns (uint256 v, bool inDomain) {
         (v, inDomain) = ODIndex.value(cfg.gear, p == 0 ? cfg.p0 : p, cfg.p0, nf, cfg.unitWad, Math.Rounding.Floor);
     }

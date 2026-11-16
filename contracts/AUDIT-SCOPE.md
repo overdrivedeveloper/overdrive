@@ -26,7 +26,7 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 | `src/governor/ODGovernorRisk.sol` | 620 | contract or library |
 | `src/governor/ODInsurance.sol` | 70 | contract or library |
 | `src/governor/ODMinter.sol` | 515 | contract or library |
-| `src/governor/ODMinterPricing.sol` | 320 | contract or library |
+| `src/governor/ODMinterPricing.sol` | 323 | contract or library |
 | `src/hook/ODHook.sol` | 301 | contract or library |
 | `src/hook/ODHookMiner.sol` | 37 | contract or library |
 | `src/interfaces/IODAgentRouter.sol` | 150 | interface or shared types |
@@ -58,7 +58,7 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 | `src/oracle/ODVolOracle.sol` | 217 | contract or library |
 | `src/stake/ODStake.sol` | 440 | contract or library |
 
-Total: 9795 lines.
+Total: 9798 lines.
 
 ## Supporting, not in scope: `script/` (10 files)
 
