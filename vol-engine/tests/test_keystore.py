@@ -123,3 +123,17 @@ def test_unknown_vol_variable_refuses_to_start():
     with pytest.raises(KeyConfigError, match="VOL_SEND_TYPO"):
         Settings.from_env({"VOL_SEND_TYPO": "1"})
     assert Settings.from_env({"VOL_SEND": "true"}).send is False  # only the exact string "1" sends
+
+
+def test_the_shared_server_env_example_starts_the_engine():
+    """Every VOL_* name in the server env.example is one the engine knows or deliberately ignores."""
+    from pathlib import Path
+    from vol_engine.config import FOREIGN_ENV, KNOWN_ENV
+    example = Path(__file__).resolve().parents[2] / "app" / "scripts" / "server" / "env.example"
+    names = {line.split("=", 1)[0].strip() for line in example.read_text().splitlines()
+             if "=" in line and not line.lstrip().startswith("#")}
+    vol = {n for n in names if n.startswith("VOL_")}
+    assert "VOL_STALE_WARN_SECONDS" in vol
+    assert not vol - KNOWN_ENV - FOREIGN_ENV
+    assert not KNOWN_ENV & FOREIGN_ENV
+    Settings.from_env({"VOL_STALE_WARN_SECONDS": "900"})

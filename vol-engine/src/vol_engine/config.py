@@ -88,6 +88,12 @@ KNOWN_ENV = frozenset({
     "VOL_MIN_POST_INTERVAL_S", "VOL_MAX_VALIDITY_S", "VOL_VALIDITY_S", "VOL_CONFIG_DIR",
 })
 
+# VOL_* names that belong to another service and sit in the same shared server env file
+# (app/scripts/server/env.example). The engine ignores them; any other unknown VOL_* name still refuses.
+FOREIGN_ENV = frozenset({
+    "VOL_STALE_WARN_SECONDS",  # the crank's vol-watch job (app/src/config.ts)
+})
+
 
 def is_pair(key: str) -> bool:
     return "/" in key
@@ -169,7 +175,7 @@ class Settings:
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> "Settings":
         e = os.environ if env is None else env
-        unknown = sorted(k for k in e if k.startswith("VOL_") and k not in KNOWN_ENV)
+        unknown = sorted(k for k in e if k.startswith("VOL_") and k not in KNOWN_ENV and k not in FOREIGN_ENV)
         if unknown:
             raise KeyConfigError("unknown environment variable(s): " + ", ".join(unknown))
         keys, overrides = parse_vol_keys(e.get("VOL_KEYS", ""))
