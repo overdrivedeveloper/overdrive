@@ -28,12 +28,34 @@ import {IODMarketHours, Holiday} from "overdrive/interfaces/IODMarketHours.sol";
 /// @title SystemChecks
 /// @notice The read-only live check of a deployment against its config (todo 11 rule R8). Every failure is one line
 /// starting with its check tag: CHAIN CODE WIRING ROLE DELAY HOOK_FLAGS POOL FEED MARKET_CONFIG ORC-CARD CAP SEEDED
-/// GEAR_CAP HOLIDAYS. An empty list is a pass.
+/// GEAR_CAP HOLIDAYS INFRA SEQUENCER SAFE. An empty list is a pass.
 abstract contract SystemChecks is DeploymentFile {
     using StateLibrary for IPoolManager;
 
     /// The backer's sealed batch was measured under the liquidator's TX_GAS_CAP (24M) at MAX_BATCH 50 (BatchGasFork).
     uint256 internal constant MAX_BATCH_UNDER_TX_GAS_CAP = 50;
+
+    /// Canonical runtime codehashes on chains 4663 and 46630, read with `cast codehash` on 2026-11-16 from both public
+    /// RPCs and equal to the same addresses on Ethereum mainnet (DEP-8, SAFE-1).
+    address internal constant SAFE_SINGLETON = 0x41675C099F32341bf84BFc5382aF534df5C7461a; // Safe 1.4.1
+    bytes32 internal constant SAFE_SINGLETON_HASH = 0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4; // not-a-key: public codehash or storage slot
+    address internal constant SAFE_L2_SINGLETON = 0x29fcB43b46531BcA003ddC8FCB67FFE91900C762; // SafeL2 1.4.1
+    bytes32 internal constant SAFE_L2_SINGLETON_HASH =
+        0xb1f926978a0f44a2c0ec8fe822418ae969bd8c3f18d61e5103100339894f81ff; // not-a-key: public codehash or storage slot
+    address internal constant SAFE_FACTORY = 0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67; // SafeProxyFactory 1.4.1
+    bytes32 internal constant SAFE_FACTORY_HASH = 0x50c3cdc4074750a7a974204a716c999edd37482f907608d960b2b025ee0b3317; // not-a-key: public codehash or storage slot
+    address internal constant SAFE_FALLBACK = 0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99; // CompatibilityFallbackHandler 1.4.1
+    bytes32 internal constant SAFE_FALLBACK_HASH = 0x7c6007a5d711cea8dfd5d91f5940ec29c7f200fe511eb1fc1397b367af3c42f9; // not-a-key: public codehash or storage slot
+    /// SafeProxy 1.4.1 runtime, as deployed by the factory (both mainnet owner Safes have it).
+    bytes32 internal constant SAFE_PROXY_HASH = 0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c; // not-a-key: public codehash or storage slot
+    address internal constant MULTICALL3 = 0xcA11bde05977b3631167028862bE2a173976CA11;
+    bytes32 internal constant MULTICALL3_HASH = 0xd5c15df687b16f2ff992fc8d767b4216323184a2bbc6ee2f9c398c318e770891; // not-a-key: public codehash or storage slot
+    address internal constant CREATEX = 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed;
+    bytes32 internal constant CREATEX_HASH = 0xbd8a7ea8cfca7b4e5f5041d7d4b17bc317c5ce42cfbc42066a00cf26b43eb53f; // not-a-key: public codehash or storage slot
+    /// keccak256("guard_manager.guard.address") and keccak256("fallback_manager.handler.address") (Safe 1.4.1).
+    bytes32 internal constant SAFE_GUARD_SLOT = 0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8; // not-a-key: public codehash or storage slot
+    bytes32 internal constant SAFE_FALLBACK_SLOT = 0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5; // not-a-key: public codehash or storage slot
+    address internal constant SAFE_SENTINEL = address(0x1);
 
     struct Acc {
         string[] f;
@@ -63,11 +85,79 @@ abstract contract SystemChecks is DeploymentFile {
             _checkMarkets(a, c, d);
             _checkGears(a, c, d);
             _checkSeed(a, d);
+            _checkSequencer(a, c, d);
+            _checkOwners(a, c);
         }
+        if (_rhc(c)) _checkInfra(a);
         uint256 n = a.n < a.f.length ? a.n : a.f.length;
         out = a.f;
         assembly {
             mstore(out, n)
+        }
+    }
+
+    function _rhc(Config memory c) private pure returns (bool) {
+        return c.chainId == 4663 || c.chainId == 46630;
+    }
+
+    /// DEP-8: the shared contracts the deploy and the owner Safes rely on have their canonical code. An empty string
+    /// is a pass; otherwise the first mismatch, named.
+    function checkInfra() public view returns (string memory) {
+        address[5] memory at = [SAFE_SINGLETON, SAFE_L2_SINGLETON, SAFE_FACTORY, MULTICALL3, CREATEX];
+        bytes32[5] memory want =
+            [SAFE_SINGLETON_HASH, SAFE_L2_SINGLETON_HASH, SAFE_FACTORY_HASH, MULTICALL3_HASH, CREATEX_HASH];
+        string[5] memory name = ["Safe 1.4.1", "SafeL2 1.4.1", "SafeProxyFactory 1.4.1", "Multicall3", "CreateX"];
+        for (uint256 i; i < at.length; ++i) {
+            if (at[i].codehash != want[i]) return string.concat(name[i], " codehash differs at ", vm.toString(at[i]));
+        }
+        if (SAFE_FALLBACK.codehash != SAFE_FALLBACK_HASH) return "CompatibilityFallbackHandler 1.4.1 codehash differs";
+        return "";
+    }
+
+    function _checkInfra(Acc memory a) private view {
+        string memory why = checkInfra();
+        if (bytes(why).length != 0) _fail(a, "INFRA", why);
+    }
+
+    /// SAFE-1: `who` is a real Safe: the SafeProxy 1.4.1 runtime, an official 1.4.1 singleton in slot 0, threshold at
+    /// least `minThreshold`, no module, no guard, and the official fallback handler. A plain or EIP-7702 delegated
+    /// account fails on the proxy codehash. An empty string is a pass.
+    function checkSafe(address who, uint256 minThreshold) public view returns (string memory) {
+        if (who.codehash != SAFE_PROXY_HASH) return "not a SafeProxy 1.4.1 (codehash)";
+        address single = address(uint160(uint256(vm.load(who, 0))));
+        if (single != SAFE_SINGLETON && single != SAFE_L2_SINGLETON) return "singleton is not Safe or SafeL2 1.4.1";
+        (bool ok, bytes memory r) = who.staticcall(abi.encodeWithSignature("getThreshold()"));
+        if (!ok || r.length != 32 || abi.decode(r, (uint256)) < minThreshold) return "threshold below the minimum";
+        (ok, r) = who.staticcall(abi.encodeWithSignature("getModulesPaginated(address,uint256)", SAFE_SENTINEL, 10));
+        if (!ok) return "getModulesPaginated reverted";
+        (address[] memory mods,) = abi.decode(r, (address[], address));
+        if (mods.length != 0) return "a module is enabled";
+        if (vm.load(who, SAFE_GUARD_SLOT) != bytes32(0)) return "a guard is set";
+        if (address(uint160(uint256(vm.load(who, SAFE_FALLBACK_SLOT)))) != SAFE_FALLBACK) {
+            return "fallback handler is not CompatibilityFallbackHandler 1.4.1";
+        }
+        return "";
+    }
+
+    /// The owner and guardian must be real Safes on mainnet (3-of-5 and 2-of-5). Elsewhere an account without code
+    /// is allowed (testnet uses plain wallets, forks use placeholders), but any account with code must pass as a Safe.
+    function _checkOwners(Acc memory a, Config memory c) private view {
+        bool mainnet = keccak256(bytes(c.network)) == keccak256("mainnet");
+        address[2] memory who = [c.roles.ownerSafe, c.roles.guardianSafe];
+        uint256[2] memory minT = [uint256(3), 2];
+        string[2] memory name = ["owner Safe: ", "guardian Safe: "];
+        for (uint256 i; i < 2; ++i) {
+            if (!mainnet && who[i].code.length == 0) continue;
+            string memory why = checkSafe(who[i], minT[i]);
+            if (bytes(why).length != 0) _fail(a, "SAFE", string.concat(name[i], why));
+        }
+    }
+
+    /// ORC-7: Robinhood Chain has no L2 sequencer uptime feed, so the guard is built without one (SECURITY.md accepted
+    /// risks). A non-zero feed on these chains means the deploy differs from the reviewed design.
+    function _checkSequencer(Acc memory a, Config memory c, Deployed memory d) private view {
+        if (_rhc(c) && ODOracleGuard(d.guard).sequencerFeed() != address(0)) {
+            _fail(a, "SEQUENCER", "sequencer feed set on a chain that has none");
         }
     }
 

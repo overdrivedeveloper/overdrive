@@ -66,6 +66,15 @@ contract PostDeployCheckTest is DeployFixture {
         _expectWith(c, _d(), "CHAIN");
     }
 
+    /// ORC-7: Robinhood Chain has no sequencer uptime feed, so a guard built with one is not the reviewed deploy.
+    function test_FailsOnSequencerFeedOnRhc() public {
+        SystemConfig.Config memory c = _cfg();
+        c.chainId = 4663;
+        SystemDeployer.Deployed memory x = _d();
+        x.guard = address(new ODOracleGuard(address(this), address(this), d.marketHours, address(0), address(0xFEED)));
+        _expectWith(c, x, "SEQUENCER");
+    }
+
     function test_FailsOnMissingCode() public {
         vm.etch(d.agentRouter, "");
         _expect("CODE");
