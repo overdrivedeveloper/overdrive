@@ -3,7 +3,7 @@
 // cache (MIN_POLL_MS). With no API origin configured the state is 'idle' and views show an honest "not connected" line.
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {parseUnits} from 'viem';
-import type {ActionQuote, AccountEvent, BackerVault, GearSnapshot, GovernorSnapshot, MarketGear, Position, ServiceError, Snapshot} from '../services/contract';
+import type {ActionQuote, AccountEvent, BackerVault, ExitQueueRow, GearSnapshot, GovernorSnapshot, MarketGear, Position, ServiceError, Snapshot} from '../services/contract';
 import {deploymentFor} from '../services/deployments';
 import {executeQuote, type Eip1193, type FlowResult, type FlowStatus} from '../services/overdrive';
 import {IDLE, POLL, TERMINAL, asServiceError, createPoller, type LiveState} from '../services/poller';
@@ -34,6 +34,8 @@ export const useGearSnapshot = (gearId: string | null) => useLive<Snapshot<GearS
 export const useGovernorSnapshot = () => useLive<Snapshot<GovernorSnapshot>>('governor', (s) => service.governorSnapshot(s), POLL.governor);
 export const usePortfolioPositions = (account: Account) => { const a = acct(account); return useLive<Snapshot<Position[]>>(a, (s) => service.portfolioPositions(a!, s), POLL.positions); };
 export const useBackerVaults = (account: Account) => { const a = acct(account); return useLive<Snapshot<BackerVault[]>>(a, (s) => service.backerVaults(a!, s), POLL.vaults); };
+/** A wallet's queued sells, read only while a queued sell from this session waits to settle. */
+export const useExitQueue = (account: Account, enabled: boolean) => { const a = enabled ? acct(account) : null; return useLive<Snapshot<ExitQueueRow[]>>(a, (s) => service.exitQueueStatus(a!, s), POLL.exitQueue); };
 /** Polls a submitted transaction until it is confirmed, failed or replaced. */
 export const useTradeStatus = (hash: string | null) => useLive<Snapshot<AccountEvent>>(hash && /^0x[0-9a-fA-F]{64}$/.test(hash) ? hash : null, (s) => service.tradeStatus(hash!, s), POLL.tradeStatus, (d) => !!d.data && TERMINAL.has(d.data.status));
 

@@ -143,6 +143,7 @@ test("trade.quote: bounded quote, minimum from slippage, intent decodes to the c
   expect(status).toBe(200);
   expectStamp(body.stamp);
   expect(body.execution).toBe("immediate");
+  expect(body.sellMode).toBeNull();
   expect(body.output.token.address).toBe(gearToken("TSLA-SPORT"));
   expect(body.output.baseUnits).toMatch(INT);
   expect(BigInt(body.minimumOutput.baseUnits)).toBe(minimumOf(BigInt(body.output.baseUnits), 50));
@@ -164,7 +165,22 @@ test("trade.quote: a sell the reserve cannot pay now is a queued quote, never sh
   Object.assign(h.hook.book, before);
   expect(status).toBe(200);
   expect(body.execution).toBe("queued");
+  expect(body.sellMode).toBe("queued");
   expect(body.transaction.functionName).toBe("queueSell");
+});
+
+test("trade.quote: a sell says how it is paid (open market instant, closed market lower of last and reference)", async () => {
+  if (!h) return;
+  const sell = quoteBody({ side: "sell", input: { token: { address: gearToken("TSLA-SPORT"), symbol: "TSLA-SPORT", decimals: 18 }, baseUnits: (WAD / 2n).toString() } });
+  const open = await post("trade.quote", sell);
+  mock("TSLA-SPORT").session = 2;
+  const closed = await post("trade.quote", sell);
+  mock("TSLA-SPORT").session = 0;
+  expect(open.status).toBe(200);
+  expect(open.body.sellMode).toBe("instant");
+  expect(closed.status).toBe(200);
+  expect(closed.body.sellMode).toBe("instant_min");
+  expect(closed.body.execution).toBe("immediate");
 });
 
 test("trade.status: indexed trade confirmed, mined-but-unknown submitted, reverted failed", async () => {

@@ -46,6 +46,7 @@ const QuoteInput = z.object({
 const Quote = z.object({
   id: z.string(), input: QuoteInput, stamp: Stamp, expiresAt: z.string(), execution: z.enum(["immediate", "queued"]), output: Amount, minimumOutput: Amount,
   dailyTollPct: z.string().nullable(), spreadBps: z.number(), priceImpactPct: z.string(), gasEstimateBaseUnits: z.string().nullable(), approvals: z.array(Approval), transaction: Intent,
+  sellMode: z.enum(["instant", "instant_min", "queued"]).nullable().openapi({ description: "Sells only (null for a buy). instant: the market is open. instant_min: the market is closed, a sell now pays the lower of the last value and the reference value. queued: no fresh price, the sell waits for the next fresh price." }),
 }).openapi("CompatQuote");
 const ActionQuote = z.object({ id: z.string(), stamp: Stamp, expiresAt: z.string(), approvals: z.array(Approval), transaction: Intent }).openapi("CompatActionQuote");
 const TxEvent = z.object({
@@ -189,6 +190,7 @@ export function registerCompatRoutes(app: OpenAPIHono, deps: ApiDependencies, in
       // The price is the oracle value plus the spread; there is no pool curve, so no further impact.
       priceImpactPct: "0", gasEstimateBaseUnits: null,
       approvals: approvalsOf(intent.approvals), transaction: toIntent(acct, intent.tx, IODMinterAbi as Abi, expiresAt),
+      sellMode: side === "sell" ? (queued ? "queued" : qd.sellMode ?? null) : null,
     };
   }, {}, QuoteInput);
 

@@ -1,7 +1,7 @@
 // What the dashboard paints from a live read. Pure, so tests can prove no figure is ever invented: every number here
 // comes from an API answer, and every gap is a named state (not configured, loading, unavailable, not live yet).
 import {formatUnits} from 'viem';
-import type {Amount, Availability, BackerVault, GearSnapshot, GovernorSnapshot, MarketGear, Position, Snapshot} from '../services/contract';
+import type {Amount, Availability, BackerVault, ExitQueueRow, Quote, GearSnapshot, GovernorSnapshot, MarketGear, Position, Snapshot} from '../services/contract';
 import type {LiveState} from '../services/poller';
 
 export const NOT_LIVE = 'Not live yet';
@@ -112,3 +112,40 @@ export function tollLine(s: LiveState<Snapshot<GearSnapshot>>, fallback: string)
   const t = s.data && !s.data.stale ? s.data.data?.dailyTollPct : null;
   return t === null || t === undefined ? fallback : `Daily toll ${t}%`;
 }
+
+/** The two documented ways a sell is paid while the market is closed or the feed is paused (API sellMode). */
+export const SELL_NOW_RULE = 'Sell now at the lower of the last value and the pool price.';
+export const QUEUE_RULE = 'Queue for the next fresh price, never below your minimum.';
+
+/** Review copy for a sell quote: null for a buy or an open-market sell; otherwise both paths and the one this quote takes. */
+export function closedSellView(q: Pick<Quote, 'execution' | 'sellMode'> & {input: {side: 'buy' | 'sell'}}) {
+  if (q.input.side !== 'sell') return null;
+  const queued = q.execution === 'queued';
+  if (!queued && q.sellMode !== 'instant_min') return null;
+  return {
+    lead: queued
+      ? 'There is no fresh price right now, so this sell is queued: it is paid at the next fresh price, never below your minimum.'
+      : 'The market is closed. This sell is paid now at the lower of the last value and the pool price.',
+    paths: [
+      {label: 'Sell now', rule: SELL_NOW_RULE, current: !queued},
+      {label: 'Queue', rule: QUEUE_RULE, current: queued},
+    ],
+    action: queued ? 'Queue the sell' : 'Sell at the lower price',
+  };
+}
+
+/**
+ * The pending line for a queued sell sent from this session. `seen` is true once the ticket has appeared in the queue;
+ * a ticket that was seen and is gone has settled (filled or cancelled), so the line says only that it left the queue.
+ */
+export function queuedSellLine(state: LiveState<Snapshot<ExitQueueRow[]>>, gearId: string, seen: boolean): {text: string; pending: boolean; seen: boolean} {
+  const rows = state.data?.data?.filter((r) => r.gearId === gearId) ?? null;
+  if (rows && rows.length > 0) {
+    const r = rows[rows.length - 1];
+    return {text: `Queued sell pending: ticket ${r.ticket}, ${tokens(r.quantity)}. ${r.settlement}`, pending: true, seen: true};
+  }
+  if (rows && seen) return {text: 'Queued sell settled: it is no longer in the queue. Check your activity for the fill.', pending: false, seen: true};
+  if (state.status === 'error') return {text: 'The queue status is unavailable right now. Your queued sell is on chain.', pending: true, seen};
+  return {text: 'Queued sell sent. Waiting for the queue record.', pending: true, seen};
+}
+

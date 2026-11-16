@@ -3201,6 +3201,19 @@
               "valueBaseUnits",
               "expiresAt"
             ]
+          },
+          "sellMode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "instant",
+              "instant_min",
+              "queued",
+              null
+            ],
+            "description": "Sells only (null for a buy). instant: the market is open. instant_min: the market is closed, a sell now pays the lower of the last value and the reference value. queued: no fresh price, the sell waits for the next fresh price."
           }
         },
         "required": [
@@ -3216,7 +3229,8 @@
           "priceImpactPct",
           "gasEstimateBaseUnits",
           "approvals",
-          "transaction"
+          "transaction",
+          "sellMode"
         ]
       },
       "CompatTradeStatus": {

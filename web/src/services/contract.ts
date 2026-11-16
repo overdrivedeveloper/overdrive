@@ -44,6 +44,8 @@ export type Quote = {
   dailyTollPct: DecimalString | null; spreadBps: number; priceImpactPct: DecimalString;
   gasEstimateBaseUnits: IntegerString | null;
   approvals: ApprovalRequirement[]; transaction: TransactionIntent;
+  /** Sells only: instant (market open), instant_min (closed: lower of last and pool value), queued (next fresh price). */
+  sellMode?: 'instant' | 'instant_min' | 'queued' | null;
 };
 export type Position = {
   gearId: string; quantity: Amount; valueUsd: DecimalString | null;
