@@ -34,7 +34,7 @@ const G01: Flow = {
     await row.send("donate 1000 USDG by plain transfer into the empty Governor", "spare1", { address: ctx.usdg, abi: erc20Abi as Abi, functionName: "transfer", args: [gov, DON] });
     row.chain("Governor holds the donation", (await usdgOf(ctx, gov)) - held0, DON);
     row.chain("donation is not equity", await eq(ctx), 0n);
-    row.chain("tracked cash ignores the donation", (await ctx.pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "trackedCash" })) as bigint, 0n);
+    row.chain("tracked cash ignores the donation", (await ctx.pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "freeCash" })) as bigint, 0n);
     // seeding is by deposit only: allow one depositor through the timelock
     const who = addressOf("spare2");
     await fundRole(ctx, "spare2", 4_100_000);
@@ -59,7 +59,7 @@ const G01: Flow = {
     // the donation is recoverable only to the insurance fund, by skim (admin), never to equity
     const ins = ctx.c.ODInsurance!;
     const insBefore = await usdgOf(ctx, ins);
-    const toSkim = (await usdgOf(ctx, gov)) - (await ctx.pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "trackedCash" }) as bigint) - ((await ctx.pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "exitReserve" })) as bigint);
+    const toSkim = (await usdgOf(ctx, gov)) - (await ctx.pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "freeCash" }) as bigint) - ((await ctx.pub.readContract({ address: gov, abi: IODGovernorAbi, functionName: "exitReserve" })) as bigint);
     await row.send("skim (timelock): USDG above tracked cash goes to insurance", "timelock", { address: gov, abi: IODGovernorAbi as Abi, functionName: "skim", args: [] });
     row.chain("insurance received exactly the USDG above tracked cash (the donations)", (await usdgOf(ctx, ins)) - insBefore, toSkim);
     row.chainTrue("skimmed amount covers this row's donation", toSkim >= DON, toSkim);

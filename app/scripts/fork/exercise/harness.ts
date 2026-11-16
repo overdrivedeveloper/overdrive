@@ -402,7 +402,7 @@ export async function ensureMockMarket(ctx: Ctx, symbol: string, embedded: boole
   const stock = opts.alwaysOpen ? zeroAddress : await deployCode(ctx, forgeBytecode("test/mocks/MockStockToken.sol:MockStockToken", true));
   const cfg = {
     feed, stockToken: stock, multiplierEmbedded: embedded, pythMultiplierEmbedded: true, alwaysOpen: opts.alwaysOpen ?? false, pythId, twapPool: zeroAddress,
-    maxAgeOpen: 2_592_000, maxAgeExtended: 2_592_000, maxAgeClosed: 1_209_600, refMaxAge: 86_400, twapWindow: 1800, refBandBps: 2000, continuityBps: 1500, enabled: true,
+    maxAgeOpen: 259_200, maxAgeExtended: 259_200, maxAgeClosed: 1_209_600, refMaxAge: 86_400, twapWindow: 1800, refBandBps: 2000, continuityBps: 1500, enabled: true,
   };
   const tl = async (address: Address, abi: Abi, functionName: string, args: unknown[]) => {
     const hash = await asTimelock((w, t) => w.writeContract({ address, abi, functionName, args, gas: 10_000_000n, chain: null, account: t } as never));
