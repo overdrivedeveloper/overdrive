@@ -11,5 +11,6 @@ od_init testnet "${TESTNET_RPC_URL:-https://rpc.testnet.chain.robinhood.com}" "$
 stage_deploy
 stage_handoff
 stage_check
+stage_sourcify
 stage_batch
 say "deploy-testnet: finished"

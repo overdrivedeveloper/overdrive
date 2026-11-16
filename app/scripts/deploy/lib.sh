@@ -80,6 +80,16 @@ stage_check() {
   fi
 }
 
+# DEP-1: publish source to Sourcify from the real broadcast and require exact_match for every created contract.
+# Never on a local anvil node (Sourcify does not know it); the result is .audit-grade/sourcify-<network>.txt.
+stage_sourcify() {
+  case "$("$CAST" rpc web3_clientVersion --rpc-url "$RPC")" in *anvil/*) say "stage sourcify: skip (local anvil node)"; return 0 ;; esac
+  local run="$CONTRACTS/broadcast/DeploySystem.s.sol/$CHAIN_ID/run-latest.json"
+  bash "$CONTRACTS/script/sourcify-verify.sh" "$run" "$CHAIN_ID" "$BACKEND/.audit-grade/sourcify-$NETWORK.txt" >/dev/null \
+    || { cat "$BACKEND/.audit-grade/sourcify-$NETWORK.txt" 2>/dev/null || true; die "Sourcify verification is not exact_match for every contract"; }
+  say "stage sourcify: ALL exact_match (.audit-grade/sourcify-$NETWORK.txt)"
+}
+
 stage_batch() {
   local f="$BACKEND/.batches/$NETWORK-list-gears.json"
   if [ -f "$f" ]; then

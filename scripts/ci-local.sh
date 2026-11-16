@@ -69,7 +69,7 @@ job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privil
 job_slither() { bash scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash scripts/guard.test.sh && bash scripts/pre-push.test.sh; }
-job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && bash scripts/deep-gate.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh; }
+job_scripts() { node --test exit/test/exit.test.mjs && bash scripts/quiet-run.test.sh && bash scripts/deep-gate.test.sh && scripts/export-abis.sh && bash app/scripts/server/deploy-local.test.sh && bash contracts/script/ci/sourcify-verify.test.sh; }
 job_web() { (cd web && npm ci --ignore-scripts && npx tsc --noEmit && npm run build && bun test); }
 job_sdk() { (cd sdk && bun install --frozen-lockfile && bun run generate:check && bun test && bunx tsc --noEmit -p tsconfig.json); }
 job_deep() { bash scripts/deep-gate.sh; }

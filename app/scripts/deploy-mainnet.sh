@@ -49,5 +49,6 @@ read -r typed
 stage_deploy
 stage_handoff
 stage_check
+stage_sourcify
 stage_batch
 say "deploy-mainnet: finished. Next: the owner's deposit (D8), the hook seeds (D26), then schedule the list-gears batch."
