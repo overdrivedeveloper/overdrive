@@ -124,6 +124,12 @@ const H10: Flow = {
 const H11: Flow = {
   id: "H11", area: "holders", kind: "success", name: "queued sell settles at the next fresh price (crank, and a permissionless call)",
   async run(row, ctx) {
+    // the row holds the crank for a while: whatever happens, it runs again afterwards (up.sh keeps a running one)
+    try { await H11body(row, ctx); } finally { (await import("./harness")).startService("crank"); }
+  },
+};
+async function H11body(row: Row, ctx: Ctx): Promise<void> {
+  {
     const { m, g } = await mockEnv(ctx, row);
     const who = await fundRole(ctx, "alice", 100_000);
     await fundRole(ctx, "bob", 100_000);
@@ -134,6 +140,9 @@ const H11: Flow = {
     await refreshPyth();
     await setPyth(ctx, row, m, P100, (await nowTs(ctx)) - 2n * 86_400n, "no reference while closed");
     const t1 = got / 2n, t2 = got - t1;
+    // the running crank fills any fillable ticket within a pass: hold it while bob makes the permissionless fill of B
+    const { stopService } = await import("./liquidation");
+    stopService("crank");
     const c0 = (await ctx.pub.readContract({ address: ctx.c.ODMinter!, abi: IODMinterAbi, functionName: "ticketCount" })) as bigint;
     await row.send("queueSell ticket A", "alice", { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "queueSell", args: [g.id, t1, 1n, who] });
     await row.send("queueSell ticket B", "alice", { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "queueSell", args: [g.id, t2, 1n, who] });
@@ -155,6 +164,7 @@ const H11: Flow = {
     const ns = await normOf(ctx, g.id);
     row.chainWithin("fill value == formula(fresh p, NF)", logs[0]!.args.valuePerTokenWad, await formulaValueOf(ctx, g, (await priceOf(ctx, "MCKA")).p, ns.nf), 2n);
     const u1 = await usdgOf(ctx, who);
+    (await import("./harness")).startService("crank");
     // ticket A is left to the running crank (queued-sells job); give it up to 3 minutes
     const read = async () => (await ctx.pub.readContract({ address: ctx.c.ODMinter!, abi: IODMinterAbi, functionName: "queuedSell", args: [A] })) as readonly [Hex, Address, Address, bigint, bigint];
     let a = await read();
@@ -164,8 +174,8 @@ const H11: Flow = {
     row.chain("alice holds no more gear than before", await tokenOf(ctx, g.token, who), b0);
     const acct = await (await fetch(`${(await import("../lib")).API_URL}/v1/account/${who}`)).json() as { queuedSells: unknown[] };
     row.api("API queued sells empty after fill", acct.queuedSells.length, 0);
-  },
-};
+  }
+}
 
 const H12: Flow = {
   id: "H12", area: "holders", kind: "expected_failure", name: "oracle paused on the Stock Token: buys blocked, sells open",
