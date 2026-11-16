@@ -26,6 +26,21 @@ describe("loadConfig", () => {
     expect(main.RPC_BACKUP_URL).toContain("https://");
     expect(loadConfig({ ...base, NETWORK: "testnet" }).CHAIN_ID).toBe(46630);
   });
+  test("each network gets its own public RPC and Alchemy host; the other network's host is refused", () => {
+    const testnet = loadConfig({ ...base, NETWORK: "testnet", ALCHEMY_API_KEYS: "k" });
+    expect(testnet.PUBLIC_RPC_URL).toBe("https://rpc.testnet.chain.robinhood.com");
+    expect(testnet.ALCHEMY_URL_TEMPLATE).toBe("https://robinhood-testnet.g.alchemy.com/v2/{key}");
+    const main = loadConfig({ ...base, NETWORK: "mainnet", PUBLIC_RPC_URL: "", ALCHEMY_URL_TEMPLATE: "" });
+    expect(main.PUBLIC_RPC_URL).toBe("https://rpc.mainnet.chain.robinhood.com");
+    expect(main.ALCHEMY_URL_TEMPLATE).toBe("https://robinhood-mainnet.g.alchemy.com/v2/{key}");
+    expect(loadConfig(base).ALCHEMY_URL_TEMPLATE).toContain("robinhood-mainnet");
+    expect(() => loadConfig({ ...base, NETWORK: "testnet", ALCHEMY_URL_TEMPLATE: "https://robinhood-mainnet.g.alchemy.com/v2/{key}" })).toThrow("ALCHEMY_URL_TEMPLATE points at the other");
+    expect(() => loadConfig({ ...base, NETWORK: "testnet", PUBLIC_RPC_URL: "https://rpc.mainnet.chain.robinhood.com/" })).toThrow("PUBLIC_RPC_URL points at the other");
+    expect(() => loadConfig({ ...base, NETWORK: "testnet", RPC_BACKUP_URL: "https://robinhood.daybreak-rpc.network" })).toThrow("RPC_BACKUP_URL");
+    expect(() => loadConfig({ ...base, NETWORK: "mainnet", PUBLIC_RPC_URL: "https://rpc.testnet.chain.robinhood.com" })).toThrow("PUBLIC_RPC_URL points at the other");
+    expect(() => loadConfig({ ...base, NETWORK: "mainnet", ALCHEMY_URL_TEMPLATE: "https://robinhood-testnet.g.alchemy.com/v2/{key}" })).toThrow("ALCHEMY_URL_TEMPLATE");
+    expect(() => loadConfig({ ...base, NETWORK: "testnet", ALCHEMY_URL_TEMPLATE: "https://example.test/v2/" })).toThrow("{key}");
+  });
   test("an empty job list is allowed and disabled names are removed", () => {
     const config = loadConfig({ ...base, CRANK_ENABLED_JOBS: "", HEDGER_DISABLED_JOBS: "reconcile" });
     expect(config.CRANK_ENABLED_JOBS).toEqual([]);

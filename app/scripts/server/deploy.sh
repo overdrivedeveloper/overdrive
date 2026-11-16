@@ -260,7 +260,7 @@ server_main() {
     done
   done
   local rpc chain
-  rpc="$(envval PUBLIC_RPC_URL)"; rpc="${rpc:-https://rpc.mainnet.chain.robinhood.com}"
+  rpc="$(envval PUBLIC_RPC_URL)"; rpc="${rpc:-https://rpc.$NET.chain.robinhood.com}"
   chain_id() { curl -fsS -m 20 -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' "$rpc" | jq -er '.result'; }
   chain="$(s_retry "eth_chainId" chain_id)" || s_die "PUBLIC_RPC_URL did not answer eth_chainId (tried 3 times)"
   [[ -n "$chain" && "$((chain))" == "$CHAIN" ]] || s_die "PUBLIC_RPC_URL answered chain id ${chain:-nothing}, not Robinhood Chain $NET $CHAIN: refusing"

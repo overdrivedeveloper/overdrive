@@ -48,11 +48,13 @@ const envSchema = z.object({
   NETWORK: z.enum(["mainnet", "fork", "testnet"]).default("fork"),
   CHAIN_ID: z.coerce.number().int().positive().optional(),
   DATABASE_URL: z.string().url(),
-  PUBLIC_RPC_URL: z.string().url().default("https://rpc.mainnet.chain.robinhood.com"),
+  /** Empty or unset = the NETWORK's own public RPC (NETWORK_RPC_DEFAULTS). */
+  PUBLIC_RPC_URL: z.union([z.literal(""), z.string().url()]).optional(),
   RPC_URL_OVERRIDE: z.string().default(""),
   RPC_BACKUP_URL: z.union([z.literal(""), z.string().url()]).optional(),
   ALCHEMY_API_KEYS: z.string().default(""),
-  ALCHEMY_URL_TEMPLATE: z.string().default("https://robinhood-mainnet.g.alchemy.com/v2/{key}"),
+  /** Empty or unset = the NETWORK's own Alchemy host (NETWORK_RPC_DEFAULTS). */
+  ALCHEMY_URL_TEMPLATE: z.string().optional(),
   RPC_ROUTE_LOGS: routeSchema("public,alchemy"),
   RPC_ROUTE_STATE: routeSchema("public,alchemy"),
   RPC_ROUTE_TX: routeSchema("alchemy,public"),
@@ -125,8 +127,15 @@ export const CONFIG_ENV_KEYS: readonly string[] = Object.freeze(Object.keys(envS
 
 type ParsedConfig = z.infer<typeof envSchema>;
 
-export type RuntimeConfig = Omit<ParsedConfig, "ALCHEMY_API_KEYS" | "RPC_BACKUP_URL" | "CHAIN_ID" | "INDEXER_CONFIRMATIONS"> & {
+export type RuntimeConfig = Omit<
+  ParsedConfig,
+  "ALCHEMY_API_KEYS" | "RPC_BACKUP_URL" | "CHAIN_ID" | "INDEXER_CONFIRMATIONS" | "PUBLIC_RPC_URL" | "ALCHEMY_URL_TEMPLATE"
+> & {
   readonly CHAIN_ID: number;
+  /** Resolved public RPC (the NETWORK's own when unset). */
+  readonly PUBLIC_RPC_URL: string;
+  /** Resolved Alchemy URL template (the NETWORK's own host when unset). */
+  readonly ALCHEMY_URL_TEMPLATE: string;
   readonly ALCHEMY_API_KEYS: readonly string[];
   /** Resolved backup endpoint ("" = none). */
   readonly RPC_BACKUP_URL: string;
@@ -139,6 +148,25 @@ export class ConfigurationError extends Error {
     super(message);
     this.name = "ConfigurationError";
   }
+}
+
+/**
+ * Each network's own endpoints. The fork forks mainnet, so it shares mainnet's. Before these existed the template
+ * defaulted to the mainnet Alchemy host for every NETWORK, so a testnet box with an Alchemy key reached mainnet and
+ * every keyed service refused to start (chain 4663, expected 46630).
+ */
+export const NETWORK_RPC_DEFAULTS = {
+  mainnet: { publicRpc: "https://rpc.mainnet.chain.robinhood.com", alchemy: "https://robinhood-mainnet.g.alchemy.com/v2/{key}" },
+  testnet: { publicRpc: "https://rpc.testnet.chain.robinhood.com", alchemy: "https://robinhood-testnet.g.alchemy.com/v2/{key}" },
+  fork: { publicRpc: "https://rpc.mainnet.chain.robinhood.com", alchemy: "https://robinhood-mainnet.g.alchemy.com/v2/{key}" },
+} as const;
+
+/** A Robinhood Chain host that names the other network: refused at load, before any RPC call. */
+function namesOtherNetwork(network: "mainnet" | "testnet" | "fork", url: string): boolean {
+  const host = url.replace(/^[a-z]+:\/\//i, "").split(/[/:?#]/)[0]!.toLowerCase();
+  const mainnetHosts = ["rpc.mainnet.chain.robinhood.com", "robinhood-mainnet.g.alchemy.com", "robinhood.daybreak-rpc.network"];
+  const testnetHosts = ["rpc.testnet.chain.robinhood.com", "robinhood-testnet.g.alchemy.com"];
+  return (network === "testnet" ? mainnetHosts : testnetHosts).includes(host);
 }
 
 /** Free keyless backup, tried only after every main endpoint failed on the same call. */
@@ -159,8 +187,17 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (data.NETWORK === "mainnet" && data.RPC_URL_OVERRIDE.trim() !== "") {
     throw new ConfigurationError("Invalid service configuration: RPC_URL_OVERRIDE is not allowed on mainnet");
   }
-  if (!data.ALCHEMY_URL_TEMPLATE.includes("{key}")) {
+  const defaults = NETWORK_RPC_DEFAULTS[data.NETWORK];
+  const publicRpc = (data.PUBLIC_RPC_URL ?? "").trim() || defaults.publicRpc;
+  const alchemyTemplate = (data.ALCHEMY_URL_TEMPLATE ?? "").trim() || defaults.alchemy;
+  if (!alchemyTemplate.includes("{key}")) {
     throw new ConfigurationError("ALCHEMY_URL_TEMPLATE must include the {key} placeholder");
+  }
+  const named = [["PUBLIC_RPC_URL", publicRpc], ["ALCHEMY_URL_TEMPLATE", alchemyTemplate], ["RPC_URL_OVERRIDE", data.RPC_URL_OVERRIDE], ["RPC_BACKUP_URL", data.RPC_BACKUP_URL ?? ""]] as const;
+  for (const [name, url] of named) {
+    if (namesOtherNetwork(data.NETWORK, url)) {
+      throw new ConfigurationError(`Invalid service configuration: ${name} points at the other Robinhood Chain network, not NETWORK ${data.NETWORK}`);
+    }
   }
   const backup =
     data.RPC_BACKUP_URL !== undefined
@@ -171,6 +208,8 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   return Object.freeze({
     ...data,
     CHAIN_ID: chainId,
+    PUBLIC_RPC_URL: publicRpc,
+    ALCHEMY_URL_TEMPLATE: alchemyTemplate,
     RPC_BACKUP_URL: backup,
     INDEXER_CONFIRMATIONS: data.INDEXER_CONFIRMATIONS ?? (data.NETWORK === "fork" ? 0 : 2),
     ALCHEMY_API_KEYS: Object.freeze(data.ALCHEMY_API_KEYS.split(",").map((key) => key.trim()).filter(Boolean)),
