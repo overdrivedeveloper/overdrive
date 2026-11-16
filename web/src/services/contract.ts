@@ -40,7 +40,14 @@ export type ApprovalRequirement = {
 };
 export type Quote = {
   id: string; input: QuoteInput; stamp: Stamp; expiresAt: string;
-  execution: 'immediate' | 'queued'; output: Amount; minimumOutput: Amount;
+  execution: 'immediate' | 'queued';
+  /** Immediate: what the transaction pays. Queued: the expected proceeds at the current price (an estimate, paid at the
+   * next fresh price), null when no price is known to estimate from. */
+  output: Amount | null; minimumOutput: Amount;
+  /** True for a queued sell: output is an estimate. */
+  outputIsEstimate?: boolean;
+  /** Queued sells only: how the ticket is paid. */
+  settlement?: string | null;
   dailyTollPct: DecimalString | null; spreadBps: number; priceImpactPct: DecimalString;
   gasEstimateBaseUnits: IntegerString | null;
   approvals: ApprovalRequirement[]; transaction: TransactionIntent;

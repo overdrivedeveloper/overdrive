@@ -194,3 +194,15 @@ export function positionOf(d: Deployment, b: BalanceDoc) {
 
 /** The bounded minimum for a slippage limit: floor(out * (10000 - bps) / 10000). */
 export const minimumOf = (out: bigint, slippageBps: number): bigint => (out * BigInt(10_000 - slippageBps)) / 10_000n;
+/** Expected USDG (6 dp) for a queued sell: the minter's own amount when it gives one (queued only because the exit reserve
+ * cannot pay now), else the tokens (18 dp) at the minter's sell price per token (WAD, after the spread), the same maths a
+ * sell paid now uses. null when the minter has no price: the estimate is then unavailable, never shown as 0. */
+export function queuedSellEstimate(tokens: bigint, amountOut: string | null | undefined, pricePerTokenWad: string | null | undefined): bigint | null {
+  const out = amountOut ? BigInt(amountOut) : 0n;
+  if (out > 0n) return out;
+  const price = pricePerTokenWad ? BigInt(pricePerTokenWad) : 0n;
+  const est = (tokens * price) / 10n ** 30n;
+  return est > 0n ? est : null;
+}
+/** The settlement rule a queued quote carries (the EXIT_QUEUED words). */
+export const QUEUED_SETTLEMENT = serviceError("EXIT_QUEUED").message;

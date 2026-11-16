@@ -10,7 +10,7 @@ import { z } from "../schemas";
 import { asRows, nowOf, type ApiDependencies } from "../types";
 import {
   CompatError, SERVICE_ERROR_CODES, availabilityOf, backerVaultOf, bpsToPct, fromApiError, gearSnapshotOf, gearToken, governorSnapshotOf, marketGearOf,
-  minimumOf, positionOf, raceVolBlocked, serviceError, stampOf, usdgToken, type GearDoc, type ServiceErrorCode,
+  minimumOf, positionOf, QUEUED_SETTLEMENT, queuedSellEstimate, raceVolBlocked, serviceError, stampOf, usdgToken, type GearDoc, type ServiceErrorCode,
 } from "./model";
 
 export const COMPAT_PREFIX = "/v1/compat";
@@ -44,7 +44,11 @@ const QuoteInput = z.object({
   chainId: z.number().int(), account: z.string(), gearId: z.string(), side: z.enum(["buy", "sell"]), input: Amount, slippageBps: z.number().int(),
 });
 const Quote = z.object({
-  id: z.string(), input: QuoteInput, stamp: Stamp, expiresAt: z.string(), execution: z.enum(["immediate", "queued"]), output: Amount, minimumOutput: Amount,
+  id: z.string(), input: QuoteInput, stamp: Stamp, expiresAt: z.string(), execution: z.enum(["immediate", "queued"]),
+  output: Amount.nullable().openapi({ description: "Immediate: what the transaction pays now. Queued: the expected proceeds at the current price after the spread (an estimate, paid at the next fresh price); null when no price is known to estimate from. Never 0 for a queued sell." }),
+  minimumOutput: Amount.openapi({ description: "The minimum the transaction is built with. Queued: the ticket's minimum, the floor the queue honours." }),
+  outputIsEstimate: z.boolean().openapi({ description: "True for a queued sell: output is an estimate, the ticket is paid at the next fresh price." }),
+  settlement: z.string().nullable().openapi({ description: "Queued sells only: how the ticket is paid." }),
   dailyTollPct: z.string().nullable(), spreadBps: z.number(), priceImpactPct: z.string(), gasEstimateBaseUnits: z.string().nullable(), approvals: z.array(Approval), transaction: Intent,
   sellMode: z.enum(["instant", "instant_min", "queued"]).nullable().openapi({ description: "Sells only (null for a buy). instant: the market is open. instant_min: the market is closed, a sell now pays the lower of the last value and the reference value. queued: no fresh price, the sell waits for the next fresh price." }),
 }).openapi("CompatQuote");
@@ -176,16 +180,21 @@ export function registerCompatRoutes(app: OpenAPIHono, deps: ApiDependencies, in
     const qd = await read(`/v1/quote?gear=${encodeURIComponent(g.symbol)}&side=${side}&${amountKey}=${amount}&account=${acct}`, side);
     const queued = side === "sell" && qd.sellMode === "queued";
     if (!qd.buyable && !queued) fail(fromApiError(qd.code, qd.reason, side));
-    const expected = BigInt(queued ? qd.amountOut ?? "0" : qd.amountOut);
-    const minOut = minimumOf(expected, b.slippageBps);
+    // A queued sell is estimated with the same maths as a sell paid now; with no price the estimate is unavailable (null),
+    // and the intent route then suggests the ticket's minimum from the last good value. Never a 0 output or a 0 minimum.
+    const expected = queued ? queuedSellEstimate(amount, qd.amountOut, qd.minterQuote?.pricePerTokenWad) : BigInt(qd.amountOut);
+    const minOut = expected === null ? null : minimumOf(expected, b.slippageBps);
     const deadlineSec = Math.max(30, Math.round(INTENT_TTL_MS / 1000));
-    const intent = await post(`/v1/intent/${side}`, { gear: g.symbol, account: acct, [amountKey]: amount.toString(), minOut: minOut.toString(), deadlineSec }, side);
+    const intent = await post(`/v1/intent/${side}`, { gear: g.symbol, account: acct, [amountKey]: amount.toString(), ...(minOut !== null && minOut > 0n ? { minOut: minOut.toString() } : {}), deadlineSec }, side);
+    const isQueued = intent.kind === "queue_sell";
+    const out = isQueued ? (queued ? expected : null) : BigInt(intent.expectedOut);
     const expiresAt = new Date(Math.min(Date.parse(qd.expiresAt), now().getTime() + INTENT_TTL_MS)).toISOString();
     const outToken = side === "buy" ? gearToken(d, g.symbol)! : usdgToken(d);
     return {
       id: intent.quoteId, input: { chainId: d.chainId, account: acct, gearId: g.symbol, side, input: { token: inToken, baseUnits: amount.toString() }, slippageBps: b.slippageBps },
-      stamp: stampOf(d, intent, now()), expiresAt, execution: intent.kind === "queue_sell" ? "queued" : "immediate",
-      output: { token: outToken, baseUnits: String(intent.expectedOut) }, minimumOutput: { token: outToken, baseUnits: String(intent.minOut) },
+      stamp: stampOf(d, intent, now()), expiresAt, execution: isQueued ? "queued" : "immediate",
+      output: out === null ? null : { token: outToken, baseUnits: out.toString() }, minimumOutput: { token: outToken, baseUnits: String(intent.minOut) },
+      outputIsEstimate: isQueued, settlement: isQueued ? QUEUED_SETTLEMENT : null,
       dailyTollPct: bpsToPct(qd.tollPerDayBps), spreadBps: qd.spreadBps ?? g.spreadBps,
       // The price is the oracle value plus the spread; there is no pool curve, so no further impact.
       priceImpactPct: "0", gasEstimateBaseUnits: null,

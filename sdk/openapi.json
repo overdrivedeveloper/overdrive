@@ -3228,7 +3228,10 @@
             ]
           },
           "output": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "token": {
                 "type": "object",
@@ -3257,7 +3260,8 @@
             "required": [
               "token",
               "baseUnits"
-            ]
+            ],
+            "description": "Immediate: what the transaction pays now. Queued: the expected proceeds at the current price after the spread (an estimate, paid at the next fresh price); null when no price is known to estimate from. Never 0 for a queued sell."
           },
           "minimumOutput": {
             "type": "object",
@@ -3289,7 +3293,19 @@
             "required": [
               "token",
               "baseUnits"
-            ]
+            ],
+            "description": "The minimum the transaction is built with. Queued: the ticket's minimum, the floor the queue honours."
+          },
+          "outputIsEstimate": {
+            "type": "boolean",
+            "description": "True for a queued sell: output is an estimate, the ticket is paid at the next fresh price."
+          },
+          "settlement": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Queued sells only: how the ticket is paid."
           },
           "dailyTollPct": {
             "type": [
@@ -3413,6 +3429,8 @@
           "execution",
           "output",
           "minimumOutput",
+          "outputIsEstimate",
+          "settlement",
           "dailyTollPct",
           "spreadBps",
           "priceImpactPct",

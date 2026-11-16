@@ -6,7 +6,7 @@ import {COMING_SOON, isGearLive, GEARS, MARKETS, getMarket, isGearAllowed, price
 import {useOverdriveWallet} from '../../hooks/useOverdriveWallet';
 import {amountText, useTradeQuote} from '../../hooks/useTradeQuote';
 import {useBackerAction, useBackerVaults, useGearSnapshot, useGovernorSnapshot, useExitQueue, useMarketList, usePortfolioPositions, useTradeStatus} from '../../hooks/useLive';
-import {NOT_LIVE, closedSellView, feedLine, queuedSellLine, governorCards, marketLive, portfolioView, tollLine, vaultsView} from '../../lib/live-view';
+import {NOT_LIVE, closedSellView, feedLine, queuedSellLine, quoteAmountRows, governorCards, marketLive, portfolioView, tollLine, vaultsView} from '../../lib/live-view';
 import {I} from './icons';
 import '../../styles/tokens.css';
 import '../../styles/base.css';
@@ -43,7 +43,7 @@ function QuoteReview({trade,onClose,indexed,queue}:{trade:ReturnType<typeof useT
  const done=r?.kind==='confirmed';const closed=closedSellView(q);
  return <><p>{closed?closed.lead:'Review the exact amounts before your wallet asks for a signature.'}</p>
  {closed&&<dl className="od-quote-review">{closed.paths.map(o=><Fragment key={o.label}><dt>{o.label}</dt><dd>{o.rule}{o.current?' This quote.':''}</dd></Fragment>)}</dl>}
- <dl className="od-quote-review"><dt>You pay</dt><dd className="ui-num">{amountText(q.input.input)}</dd><dt>You receive</dt><dd className="ui-num">{amountText(q.output)}</dd><dt>Minimum received</dt><dd className="ui-num">{amountText(q.minimumOutput)}</dd><dt>Daily toll</dt><dd className="ui-num">{q.dailyTollPct===null?'Not reported':`${q.dailyTollPct}%`}</dd><dt>Spread</dt><dd className="ui-num">{(q.spreadBps/100).toFixed(2)}%</dd><dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
+ <dl className="od-quote-review">{quoteAmountRows(q).map(row=><Fragment key={row.label}><dt>{row.label}</dt><dd className={row.num?'ui-num':undefined}>{row.value}</dd></Fragment>)}<dt>Daily toll</dt><dd className="ui-num">{q.dailyTollPct===null?'Not reported':`${q.dailyTollPct}%`}</dd><dt>Spread</dt><dd className="ui-num">{(q.spreadBps/100).toFixed(2)}%</dd><dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
  {trade.error&&<p role="alert">{trade.error.message}</p>}
  {r&&<p role="status">{r.kind==='confirmed'?`Confirmed in block ${r.blockNumber}.`:r.kind==='failed'?'The transaction reverted on chain. No tokens moved.':r.kind==='rejected'?'You rejected the request in your wallet. Nothing was sent.':r.kind==='account_changed'?'Your wallet account changed. Ask for a new quote for this account.':r.error.message}</p>}
  {r&&indexed&&<p role="status">{indexed}</p>}

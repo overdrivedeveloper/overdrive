@@ -169,6 +169,29 @@ test("trade.quote: a sell the reserve cannot pay now is a queued quote, never sh
   expect(body.transaction.functionName).toBe("queueSell");
 });
 
+test("trade.quote: a queued sell quotes its expected proceeds and the ticket's minimum, never 0", async () => {
+  if (!h) return;
+  const sell = quoteBody({ side: "sell", input: { token: { address: gearToken("TSLA-SPORT"), symbol: "TSLA-SPORT", decimals: 18 }, baseUnits: (WAD / 2n).toString() } });
+  const now = await post("trade.quote", sell);
+  const before = { ...h.hook.book };
+  Object.assign(h.hook.book, { freeCashUsdg: 0n, reserveUsdg: 0n });
+  const { status, body } = await post("trade.quote", sell);
+  Object.assign(h.hook.book, before);
+  expect(status).toBe(200);
+  expect(body.execution).toBe("queued");
+  // the same maths as a sell paid now: value less the spread, for the same tokens
+  expect(BigInt(body.output.baseUnits)).toBeGreaterThan(0n);
+  expect(body.output.baseUnits).toBe(now.body.output.baseUnits);
+  expect(body.outputIsEstimate).toBe(true);
+  expect(body.settlement).toBe(serviceError("EXIT_QUEUED").message);
+  // the minimum shown is the one the queueSell call is built with
+  expect(body.transaction.functionName).toBe("queueSell");
+  expect(body.minimumOutput.baseUnits).toBe(String(body.transaction.args[2]));
+  expect(BigInt(body.minimumOutput.baseUnits)).toBe(minimumOf(BigInt(body.output.baseUnits), 50));
+  expect(now.body.outputIsEstimate).toBe(false);
+  expect(now.body.settlement).toBeNull();
+});
+
 test("trade.quote: a sell says how it is paid (open market instant, closed market lower of last and reference)", async () => {
   if (!h) return;
   const sell = quoteBody({ side: "sell", input: { token: { address: gearToken("TSLA-SPORT"), symbol: "TSLA-SPORT", decimals: 18 }, baseUnits: (WAD / 2n).toString() } });

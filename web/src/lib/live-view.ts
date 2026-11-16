@@ -124,7 +124,7 @@ export function closedSellView(q: Pick<Quote, 'execution' | 'sellMode'> & {input
   if (!queued && q.sellMode !== 'instant_min') return null;
   return {
     lead: queued
-      ? 'There is no fresh price right now, so this sell is queued: it is paid at the next fresh price, never below your minimum.'
+      ? 'This sell cannot be paid now, so it is queued: it is paid at the next fresh price, never below your minimum.'
       : 'The market is closed. This sell is paid now at the lower of the last value and the pool price.',
     paths: [
       {label: 'Sell now', rule: SELL_NOW_RULE, current: !queued},
@@ -132,6 +132,28 @@ export function closedSellView(q: Pick<Quote, 'execution' | 'sellMode'> & {input
     ],
     action: queued ? 'Queue the sell' : 'Sell at the lower price',
   };
+}
+
+/** The queue rule a queued quote shows (the API's EXIT_QUEUED words), used when the quote carries no settlement line. */
+export const EXIT_QUEUED_RULE = 'A sell now is queued and paid at the next fresh price, never below your minimum.';
+export const EXPECTED_LABEL = 'Expected at the next fresh price';
+export const NO_ESTIMATE = 'No estimate: there is no price to estimate from right now. Your minimum still holds.';
+
+const amountLine = (a: Amount, digits = 6) => {
+  const [w, f = ''] = formatUnits(BigInt(a.baseUnits), a.token.decimals).split('.');
+  return `${w}${f ? `.${f.slice(0, digits)}` : ''} ${a.token.symbol}`;
+};
+
+/** The amount rows of a quote review. A queued sell shows its estimate under its own label and never a 0 amount: an
+ * estimate that is missing or 0 is said in words. The minimum is the floor the queue honours. */
+export function quoteAmountRows(q: Pick<Quote, 'execution' | 'output' | 'minimumOutput' | 'settlement'> & {input: {input: Amount}}): {label: string; value: string; num: boolean}[] {
+  const pay = {label: 'You pay', value: amountLine(q.input.input), num: true};
+  const min = {label: 'Minimum received', value: amountLine(q.minimumOutput), num: true};
+  if (q.execution !== 'queued') {
+    return [pay, q.output ? {label: 'You receive', value: amountLine(q.output), num: true} : {label: 'You receive', value: NOT_REPORTED, num: false}, min];
+  }
+  const est = q.output && BigInt(q.output.baseUnits) > 0n ? {label: EXPECTED_LABEL, value: amountLine(q.output), num: true} : {label: EXPECTED_LABEL, value: NO_ESTIMATE, num: false};
+  return [pay, est, min, {label: 'How it is paid', value: q.settlement || EXIT_QUEUED_RULE, num: false}];
 }
 
 /**
