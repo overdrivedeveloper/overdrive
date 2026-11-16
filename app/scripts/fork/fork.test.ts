@@ -148,8 +148,8 @@ describe("fork stack", () => {
     expect(setup.pythFromFeed(150_00000000n, 2n * 10n ** 18n)).toBe(75_00000000n);
     expect(setup.pythFromFeed(150_00000000n, undefined)).toBe(150_00000000n);
     expect(setup.marketId("ETH")).toBe(`0x455448${"0".repeat(58)}`);
-    // The vol engine posts under the deployment's market ids (padded bytes32), not its keccak256(symbol) default: the minter
-    // reads the padded id, so a keccak post never clears VOL_HARD_STALE.
+    // The vol engine posts under the deployment's market ids (padded bytes32), the minter reads the padded id; these
+    // overrides pin the record's ids explicitly (the engine's own default is the same id since the market-id fix).
     const rec = join(tmp, "vol-deployment.json");
     writeFileSync(rec, JSON.stringify({
       contracts: { ODVolOracle: "0xe7213b68dc25bf30bc7f1de9baead075c66979f9" },
@@ -163,6 +163,15 @@ describe("fork stack", () => {
     expect(keys[1]).toBe(`AMD=${setup.marketId("AMD")}`);
     expect(keys[2]).toBe(`NVDA/AMD=${keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [setup.marketId("NVDA"), setup.marketId("AMD")]))}`);
     expect(setup.volEngineEnv(join(tmp, "missing.json"))).toEqual({});
+    // contracts/test/vectors/market-ids.json (cast vectors) pins this marketId and the pair keys; vol-engine
+    // tests/test_market_ids.py checks its own market_key against the same file, so the two cannot drift apart.
+    const vec = JSON.parse(readFileSync(join(lib.ROOT, "contracts/test/vectors/market-ids.json"), "utf8")) as {
+      markets: { symbol: string; id: string }[]; pairs: { a: string; b: string; id: string }[];
+    };
+    for (const m of vec.markets) expect(setup.marketId(m.symbol)).toBe(m.id as never);
+    for (const p of vec.pairs) {
+      expect(keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [setup.marketId(p.a), setup.marketId(p.b)]))).toBe(p.id as never);
+    }
     // Applied as the timelock (impersonated), never in the deploy script.
     const s = src("setup.ts");
     expect(s).toMatch(/asTimelock\(async \(wallet, timelock\)[\s\S]*functionName: "setMarket"/);

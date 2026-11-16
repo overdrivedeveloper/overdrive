@@ -19,9 +19,18 @@ _U64 = (1 << 64) - 1
 _SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141  # not-a-key: the curve order
 
 
+MAX_SYMBOL_BYTES = 32
+
+
 def market_key(symbol: str) -> bytes:
-    """keccak256(bytes(symbol)), e.g. keccak256("TSLA")."""
-    return keccak(text=symbol)
+    """The deployment's market id: bytes32(bytes(symbol)), the UTF-8 symbol right-padded with zero bytes, exactly as
+    contracts/script/lib/SystemConfig.sol sets `m.id` and app `marketId` builds it ("TSLA" -> 0x54534c41 00..00). The
+    symbol's case is kept as given. Refuses what has no id: an empty symbol, a zero byte (the record's `symbolOf` would cut
+    it there) and more than 32 bytes (Solidity would silently truncate it onto another market's id)."""
+    raw = symbol.encode("utf-8")
+    if not raw or len(raw) > MAX_SYMBOL_BYTES or b"\0" in raw:
+        raise ValueError(f"market symbol {symbol!r} has no bytes32 id (1 to {MAX_SYMBOL_BYTES} bytes, no zero byte)")
+    return raw.ljust(MAX_SYMBOL_BYTES, b"\0")
 
 
 def pair_key(market_a: bytes, market_b: bytes) -> bytes:

@@ -155,6 +155,26 @@ contract VolOracleTest is VolOracleBase {
         assertEq(oracle.domainSeparator(), expected);
     }
 
+    /// test/vectors/market-ids.json pins the market ids a deployment's oracles read (SystemConfig's bytes32(bytes(symbol)))
+    /// and the pair keys (pairKey over those ids); vol-engine tests/test_market_ids.py and app market-ids.test.ts read it too.
+    function test_MarketIdVectorsMatch() public view {
+        string memory json = vm.readFile("test/vectors/market-ids.json");
+        for (uint256 i; i < 4; ++i) {
+            string memory k = string.concat(".markets[", vm.toString(i), "]");
+            assertEq(
+                bytes32(bytes(vm.parseJsonString(json, string.concat(k, ".symbol")))),
+                vm.parseJsonBytes32(json, string.concat(k, ".id")),
+                k
+            );
+        }
+        for (uint256 i; i < 2; ++i) {
+            string memory k = string.concat(".pairs[", vm.toString(i), "]");
+            bytes32 a = bytes32(bytes(vm.parseJsonString(json, string.concat(k, ".a"))));
+            bytes32 b = bytes32(bytes(vm.parseJsonString(json, string.concat(k, ".b"))));
+            assertEq(oracle.pairKey(a, b), vm.parseJsonBytes32(json, string.concat(k, ".id")), k);
+        }
+    }
+
     /// test/vectors/volpost-eip712.json is the cross-language fixture for the vol engine signer; the same file is
     /// checked by app/test/volpost.test.ts::digestMatchesVector.
     function test_VectorsMatch() public {

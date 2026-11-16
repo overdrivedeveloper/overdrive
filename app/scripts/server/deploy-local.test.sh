@@ -394,6 +394,23 @@ else
   echo "skip systemd-analyze verify: not available on this machine (the key checks above ran)"
 fi
 
+# ---------------------------------------------------------------- J2: the vol engine's market keys match the deployment
+printf '#!/bin/bash\nprintf "%%s|" "$@" "VOL_KEYS=$VOL_KEYS" "SECRET=${OD_SECRET_PROBE:-}" >"%s/vk-args"\nexit 0\n' "$T" >"$T/vk-bin"; printf '#!/bin/bash\nexit 1\n' >"$T/vk-bad"; chmod +x "$T/vk-bin" "$T/vk-bad"
+OD_SECRET_PROBE=leak DEPLOY_SH_SOURCE_ONLY=1 bash -c '. "$1"; vol_keys_check "$2" "NVDA,NVDA/TSLA" /x/4663.json' _ "$DEPLOY" "$T/vk-bin"; rc=$?
+check "vol_keys_check: runs check-keys on the record with VOL_KEYS and nothing else from the environment" \
+  bash -c '[ "$1" = 0 ] && [ "$(cat "$2/vk-args")" = "check-keys|/x/4663.json|VOL_KEYS=NVDA,NVDA/TSLA|SECRET=|" ]' _ "$rc" "$T"
+DEPLOY_SH_SOURCE_ONLY=1 bash -c '. "$1"; vol_keys_check "$2" "" /x/4663.json' _ "$DEPLOY" "$T/vk-bad"; rc=$?
+check "  ... and fails when check-keys fails" [ "$rc" == 1 ]
+R3="$T/root-volkeys"; mkroot "$R3"
+out="$(dep "$R3" "$SHA1" OD_SETTLE=0 OD_PRE_SLEEP=0)"; rc=$?
+vk_prev="$(readlink "$R3/opt/overdrive/current")"
+sleep 1; stub_vk='mkdir -p vol-engine/.venv/bin && printf "#!/bin/sh\necho \"vol-engine check-keys: TSLA: engine key 0xab but the deployment reads 0xcd\" >&2\nexit 1\n" >vol-engine/.venv/bin/vol-engine && chmod +x vol-engine/.venv/bin/vol-engine'
+out="$(dep "$R3" "$SHA2" OD_SETTLE=0 OD_PRE_SLEEP=0 OD_TEST_BUILD_CMD="$stub_vk")"; rc=$?
+check "a vol engine key that does not match the deployment stops before the switch (exit 75), current unchanged" \
+  bash -c '[ "$1" = 75 ] && grep -q "market keys do not match 4663.json" <<<"$2" && grep -q "TSLA: engine key" <<<"$2" && [ "$(readlink "$3/opt/overdrive/current")" = "$4" ]' _ "$rc" "$out" "$R3" "$vk_prev"
+sleep 1; out="$(dep "$R3" "$SHA2" OD_SETTLE=0 OD_PRE_SLEEP=0 OD_TEST_BUILD_CMD="${stub_vk/exit 1/exit 0}")"; rc=$?
+check "  ... and a matching one deploys (exit 0)" bash -c '[ "$1" = 0 ] && grep -q "vol keys: every market" <<<"$2"' _ "$rc" "$out"
+
 # ---------------------------------------------------------------- K: nothing ever reached ssh or the real server
 check "no real server address in any script" bash -c '! grep -rnE "88\.216" "$1"/*.sh "$1"/systemd "$1"/Caddyfile "$1"/env.example' _ "$HERE"
 check "ssh was never called" bash -c '[ ! -e "$1/ssh-called" ]' _ "$T"

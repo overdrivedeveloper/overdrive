@@ -116,6 +116,38 @@ def default_keys() -> tuple[str, ...]:
     return LISTED_NAMES + tuple(f"{a}/{b}" for a, b in LISTED_PAIRS)
 
 
+def parse_vol_keys(raw: str) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+    """VOL_KEYS ("NVDA,NVDA/AMD=0x..."): the keys to post (default_keys() when empty) and the 0x bytes32 overrides.
+    Refuses a key with no market id (see signer.market_key), so the engine never starts posting under a key nothing reads."""
+    from .signer import market_key
+    keys: list[str] = []
+    overrides: list[tuple[str, str]] = []
+    for item in (x.strip() for x in raw.split(",")):
+        if not item:
+            continue
+        name, _, market = item.partition("=")
+        name = name.strip().upper()
+        if market:
+            market = market.strip().lower()
+            if len(market) != 66 or not market.startswith("0x"):
+                raise KeyConfigError(f"VOL_KEYS: {name} override must be a 0x bytes32")
+            overrides.append((name, market))
+        keys.append(name)
+    out = tuple(dict.fromkeys(keys)) or default_keys()
+    named = {n for n, _ in overrides}
+    for k in out:
+        if k in named:
+            continue
+        for leg in k.split("/"):
+            if leg in named:
+                continue
+            try:
+                market_key(leg)
+            except ValueError as exc:
+                raise KeyConfigError(f"VOL_KEYS: {k}: {exc}") from None
+    return out, tuple(overrides)
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = field(default="", repr=False)
@@ -140,19 +172,7 @@ class Settings:
         unknown = sorted(k for k in e if k.startswith("VOL_") and k not in KNOWN_ENV)
         if unknown:
             raise KeyConfigError("unknown environment variable(s): " + ", ".join(unknown))
-        keys: list[str] = []
-        overrides: list[tuple[str, str]] = []
-        for item in (x.strip() for x in e.get("VOL_KEYS", "").split(",")):
-            if not item:
-                continue
-            name, _, market = item.partition("=")
-            name = name.strip().upper()
-            if market:
-                market = market.strip().lower()
-                if len(market) != 66 or not market.startswith("0x"):
-                    raise KeyConfigError(f"VOL_KEYS: {name} override must be a 0x bytes32")
-                overrides.append((name, market))
-            keys.append(name)
+        keys, overrides = parse_vol_keys(e.get("VOL_KEYS", ""))
         clock = e.get("VOL_CLOCK", "wall").strip().lower()
         if clock not in ("wall", "chain"):
             raise KeyConfigError("VOL_CLOCK must be wall or chain")
@@ -167,8 +187,8 @@ class Settings:
             validity_s=int(e.get("VOL_VALIDITY_S", str(DEFAULT_VALIDITY_S))),
             min_post_interval_s=int(e.get("VOL_MIN_POST_INTERVAL_S", str(MIN_POST_INTERVAL_S))),
             max_validity_s=int(e.get("VOL_MAX_VALIDITY_S", str(MAX_VALIDITY_S))),
-            keys=tuple(dict.fromkeys(keys)) or default_keys(),
-            market_overrides=tuple(overrides),
+            keys=keys,
+            market_overrides=overrides,
             clock=clock,
             config_dir=e.get("VOL_CONFIG_DIR", ""),
             production=e.get("NODE_ENV", "").strip() == "production",

@@ -1,0 +1,13 @@
+{
+  "description": "Market ids as a deployment's oracles read them: bytes32(bytes(symbol)) right-padded (SystemConfig.sol m.id), and pair gear keys keccak256(abi.encode(idA, idB)). Values from `cast format-bytes32-string` and `cast keccak $(cast abi-encode \"f(bytes32,bytes32)\" idA idB)`. Read by MarketIds.t.sol, app/scripts/fork/market-ids.test.ts and vol-engine/tests/test_market_ids.py.",
+  "markets": [
+    { "symbol": "TSLA", "id": "0x54534c4100000000000000000000000000000000000000000000000000000000", "note": "// not-a-key: market id" },
+    { "symbol": "NVDA", "id": "0x4e56444100000000000000000000000000000000000000000000000000000000", "note": "// not-a-key: market id" },
+    { "symbol": "ETH", "id": "0x4554480000000000000000000000000000000000000000000000000000000000", "note": "// not-a-key: market id" },
+    { "symbol": "BTC", "id": "0x4254430000000000000000000000000000000000000000000000000000000000", "note": "// not-a-key: market id" }
+  ],
+  "pairs": [
+    { "key": "NVDA/TSLA", "a": "NVDA", "b": "TSLA", "id": "0xbb849ac03d897852484edb1c16f5191f2061f18cdd7f857b5308c577465db2e2", "note": "// not-a-key: market id" },
+    { "key": "ETH/BTC", "a": "ETH", "b": "BTC", "id": "0x53a0b92e86a2442720353fd0555f985c34c582969c5f45ba30cf5194eaff582d", "note": "// not-a-key: market id" }
+  ]
+}

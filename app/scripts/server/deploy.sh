@@ -24,6 +24,8 @@
 #      id, oracle address matches the deployment file, no raw key in any env file) and every keystore in /etc/overdrive/keys
 #      (readable by the one service that signs with it and by no other service user; tested for access, never read);
 #   4. builds as the overdrive user inside a memory-capped scope (bun install --frozen-lockfile, two virtualenvs);
+#      then `vol-engine check-keys` refuses the release unless the engine posts every market and pair gear of the
+#      deployment file under the id its oracle reads (the padded bytes32 market id, never a keccak of the symbol);
 #   5. points /opt/overdrive/current at the release and runs overdrive-migrate.service FIRST; if it fails the link goes back
 #      and nothing is restarted;
 #   6. restarts the services one by one (indexer, api, crank, vol-engine, hedger, liquidator, mcp) and checks each before
@@ -112,6 +114,10 @@ prune_releases() {
   for ((i = 0; i < n - (keep - 2); i++)); do rm -rf "${base:?}/releases/${healthy[$i]}"; done
   return 0
 }
+# vol_keys_check <vol-engine binary> <VOL_KEYS value> <deployment file>: exits non-zero unless the engine posts every market
+# and pair gear of the record under the exact id its oracle reads (`vol-engine check-keys`; it reads only VOL_KEYS, never a
+# key, a password or the database). A drift between the engine's key scheme and the chain's ids stops the deploy here.
+vol_keys_check() { env -i PATH=/usr/bin:/bin VOL_KEYS="$2" "$1" check-keys "$3"; }
 FNS
 eval "$RELEASE_FNS"
 
@@ -320,6 +326,12 @@ server_main() {
       bun -e 'import { loadConfig } from "./src/config"; loadConfig(); console.log("config ok")') || s_die "the environment does not load through loadConfig (see above); /opt/overdrive/current is unchanged"
     chmod 0755 "$R"
     chmod -R go-w,a+rX "$R"
+  fi
+  local vbin="$R/vol-engine/.venv/bin/vol-engine"
+  if [[ -z "$P" || -x "$vbin" ]]; then # a test root has no virtualenv unless its build command stubs one
+    s_log "vol keys: every market and pair gear in $CHAIN.json is posted under the id its oracle reads"
+    vol_keys_check "$vbin" "$(envval VOL_KEYS)" "$R/app/deployments/$CHAIN.json" \
+      || s_die "the vol engine's market keys do not match $CHAIN.json (see above); /opt/overdrive/current is unchanged"
   fi
   lock_release "$LOCKDIR"; HAVE_LOCK=0
 

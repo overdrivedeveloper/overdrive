@@ -1,19 +1,40 @@
-"""vol-engine post --once | --loop, vol-engine explain KEY"""
+"""vol-engine post --once | --loop, vol-engine explain KEY, vol-engine check-keys DEPLOYMENT_FILE"""
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import dataclasses
 import sys
 import time
 
-from .config import Settings
+from .config import Settings, parse_vol_keys
 from .engine import ClockError, explain, make_oracle, read_constants, resolve_now, run_pass
 from .history import History
 from .keystore import KeyConfigError
 from .logs import configure_logging
+from .markets import check_deployment
 from .sender import http_transport, make_sender
 from .store import PgStore
+
+
+def check_keys(path: str, vol_keys: str) -> int:
+    try:
+        keys, overrides = parse_vol_keys(vol_keys)
+        with open(path, encoding="utf-8") as f:
+            record = json.load(f)
+    except (KeyConfigError, OSError, ValueError) as exc:
+        print(f"vol-engine check-keys: {exc}", file=sys.stderr)
+        return 78
+    problems = check_deployment(keys, dict(overrides), record)
+    for p in problems:
+        print(f"vol-engine check-keys: {p}", file=sys.stderr)
+    if problems:
+        return 1
+    n = len(record.get("markets") or [])
+    print(f"vol-engine check-keys: ok ({n} market(s) in {os.path.basename(path)}, {len(keys)} engine key(s))")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,7 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     post.add_argument("--interval", type=int, default=300, help="seconds between passes in --loop (default 300)")
     exp = sub.add_parser("explain", help="print every term of the formula for one key, e.g. NVDA or NVDA/AMD")
     exp.add_argument("key")
+    chk = sub.add_parser("check-keys", help="exit 1 unless every market and pair gear in a deployment record is posted "
+                                            "under the id its oracle reads (reads only VOL_KEYS; no keys, no database)")
+    chk.add_argument("deployment", help="app/deployments/<chain id>.json")
     args = parser.parse_args(argv)
+    if args.command == "check-keys":
+        return check_keys(args.deployment, os.environ.get("VOL_KEYS", ""))
 
     try:
         settings = Settings.from_env()

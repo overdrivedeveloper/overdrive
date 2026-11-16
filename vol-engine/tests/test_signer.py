@@ -62,8 +62,8 @@ def test_low_s_only():
 
 
 def test_market_keys():
-    from eth_utils import keccak
-    assert market_key("TSLA") == keccak(text="TSLA") and len(market_key("TSLA")) == 32
+    # The deployment's id (bytes32(bytes(symbol)), `cast format-bytes32-string TSLA`), never keccak256(symbol).
+    assert market_key("TSLA") == bytes.fromhex("54534c41" + "00" * 28)
     ab, ba = pair_key(market_key("NVDA"), market_key("AMD")), pair_key(market_key("AMD"), market_key("NVDA"))
     assert ab != ba and len(ab) == 32
 
