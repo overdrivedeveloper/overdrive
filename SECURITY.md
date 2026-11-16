@@ -1,6 +1,6 @@
 # Security policy
 
-Overdrive is in development, not deployed and not externally audited. Treat every contract in this repository as unreviewed.
+Overdrive is in development and not yet deployed on mainnet. There is no outside audit. The contracts have had internal review rounds only, graded 8.9 of 10 at the tag `audit-2026-11-15` (the list is in `.audit-grade/audit-history.md`); review the code yourself before committing funds.
 
 ## Reporting a vulnerability
 
@@ -8,7 +8,7 @@ Use GitHub private vulnerability reporting: open the repository's Security tab a
 
 ## Scope
 
-Reviewed commit: the commit that carries the audit tag. The tag is not created yet; `contracts/AUDIT-SCOPE.md` lists every contract file in scope and is checked against `contracts/src` by `scripts/ci-local.sh`, so the list is exact at whichever commit is tagged. The contracts are frozen at that commit and findings are reported against it. Nothing is deployed, so there are no addresses in scope yet.
+Reviewed commit: the commit that carries the audit tag `audit-2026-11-15` (private dev commit `96d4225`). Since the tag, the only change under `contracts/src` is NatSpec comments (`git diff audit-2026-11-15 -- contracts/src`). `contracts/AUDIT-SCOPE.md` lists every contract file in scope and is checked against `contracts/src` by `scripts/ci-local.sh`, so the list is exact at whichever commit is tagged. The contracts are frozen at that commit and findings are reported against it. Nothing is deployed, so there are no addresses in scope yet.
 
 In scope:
 
@@ -222,7 +222,8 @@ Known and accepted for the first release, stated generically:
 - A stock gear cannot be sold at once while its market is closed, unknown or halted unless Pyth has a print inside `refMaxAge` (I7-1 below): the sell is refused with `UseQueue`, the holder queues it, and it fills at the first live feed round after the reopen. Pyth does not print stock prices at the weekend, so in practice a weekend exit waits for Sunday 20:00 Eastern plus the first feed round. Queued tokens keep paying the toll and can be cancelled at any time.
 - A backer vault minted at the minimum ratio can become sealable at a market reopen after a weekend if the reference price moves against it.
 - Off-chain components (volatility signer, keeper, hedger) can be late; on-chain guards bound the effect of stale data but do not remove it.
-- The system has not been audited.
+- No outside audit (owner decision D40, 2026-11-15): launch rests on the internal reviews listed in `.audit-grade/audit-history.md` (8.9 of 10 at tag `audit-2026-11-15`, mutation score 90.6%). An internal review is a strong pre-audit signal, not a substitute for a human audit before large deposits.
+- No L2 sequencer uptime feed (ORC-7). Robinhood Chain (4663) publishes no Chainlink sequencer uptime feed, so `ODOracleGuard` is deployed with `sequencerFeed` = 0 (`script/lib/SystemDeployer.sol:139`, last constructor argument) and `_sequencerDown` (`ODOracleGuard.sol:656`) is never consulted. A sequencer outage is covered instead by the staleness rules below: a feed round older than its window reads HALTED, so buys and any action that needs a live price stop (fail closed), and a stock sell needs a Pyth print inside `refMaxAge` or it queues. The post-deploy check fails with `SEQUENCER` if a feed is ever set on 4663 or 46630 (`script/lib/SystemChecks.sol` `_checkSequencer`, test `PostDeployCheck.t.sol:test_FailsOnSequencerFeedOnRhc`). If a feed appears it needs a new guard, through the timelock.
 
 ### Known residuals
 
@@ -269,6 +270,25 @@ Known and accepted for the first release, stated generically:
 - **I9-2, no deployed key holds `moveToExitReserve` (accepted, Info).** `DeploySystem` wires `HEDGER_ROLE` on the Governor and grants `KEEPER_ROLE` to nobody, neither the crank nor the hedger calls the function, and the post-deploy check passes. The exit reserve has no automated top-up: the timelock (admin) moves free cash into it, and anyone can donate with `fundExitReserve`. The keeper table above states the deploy as it is.
 - **I8-2, a queued sell filled far under the feed (closed in fix round 11).** A sell is paid the lower of the feed value and the reference value and the reference band closed buys only; the API suggested a minimum of 0 for a sell queued in a market that is not live, and anyone could fill that ticket at a v3 TWAP held under the feed. Now (1) `fillQueued` by anyone but the ticket's owner requires buys to be open on the reading, so the reference is inside `refBandBps` of the feed and no pause, split window or continuity latch is set; the owner may fill on any live reading with a reference, bound by the ticket's own minimum; a settled gear is filled by anyone as before; (2) `GET /v1/quote` and `POST /v1/intent/sell` give a queued sell a minimum from the last good value less 5% (`QUEUE_MARGIN_BPS`) when the minter quotes no amount, return no suggestion when no value is known, and never build a `queueSell` with 0 unless the caller sends it; the static exit page does the same. What is left: a third-party fill can be up to the band (2% on stock markets) under the feed price, times the gear's power, less the spread, never under the ticket's minimum; a ticket whose minimum is above the reopening value waits until its owner cancels and queues again; while buys are paused (manual pause, split window) only the owner fills. Tests: `test/poc/Ind8QueuedFillLowTwap.t.sol`, `app/src/api/routes/quote.test.ts`.
 
+## Stale inputs
+
+Every input that can go stale, with its window, what happens on chain when it is stale, and the alert. Values are the code constants and the mainnet config (`contracts/script/config/mainnet.json`). Pause means buys (or the named action) are refused; warn means the system keeps running on a safe fallback and the crank alerts.
+
+| Input | Window | When stale | Class | Alert | Source |
+| --- | --- | --- | --- | --- | --- |
+| Chainlink price, in session | `maxAgeOpen` per market (93,600 to 259,200 s in the mainnet config), hard cap `MAX_MAX_AGE_OPEN` 3 days | Reading is HALTED: buys, fills and seals that need a live price stop; a sell needs a Pyth print or queues | pause | `vol-watch` / `pyth-push` | `ODOracleGuard.sol:32`, `:368` |
+| Chainlink price, market closed | `maxAgeClosed` 432,000 s (5 days), bounds 2 to 14 days | No CLOSED price: reads HALTED, same effect as above | pause | `pyth-push` | `ODOracleGuard.sol:27-29`, `:364` |
+| Pyth reference | `refMaxAge` 120 s per market, cap `MAX_REF_MAX_AGE` 1 day; conf at most 2% | No reference: buys that need one and every reference-priced exit refuse (fail closed); the v3 TWAP is tried next where configured | pause | `pyth-push` (critical when no reference) | `ODOracleGuard.sol:40-42`, `:643` |
+| v3 TWAP | `twapWindow` 1,800 s, bounds 10 min to 1 day | No TWAP: no reference from it; `ODBuyBurn.execute` reverts and spends nothing | pause | `pyth-push` | `ODOracleGuard.sol:38-39`, `ODBuyBurn.sol:162` |
+| Backer seal round | `MAX_ROUND_AGE` 15 min without a reference | Price-using backer actions refuse; repay with tokens and withdraw with no debt stay open | pause | none (refusal code) | `ODBacker.sol:50`, `:692` |
+| Vol sigma, past `validUntil` | validity 5 min to 2 h per post | Contract prices with the market's sigma floor; trading continues | warn | `vol-watch` warn after `VOL_STALE_WARN_SECONDS` (900 s) | `ODVolOracle.sol:39-40`, `app/src/config.ts:83` |
+| Vol sigma, hard stale | `validUntil` + `HARD_STALE_AFTER` 3 days | Buys of that market pause; sells unaffected | pause | `vol-watch` critical | `ODVolOracle.sol:44` |
+| Hedge post or USDG in transit | `hedgeMaxAge` 2 h (bounds 10 min to 1 day) | `hedgeStale()`: buys paused `HEDGE_STALE`, hedge equity not counted, LP withdraw with no minimum refused | pause | `risk-monitor` (`hedge_stale`, warn only off chain) | `ODGovernor.sol:126`, `:682`, `:788`, `:452` |
+| Governor equity snapshot | `equityMaxAge` 1 h (bounds 5 min to 1 day) | Buys paused `EQUITY_STALE` until a `pokeRisk` | pause | `risk-monitor` | `ODGovernor.sol:127`, `:787` |
+| Sequencer uptime | none on 4663 (see accepted risks, ORC-7) | Covered by the price windows above | n/a | `heartbeat` | `ODOracleGuard.sol:48`, `:656` |
+
+Feed windows follow each feed's measured heartbeat (in session and closed separately). Tests: `oracle/OracleGuard.t.sol:test_StaleInSessionHalts`, `poc/Rescore5FeedOnly.t.sol:test_I4_3_InSessionAgeIsCapped`, `crank/vol-watch.test.ts` (stale warns, hard stale is critical), `governor/Caps.t.sol` (hedge and equity stale pause buys).
+
 ## Mutation testing
 
 Measured 2026-11-15 on the audited commit with the slither-mutate operators: 35 sampled mutants per contract
@@ -282,6 +302,6 @@ Rerun: `scripts/mutation.sh` (about 2 hours at 4 jobs; `MUTATION_SAMPLE`, `MUTAT
 
 ## Follow-ups
 
-- NatSpec on every external function is not complete; the contracts are frozen, so it is a follow-up.
+- NatSpec: every public and external function under `contracts/src` has NatSpec, checked in CI by `contracts/script/ci/natspec.py --check` (closed 2026-11-16).
 - Slither runs in CI with a triaged config (`contracts/SLITHER.md`); the 137 triaged results were read by class, not one by one. gitleaks also runs in CI.
 - Mutation testing: the sample is 35 of about 1,500 mutants per contract (about +/- 7 points per contract); a full run is a follow-up.
