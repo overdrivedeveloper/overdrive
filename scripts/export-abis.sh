@@ -6,7 +6,9 @@ export PATH="$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 out="${ABI_OUT_DIR:-$root/app/src/abi}"
 mkdir -p "$out"
-forge build --root "$root/contracts" >/dev/null
+# Only the interfaces: an ABI does not depend on the optimiser or via-ir, and a full via-ir build of every test takes
+# over ten minutes on a 4-core CI runner (the app abi test and the scripts job both call this script).
+forge build --root "$root/contracts" src/interfaces >/dev/null
 count=0
 for src in "$root"/contracts/src/interfaces/IOD*.sol; do
   name="$(basename "$src" .sol)"
