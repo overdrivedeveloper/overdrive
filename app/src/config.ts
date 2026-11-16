@@ -279,6 +279,14 @@ export function setTestDatabaseEnv(url: string): void {
   process.env.TEST_DATABASE_EPHEMERAL = "1";
 }
 
+/** Test preload only: points FORK_DIR at the given temp dir unless FORK_LIVE=1 keeps the caller's. Returns whether it did. */
+export function setTestForkDir(dir: () => string): string | undefined {
+  if (process.env.FORK_LIVE === "1") return undefined;
+  const d = dir();
+  process.env.FORK_DIR = d;
+  return d;
+}
+
 export type TestEnvName = "TEST_DATABASE_URL" | "TEST_DATABASE_EPHEMERAL" | "PG_BIN" | "PATH" | "RHC_FORK_RPC" | "CI";
 /** Trimmed value of a tooling variable, or undefined when unset or empty. */
 export function optionalEnv(name: OptionalEnvName | TestEnvName): string | undefined {
