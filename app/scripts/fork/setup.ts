@@ -78,8 +78,10 @@ export async function mirrorFeeds(): Promise<number> {
   const w = walletFor("spare1");
   const now = (await pub.getBlock()).timestamp;
   const send = async (hash: Hex, what: string) => { if ((await pub.waitForTransactionReceipt({ hash })).status !== "success") throw new Error(`${what}: ${hash} reverted`); };
+  // only the real markets: the harness's own mock markets (MCK*) already sit on MockAggregator feeds that the stale,
+  // closed and split flows drive by hand, so re-stamping them would hide the very staleness those flows assert
   for (const m of dep.markets) {
-    if (mirrors[m.symbol]) continue;
+    if (mirrors[m.symbol] || /^MCK/.test(m.symbol)) continue;
     const id = marketId(m.symbol);
     const cfg = (await pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "config", args: [id] })) as unknown as MarketCfg;
     const [, answer] = await pub.readContract({ address: cfg.feed, abi: feedAbi, functionName: "latestRoundData" });
@@ -98,6 +100,7 @@ export async function mirrorFeeds(): Promise<number> {
     writeFileSync(file, `${JSON.stringify(mirrors, null, 1)}\n`);
   }
   for (const [sym, x] of Object.entries(mirrors)) {
+    if (/^MCK/.test(sym)) continue;
     const [, answer] = await pub.readContract({ address: x.mirror, abi: feedAbi, functionName: "latestRoundData" });
     await send(await w.writeContract({ address: x.mirror, abi: mirrorAbi, functionName: "setRound", args: [answer, now], chain: null, account: w.account! }), `mirror ${sym} restamp`);
   }
