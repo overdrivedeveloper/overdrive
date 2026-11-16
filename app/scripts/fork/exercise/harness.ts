@@ -105,9 +105,15 @@ export const tokenOf = (ctx: Ctx, token: Address, who: Address) => ctx.pub.readC
 /** Runs `fn` with the next block pinned to T = latest + 1 s, so a quote taken with `blockOverrides.time = T` and the
  * transaction mined at T see the same clock (a toll accrual quoted in another second is a different number). */
 export async function atNextSecond<R>(ctx: Ctx, fn: (t: bigint) => Promise<R>): Promise<R> {
-  const T = (await nowTs(ctx)) + 1n;
-  await ctx.test.setNextBlockTimestamp({ timestamp: T });
-  return fn(T);
+  // the stack's services mine their own blocks: one can land between the read and the set, so re-read and retry
+  for (let i = 0; ; i++) {
+    const T = (await nowTs(ctx)) + 1n;
+    try { await ctx.test.setNextBlockTimestamp({ timestamp: T }); } catch (e) {
+      if (i < 5 && /lower than previous block's timestamp/.test((e as Error).message)) continue;
+      throw e;
+    }
+    return fn(T);
+  }
 }
 
 /** An eth_call evaluated as if the block time were `t`. */
@@ -271,7 +277,17 @@ export const volKey = (symbol: string): Hex => {
   const [a, b] = symbol.split("/") as [string, string];
   return keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [marketId(a), marketId(b)])); // ODVolOracle R9 pair key
 };
+/** postVolOnce, retried when the running vol-engine posted the same nonce between our lastNonce read and our send. */
 export async function postVol(ctx: Ctx, symbol: string, sigmaBps = 6000n): Promise<void> {
+  for (let i = 0; ; i++) {
+    try { return await postVolOnce(ctx, symbol, sigmaBps); } catch (e) {
+      if (i < 3 && /NonceUsed|TooSoon/.test((e as Error).message)) continue;
+      throw e;
+    }
+  }
+}
+
+async function postVolOnce(ctx: Ctx, symbol: string, sigmaBps: bigint): Promise<void> {
   const market = volKey(symbol);
   const vol = ctx.c.ODVolOracle!;
   const reading = (await ctx.pub.readContract({ address: vol, abi: IODVolOracleAbi, functionName: "read", args: [market] })) as { postedAt: bigint; sigmaBps: bigint; validUntil: bigint };
@@ -597,6 +613,12 @@ export async function syncDeployment(ctx: Ctx): Promise<boolean> {
   }
   void FORK_DIR;
   return true;
+}
+
+/** Starts one stack service again (up.sh with UP_SERVICES, which keeps every running service and the chain state). */
+export function startService(name: string): void {
+  const p = Bun.spawnSync(["/bin/bash", `${import.meta.dir}/../up.sh`], { env: { ...process.env, PORT_OFFSET: process.env.PORT_OFFSET ?? "0", UP_SERVICES: name }, stdout: "pipe", stderr: "pipe" });
+  if (p.exitCode !== 0) throw new Error(`up.sh (${name}) failed: ${p.stdout.toString().slice(-300)} ${p.stderr.toString().slice(-300)}`);
 }
 
 // ------------------------------------------------------------------------------------------------ holder flow helpers
