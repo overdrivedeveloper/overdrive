@@ -1,0 +1,104 @@
+{
+  "description": "Live responses of every price source of TSLA on Robinhood Chain mainnet (4663), recorded by scripts/record-oracle-fixtures.sh: once with the market OPEN (latest block) and once CLOSED (archive block at 1794675600). Hermes is the HTTP answer as received (status and body); pythOnchain is the Pyth contract the guard reads. ORACLE-SRC.",
+  "symbol": "TSLA",
+  "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
+  "pool": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",
+  "stockAsset": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+  "pythId": "0x16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1", "pythIdNote": "// not-a-key: Pyth price id",
+  "open": {
+    "block": 115888501,
+    "timestamp": 1794845162,
+    "chainlink": {
+      "roundId": "18446744073709553782",
+      "answer": 38037675000,
+      "startedAt": 1794844003,
+      "updatedAt": 1794844015,
+      "decimals": 8
+    },
+    "pythOnchain": {
+      "price": 35913000,
+      "conf": 8634,
+      "expo": -5,
+      "publishTime": 1794012331
+    },
+    "hermes": {
+      "status": 200,
+      "body": {
+        "binary": {
+          "data": [
+            "504e4155010000000124010000000103015af8fe6ca7c9e435f621c2797c035aeecd2d7830c61b50a0874f43c409365e410151ac2aad75775e791b0cab3e0d44cbf9c7d000d05471e47d684dbc4bbe356101026cc11201d55b1fde61ec7b8e7f73f11acf9d2d18b7d4b324d7ca6abf81602caf6023cbd3f4873ec0cd785142696d32e614591aa7839b804bfca3f525acd4613701048fd368cc9dca8a28498766fcf87ba0c7a621f03f1d7ec88d768d1d1910161a9d2f6a837359f54ea74e8ac48bb2742504043916248492c22c9880e3e2f68eb6cb016afb29f700000000001a507974686e6574507974686e6574507974686e6574507974686e657450797468000000085b9f474c004155575600000000085b9f474c00000000347463bf6636c7a9c3acd3c4e42359b5429d74cd0100550016dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1000000000246adfd0000000000001831fffffffb000000006afb29f7000000006afb29f6000000000248abd40000000000000e480c95b492f878ed8a859bd78524a63233c6af3373e861d2e8bda0ec71977579ea33fa8303342cc6ef4aa22d1aedffa7165cf063513e00cc6b73bf7278b0ec55051e0068396e66f53758d8aa60e7312340357e4b4b558181c896b7484341fd1b65420843e80e57da82105ab6373c036d708b9b0140fe6fc11394c1485f1aa753070edd08d7a68615c5958ee427b009dcdfaa246b8fad4523a50c65c8ac5111d24ca55f839081e7110718f25dbc9415ca3723a15cb8f30466c16541c84f644c464b5283bc089fa64924b97687450cc327051ef7bd32465c717daa55430b0902131ea93e5ebaeabab15a06619ddd5e2f665bba"
+          ],
+          "encoding": "hex"
+        },
+        "parsed": [
+          {
+            "ema_price": {
+              "conf": "3656",
+              "expo": -5,
+              "price": "38317012",
+              "publish_time": 1794845175
+            },
+            "id": "16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1",
+            "metadata": {
+              "prev_publish_time": 1794845174,
+              "proof_available_time": 1794845175,
+              "slot": 35896903500
+            },
+            "price": {
+              "conf": "6193",
+              "expo": -5,
+              "price": "38186493",
+              "publish_time": 1794845175
+            }
+          }
+        ]
+      }
+    },
+    "twap": {
+      "window": 1800,
+      "tickCumulatives": [
+        -2455630167641,
+        -2456020642186
+      ],
+      "meanTick": -216931,
+      "poolAsset0": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
+    },
+    "uiMultiplier": "1000000000000000000"
+  },
+  "closed": {
+    "block": 114309710,
+    "timestamp": 1794675600,
+    "chainlink": {
+      "roundId": "18446744073709553761",
+      "answer": 38705000000,
+      "startedAt": 1794613076,
+      "updatedAt": 1794613088,
+      "decimals": 8
+    },
+    "pythOnchain": {
+      "price": 35913000,
+      "conf": 8634,
+      "expo": -5,
+      "publishTime": 1794012331
+    },
+    "hermes": {
+      "status": 404,
+      "body": "Could not find price updates for any of the given price feeds at the given timestamp"
+    },
+    "twap": {
+      "window": 1800,
+      "tickCumulatives": [
+        -2418875685480,
+        -2419265914937
+      ],
+      "meanTick": -216795,
+      "poolAsset0": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
+    },
+    "uiMultiplier": "1000000000000000000"
+  },
+  "hermesUnknownId": {
+    "id": "0xabababababababababababababababababababababababababababababababab", "idNote": "// not-a-key: Pyth price id",
+    "status": 404,
+    "body": "Price IDs not found: 0xabababababababababababababababababababababababababababababababab", "bodyNote": "// not-a-key: Pyth price id"
+  }
+}
