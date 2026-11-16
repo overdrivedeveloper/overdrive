@@ -291,7 +291,9 @@ export const volKey = (symbol: string): Hex => {
 export async function postVol(ctx: Ctx, symbol: string, sigmaBps = 6000n): Promise<void> {
   for (let i = 0; ; i++) {
     try { return await postVolOnce(ctx, symbol, sigmaBps); } catch (e) {
-      if (i < 3 && /NonceUsed|TooSoon/.test((e as Error).message)) continue;
+      // the vol-engine shares the vol signer; its post can sit unmined for a block or two, so an immediate retry reads the
+      // same lastNonce and collides again: back off until its post lands
+      if (i < 10 && /NonceUsed|TooSoon/.test((e as Error).message)) { await Bun.sleep(1000 + 500 * i); continue; }
       throw e;
     }
   }
@@ -704,7 +706,8 @@ export async function sellDirect(ctx: Ctx, row: Row, role: Role, g: GearInfo, to
   const who = addressOf(role);
   await approveMinter(ctx, row, role, g.token, ctx.c.ODMinter!);
   const t0 = await tokenOf(ctx, g.token, who), u0 = await usdgOf(ctx, who);
-  const q = await atNextSecond(ctx, async (t) => {
+  const { quote: q, exact } = await atNextSecond(ctx, async (t) => {
+    const b0 = await ctx.pub.getBlockNumber({ cacheTime: 0 });
     const quote = await minterQuote(ctx, t, g.id, false, true, tokens, who);
     try {
       row.chain(`${label}: V4Quoter sell == minter.quote`, await v4Quote(ctx, t, g.id, false, tokens), quote.amountOut);
@@ -713,11 +716,20 @@ export async function sellDirect(ctx: Ctx, row: Row, role: Role, g: GearInfo, to
       // D26: the hook takes the sold gear out of the PoolManager before the swapper settles, so the PoolManager must hold gear
       row.note("hook sell path reverts PoolManagerShort (no gear seeded in the PoolManager, backlog D26); direct minter sell asserted");
     }
-    await row.send(label, role, { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "sell", args: [g.id, tokens, 0n, who, t + 3600n] });
-    return quote;
+    const rec = await row.send(label, role, { address: ctx.c.ODMinter!, abi: IODMinterAbi as Abi, functionName: "sell", args: [g.id, tokens, 0n, who, t + 3600n] });
+    const r = await ctx.pub.getTransactionReceipt({ hash: rec.hash as Hex });
+    const blk = await ctx.pub.getBlock({ blockNumber: r.blockNumber });
+    return { quote, exact: r.blockNumber === b0 + 1n && blk.timestamp === t };
   });
   row.chain(`${label}: tokens burned`, t0 - (await tokenOf(ctx, g.token, who)), tokens);
-  row.chain(`${label}: USDG received == quote`, (await usdgOf(ctx, who)) - u0, q.amountOut);
+  const got = (await usdgOf(ctx, who)) - u0;
+  if (exact) row.chain(`${label}: USDG received == quote`, got, q.amountOut);
+  else {
+    // same rule as buyDirect: a service block landed between the quote and the send, so hold minOutSuggested instead
+    const floor = (q.amountOut * (10_000n - 50n)) / 10_000n;
+    row.note(`${label}: a service block landed between quote and send; asserted USDG >= minOutSuggested (${floor})`);
+    row.chainTrue(`${label}: USDG received >= minOutSuggested(quote)`, got >= floor, `${got} >= ${floor}`);
+  }
   return q;
 }
 
