@@ -56,7 +56,7 @@ jobs:
           contracts=true
           if [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
             && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            if [ -z "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- contracts .github/workflows/ci.yml)" ]; then contracts=false; fi
+            if [ -z "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- contracts .github/workflows/ci.yml .github/scripts/forge-logged.sh)" ]; then contracts=false; fi
           fi
           echo "contracts=$contracts"
           echo "contracts=$contracts" >> "$GITHUB_OUTPUT"
@@ -100,13 +100,18 @@ jobs:
       - name: semgrep (WARNING and ERROR fail)
         run: bash .github/scripts/semgrep.sh
 
+  # The contract checks are split so that every job fits a free hosted runner (4 cores, 16 GB). One via-ir build of
+  # every contract and every test does not: it used all 16 GB and 19 GB of swap, and the runner was killed after
+  # 36 min (earlier runs at 11 to 18 min without swap). `contracts` builds src/ and script/ and runs the static
+  # checks; `contracts-tests` runs every test suite in parallel shards. No job changes a compiler setting: each one
+  # compiles a subset of the files with the same foundry.toml (via_ir, optimizer_runs 200), and solc compiles each
+  # contract on its own, so the contracts under test have the same bytecode as the deployed ones.
   contracts:
+    name: contracts (checks, src build, code size)
     needs: changes
     if: ${{ !github.event.repository.private && needs.changes.outputs.contracts == 'true' }}
     runs-on: ubuntu-24.04
-    # A cold via-ir build of every contract and test is the slow path (well over 30 min on a 4-core runner); a cached
-    # build recompiles only what changed. The limit is for a hung job, not for the cold build.
-    timeout-minutes: 120
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: contracts
@@ -117,30 +122,15 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: ${{ env.FOUNDRY_VERSION }}
-      # forge's cache is keyed on file content, so a restored out/ + cache/ from an earlier commit recompiles only what
-      # changed. Restore and save are separate steps: the build is saved as soon as it succeeds, even when a later
-      # check or test fails, so one red run never forces the next run back onto the cold build.
       - id: forge-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             contracts/out
             contracts/cache
-          key: forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-${{ hashFiles('contracts/foundry.toml', 'contracts/src/**', 'contracts/test/**', 'contracts/script/**', 'contracts/lib/**') }}
+          key: forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-src-${{ hashFiles('contracts/foundry.toml', 'contracts/src/**', 'contracts/script/**', 'contracts/lib/**') }}
           restore-keys: |
-            forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-
-      # The cold build's earlier kills (exit 143 "runner has received a shutdown signal" at 11 to 18 min, "lost
-      # communication ... starves it for CPU/Memory" at 57 min) are the signature of a hosted VM running out of memory
-      # under one long via-ir solc process. 16 GB of extra swap turns memory pressure into a slower build instead of a
-      # killed VM; the monitor prints memory and swap every minute, so a kill that still happens names its cause.
-      - name: Add swap for the via-ir build
-        working-directory: .
-        run: |
-          sudo fallocate -l 16G /mnt/forge.swap
-          sudo chmod 600 /mnt/forge.swap
-          sudo mkswap /mnt/forge.swap
-          sudo swapon /mnt/forge.swap
-          free -m
+            forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-src-
       - name: check_no_failopen_pattern
         run: "! grep -rnE '!= 0\\) .*worse' src/oracle"
       - name: check_privileged_functions
@@ -153,16 +143,12 @@ jobs:
         run: python3 script/ci/slither-exceptions.py --check
       - name: check_roles_table
         run: python3 script/ci/roles-table.py --check
+      # Every test file is in exactly one shard of contracts-tests, and the matrix below names exactly those shards.
+      - name: check_test_shards
+        run: python3 script/ci/test-shards.py --check
       - run: forge fmt --check
-      - name: forge build (memory and swap logged every minute)
-        run: |
-          ( while sleep 60; do free -m | awk -v t="$SECONDS" '/^Mem:/{m=$3"/"$2} /^Swap:/{print "build t=" t "s mem used " m " MB, swap used " $3 "/" $2 " MB"}'; done ) &
-          monitor=$!
-          rc=0
-          forge build || rc=$?
-          kill "$monitor"
-          free -m
-          exit "$rc"
+      - name: forge build src and script (memory and swap logged every minute)
+        run: bash ../.github/scripts/forge-logged.sh build src script
       - if: ${{ steps.forge-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -172,11 +158,77 @@ jobs:
           key: ${{ steps.forge-cache.outputs.cache-primary-key }}
       - name: check_code_size
         run: python3 script/ci/code-size.py out
+
+  # Every test suite, in parallel shards (contracts/script/ci/test-shards.py holds the list; check_test_shards above
+  # fails when a test file is in no shard or in two). A shard compiles only its own test directories and what they
+  # import. Measured 2026-11-16 on an 18 GB Mac, each shard cold in its own out/ and cache/, one at a time (peak
+  # resident memory of the compiler, compile plus test time, suites, tests):
+  #   governor   2.4 GB  3.6 min  25 suites 151 tests      oracle     2.4 GB  3.6 min  27 suites 293 tests
+  #   poc        3.4 GB  5.4 min  25 suites  80 tests      system     1.8 GB  7.5 min  21 suites  76 tests
+  #   backer     1.8 GB  6.4 min  23 suites 155 tests      invariant  1.9 GB  4.7 min  19 suites  72 tests
+  # Together: 140 suites (all of them), 827 tests. The src and script build of `contracts`: 1.7 GB,
+  # 0.9 min. The 32 contracts of src/ that have bytecode came out byte for byte the same in all seven builds.
+  contracts-tests:
+    name: contracts tests (${{ matrix.shard }})
+    needs: changes
+    if: ${{ !github.event.repository.private && needs.changes.outputs.contracts == 'true' }}
+    runs-on: ubuntu-24.04
+    # A cold shard build is the slow path; a cached one recompiles only what changed. The limit is for a hung job.
+    timeout-minutes: 60
+    strategy:
+      # One red shard never hides the others: every suite reports on every run.
+      fail-fast: false
+      matrix:
+        shard: [governor, poc, backer, oracle, system, invariant]
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+      # forge's cache is keyed on file content, so a restored out/ + cache/ from an earlier commit recompiles only what
+      # changed. One cache per shard (a shard's out/ holds only its own artifacts). Restore and save are separate
+      # steps, and the save also runs when a test fails, so one red run never forces the next run back onto the cold
+      # build.
+      - id: forge-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            contracts/out
+            contracts/cache
+          key: forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-tests-${{ matrix.shard }}-${{ hashFiles('contracts/foundry.toml', 'contracts/src/**', 'contracts/test/**', 'contracts/script/**', 'contracts/lib/**') }}
+          restore-keys: |
+            forge-${{ runner.os }}-${{ env.FOUNDRY_VERSION }}-tests-${{ matrix.shard }}-
+      # A safety net, not the plan: every shard is sized to build inside the runner's 16 GB. If one ever outgrows it,
+      # swap turns the memory pressure into a slower build instead of a killed runner, and the memory log shows it.
+      - name: Add swap
+        working-directory: .
+        run: |
+          sudo fallocate -l 8G /mnt/forge.swap
+          sudo chmod 600 /mnt/forge.swap
+          sudo mkswap /mnt/forge.swap
+          sudo swapon /mnt/forge.swap
+          free -m
+      # `forge test --match-path` compiles only the matching test files and what they import, then runs them. (A
+      # separate `forge build <dirs>` first does not help: forge test compiles its own file set again.)
       # Fork tests skip themselves: there is no secret RPC in CI. Where one is set (ci-local) they fork the pinned
       # block in test/utils/ForkPin.sol, never the latest block.
-      - run: forge test -vv
+      - name: forge test of this shard (compile memory and swap logged every minute)
         env:
+          SHARD: ${{ matrix.shard }}
           FOUNDRY_FUZZ_SEED: "0x5eed"
+        run: bash ../.github/scripts/forge-logged.sh test -vv --match-path "$(python3 script/ci/test-shards.py --glob "$SHARD")"
+      - if: ${{ !cancelled() && steps.forge-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            contracts/out
+            contracts/cache
+          key: ${{ steps.forge-cache.outputs.cache-primary-key }}
 
   app:
     name: app (typecheck, unit and database tests)
