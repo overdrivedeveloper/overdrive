@@ -15,7 +15,9 @@ mkdir -p "$T/bin" "$T/state"
 fail=0; n=0
 check() { local name="$1"; shift; n=$((n + 1)); if "$@"; then printf 'ok   %s\n' "$name"; else printf 'FAIL %s\n' "$name"; fail=$((fail + 1)); fi; }
 has() { grep -Fq -- "$2" <<<"$1"; }
-mode_of() { stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"; }
+# GNU stat reads -f as "file system status" and prints to stdout before failing, so pick the flavour once.
+if stat -c %a / >/dev/null 2>&1; then mode_of() { stat -c %a "$1"; }; else mode_of() { stat -f %Lp "$1"; }; fi
+export -f mode_of
 
 # ---------------------------------------------------------------- stubs (first on PATH)
 S="$T/state"; CALLS="$T/calls.log"; : >"$CALLS"
@@ -229,8 +231,8 @@ check "provision_idempotent_and_no_keys_touched: second run exits 0 and changes 
 check "  ... and issues no mutating call (user, package, swap, role, database, enable, reload, curl)" bash -c '! grep -E "^(useradd|apt-get|fallocate|mkswap|swapon|createdb|curl|psql CREATE|psql ALTER|ufw (allow|default|enable))|systemctl (enable|reload|restart|start|stop|daemon-reload)" "$1"' _ "$CALLS"
 check "  ... key files unchanged (bytes), never created or moved by provision" bash -c '[ "$(shasum "$1"/etc/overdrive/keys/* | shasum)" = "$2" ]' _ "$PROV" "$keyhash"
 check "  ... keys dir was empty of anything but the owner's files (no key generated)" bash -c '[ "$(ls "$1/etc/overdrive/keys" | wc -l | tr -d " ")" = 2 ]' _ "$PROV"
-check "  ... the key file is group-readable only by its service (own log + mode 440)" bash -c 'grep -q "own root:overdrive-crank /etc/overdrive/keys/crank.json" "$1/own.log" && [ "$(stat -f %Lp "$1/etc/overdrive/keys/crank.json" 2>/dev/null || stat -c %a "$1/etc/overdrive/keys/crank.json")" = 440 ]' _ "$PROV"
-check "  ... env files and db.env are mode 600, keys dir is empty-by-default 711" bash -c 'for f in overdrive.env db.env crank.env; do [ "$(stat -f %Lp "$1/etc/overdrive/$f" 2>/dev/null || stat -c %a "$1/etc/overdrive/$f")" = 600 ] || exit 1; done' _ "$PROV"
+check "  ... the key file is group-readable only by its service (own log + mode 440)" bash -c 'grep -q "own root:overdrive-crank /etc/overdrive/keys/crank.json" "$1/own.log" && [ "$(mode_of "$1/etc/overdrive/keys/crank.json")" = 440 ]' _ "$PROV"
+check "  ... env files and db.env are mode 600, keys dir is empty-by-default 711" bash -c 'for f in overdrive.env db.env crank.env; do [ "$(mode_of "$1/etc/overdrive/$f")" = 600 ] || exit 1; done' _ "$PROV"
 check "  ... the other project's Caddy files are byte for byte unchanged" bash -c '[ "$(shasum "$1/etc/caddy/Caddyfile" "$1/etc/caddy/conf.d/tenant.caddy" | shasum)" = "$2" ]' _ "$PROV" "$capcad"
 check "  ... Overdrive's site is its own file and names its domain and port" bash -c 'grep -q "api.get-overdrive.com" "$1/etc/caddy/conf.d/overdrive.caddy" && grep -q "127.0.0.1:38101" "$1/etc/caddy/conf.d/overdrive.caddy"' _ "$PROV"
 check "  ... api and mcp each get a rotated access log in Overdrive's own file names" bash -c 'f="$1/etc/caddy/conf.d/overdrive.caddy"; grep -q "output file /var/log/caddy/overdrive-api.log" "$f" && grep -q "roll_size 20MiB" "$f" && grep -q "roll_keep 5" "$f"' _ "$PROV"
@@ -313,7 +315,7 @@ out="$(provd)"; rc=$?; cp "$CALLS" "$T/calls.dock1"
 check "docker mode (default) first run succeeds" bash -c '[ "$1" = 0 ] || { echo "$2"; exit 1; }' _ "$rc" "$out"
 check "  ... exactly one docker run: own name, 127.0.0.1:5433 only, own volume, unless-stopped, 512m, exact image tag" bash -c 'r="$(grep "^docker run" "$1")"; [ "$(grep -c "^docker run" "$1")" = 1 ] && grep -q -- "--name overdrive-db-postgres " <<<"$r" && grep -q -- "-p 127.0.0.1:5433:5432" <<<"$r" && grep -q -- "-v overdrive-pgdata:/var/lib/postgresql/data" <<<"$r" && grep -q -- "--restart unless-stopped" <<<"$r" && grep -q -- "--memory 512m" <<<"$r" && grep -qE " postgres:16\.[0-9]+(-[a-z]+)?( |$)| postgres:16[^ ]*@sha256:" <<<"$r"' _ "$T/calls.dock1"
 check "  ... the roles are made inside the container (overdrive_api read-only), the other project's database is untouched" bash -c 'grep -q "^docker exec -i overdrive-db-postgres psql" "$1" && grep -q "psql CREATE ROLE overdrive_api" "$1" && ! grep -q "psql CREATE ROLE overdrive$" "$1" && ! grep -q tenant "$1"' _ "$T/calls.dock1"
-check "  ... db.env points at port 5433, is mode 600, and no password is printed or on any command line" bash -c 'grep -q "^DATABASE_URL=postgres://overdrive:[0-9a-f]\{48\}@127.0.0.1:5433/overdrive$" "$1/etc/overdrive/db.env" && [ "$(stat -f %Lp "$1/etc/overdrive/db.env" 2>/dev/null || stat -c %a "$1/etc/overdrive/db.env")" = 600 ] && pw="$(sed -n "s#^DATABASE_URL=postgres://overdrive:\([^@]*\)@.*#\1#p" "$1/etc/overdrive/db.env")" && ! grep -q "$pw" "$2" && ! grep -q "$pw" <<<"$3"' _ "$PD" "$T/calls.dock1" "$out"
+check "  ... db.env points at port 5433, is mode 600, and no password is printed or on any command line" bash -c 'grep -q "^DATABASE_URL=postgres://overdrive:[0-9a-f]\{48\}@127.0.0.1:5433/overdrive$" "$1/etc/overdrive/db.env" && [ "$(mode_of "$1/etc/overdrive/db.env")" = 600 ] && pw="$(sed -n "s#^DATABASE_URL=postgres://overdrive:\([^@]*\)@.*#\1#p" "$1/etc/overdrive/db.env")" && ! grep -q "$pw" "$2" && ! grep -q "$pw" <<<"$3"' _ "$PD" "$T/calls.dock1" "$out"
 check "  ... provision.conf records PG_MODE=docker (backup and deploy follow it)" grep -q "^PG_MODE=docker" "$PD/etc/overdrive/provision.conf"
 check "  ... the other project's Caddy files are unchanged and no new swap was made (swap already existed)" bash -c '[ "$(shasum "$1/etc/caddy/Caddyfile" "$1/etc/caddy/conf.d/tenant.caddy" | shasum)" = "$2" ] && ! grep -qE "^(fallocate|mkswap|swapon)" "$3"' _ "$PD" "$capd" "$T/calls.dock1"
 snapd1="$(snapshot "$PD")"; : >"$CALLS"; out2="$(provd)"; rc2=$?; snapd2="$(snapshot "$PD")"
@@ -329,7 +331,10 @@ check "docker mode refuses any port but 5433 (never the other project's 5432)" b
 PD3="$T/pd3"; newprovd "$PD3"; PROV="$PD3"; provd >/dev/null; echo exited >"$S/containers/overdrive-db-postgres"; : >"$CALLS"; out="$(provd)"; rc=$?
 check "stopped overdrive container: started (not recreated), still only overdrive names" bash -c '[ "$1" = 0 ] && grep -q "^docker start overdrive-db-postgres" "$2" && ! grep -q "^docker run" "$2"' _ "$rc" "$CALLS"
 # no docker at all: refused clearly, host mode unaffected
-PD4="$T/pd4"; newprovd "$PD4"; PROV="$PD4"; mv "$T/bin/docker" "$T/docker.off"; out="$(env OD_TEST_ROOT="$PD4" PATH="$T/bin:/usr/bin:/bin" bash "$PROVISION" 2>&1)"; rc=$?; mv "$T/docker.off" "$T/bin/docker"
+# The host may have a real docker in /usr/bin (GitHub runners do), so PATH is the stubs plus a copy of /usr/bin and /bin
+# made of symlinks that leaves docker out.
+mkdir -p "$T/nodocker"; for d in /usr/bin /bin; do for f in "$d"/*; do b="${f##*/}"; case "$b" in docker|docker-*) continue;; esac; [ -x "$f" ] && [ ! -e "$T/nodocker/$b" ] && ln -s "$f" "$T/nodocker/$b"; done; done
+PD4="$T/pd4"; newprovd "$PD4"; PROV="$PD4"; mv "$T/bin/docker" "$T/docker.off"; out="$(env OD_TEST_ROOT="$PD4" PATH="$T/bin:$T/nodocker" bash "$PROVISION" 2>&1)"; rc=$?; mv "$T/docker.off" "$T/bin/docker"
 check "docker mode without docker installed: refused, nothing changed" bash -c '[ "$1" != 0 ] && grep -q "needs docker" <<<"$2" && [ ! -e "$3/etc/overdrive" ]' _ "$rc" "$out" "$PD4"
 # backup in docker mode dumps from the container
 B2="$T/b2"; mkdir -p "$B2/etc/overdrive" "$B2/var/backups/overdrive"; : >"$CALLS"
