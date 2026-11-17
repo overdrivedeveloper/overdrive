@@ -69,7 +69,7 @@ job_hygiene() {
     && gitleaks git . --config .github/gitleaks.toml --redact --no-banner
 }
 job_semgrep() { bash .github/scripts/semgrep.sh; }
-job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && check_audit_scope && check_natspec && check_slither_exceptions && check_roles_table && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
+job_contracts() { check_no_failopen_pattern && check_stake_usage && check_privileged_functions && check_audit_scope && check_natspec && check_slither_exceptions && check_roles_table && (cd contracts && python3 script/ci/test-shards.py --check) && (cd contracts && forge fmt --check && forge build) && check_code_size && (cd contracts && forge test $FORK_FLAGS); }
 job_slither() { bash .github/scripts/slither.sh; }
 job_app() { (cd app && bun install --frozen-lockfile && bun test && bunx tsc --noEmit); }
 job_guard() { .githooks/public-guard.sh && bash .github/scripts/guard.test.sh && bash .github/scripts/pre-push.test.sh; }
