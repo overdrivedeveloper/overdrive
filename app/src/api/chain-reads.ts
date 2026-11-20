@@ -167,6 +167,7 @@ export function createApiChain(client: PublicClient, deployment: Deployment, quo
     },
     stakeAccount: async (account) => {
       const stake = deployment.contracts.ODStake as `0x${string}`;
+      if (!stake) throw new Error("ODStake is not deployed yet");
       const blockNumber = await client.getBlockNumber();
       const ovrd = await client.readContract({ address: stake, abi: stakeExtraAbi, functionName: "ovrd", blockNumber });
       const [balance, discount] = await Promise.all([

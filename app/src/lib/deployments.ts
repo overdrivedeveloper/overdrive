@@ -69,7 +69,13 @@ function assertChecksums(value: unknown, path: string): void {
   }
 }
 
-/** Validates an object against the schema, the checksum rule and the "empty contracts only on anvil" rule. */
+/**
+ * Contracts that may be empty on any network. ODStake: mainnet deploys in two phases, the system before the $OVRD token
+ * exists and the stake after (contracts/script/DeployStake.s.sol), so a phase 1 record has no stake.
+ */
+export const OPTIONAL_CONTRACTS: ReadonlySet<string> = new Set(["ODStake"]);
+
+/** Validates an object against the schema, the checksum rule and the "empty contracts only on anvil" rule (OPTIONAL_CONTRACTS aside). */
 export function parseDeployment(raw: unknown): Deployment {
   if (!validate(raw)) {
     throw new Error(`deployment: schema violation: ${ajv.errorsText(validate.errors)}`);
@@ -78,7 +84,7 @@ export function parseDeployment(raw: unknown): Deployment {
   const d = raw as unknown as Deployment;
   if (d.network !== "anvil") {
     for (const [name, addr] of Object.entries(d.contracts)) {
-      if (addr === "") throw new Error(`deployment: contracts.${name} is empty on network ${d.network}`);
+      if (addr === "" && !OPTIONAL_CONTRACTS.has(name)) throw new Error(`deployment: contracts.${name} is empty on network ${d.network}`);
     }
   }
   return d;

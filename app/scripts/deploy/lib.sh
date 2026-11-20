@@ -60,6 +60,7 @@ stage_handoff() {
   tl="$(timelock_of)"
   for core in ODMarketHours ODOracleGuard ODVolOracle ODGearRegistry ODInsurance ODFees ODGovernor ODMinter ODBacker ODHook ODStake; do
     a="$(addr_of "$core")"
+    [ -n "$a" ] || continue # ODStake is empty until phase 2 (DeployStake.s.sol)
     if [ "$("$CAST" call "$a" 'hasRole(bytes32,address)(bool)' "$ADMIN_ROLE" "$tl" --rpc-url "$RPC")" != "true" ]; then pending=1; fi
     if [ "$("$CAST" call "$a" 'hasRole(bytes32,address)(bool)' "$ADMIN_ROLE" "$OD_DEPLOYER" --rpc-url "$RPC")" = "true" ]; then pending=1; fi
   done

@@ -15,7 +15,8 @@ import json, sys
 c = json.load(open(sys.argv[1]))
 zero = "0x" + "0" * 40
 bad = [k for k, v in c["roles"].items() if v == zero]
-bad += [k for k in ("usdg", "poolManager", "pythCore", "entryPoint", "createX", "ovrd") if c["external"][k] == zero]
+# external.ovrd may stay zero: the system deploys without ODStake and DeployStake.s.sol adds it after the token launch
+bad += [k for k in ("usdg", "poolManager", "pythCore", "entryPoint", "createX") if c["external"][k] == zero]
 if not c["hookSeed"]["approvedByOwner"]:
     bad.append("hookSeed.approvedByOwner")
 if bad:
@@ -52,3 +53,6 @@ stage_check
 stage_sourcify
 stage_batch
 say "deploy-mainnet: finished. Next: the owner's deposit (D8), the hook seeds (D26), then schedule the list-gears batch."
+if [ -z "$(addr_of ODStake)" ]; then
+  say "deploy-mainnet: no ODStake yet (no \$OVRD). After the token launch: DeployStake.s.sol, then schedule the wire-stake batch."
+fi
