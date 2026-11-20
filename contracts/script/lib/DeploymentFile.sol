@@ -133,7 +133,7 @@ abstract contract DeploymentFile is SystemDeployer {
             ", ",
             _kv("ODFees", _a(d.fees)),
             ", ",
-            _kv("ODStake", _a(d.stake)),
+            _kv("ODStake", d.stake == address(0) ? '""' : _a(d.stake)),
             ", ",
             _kv("ODAgentRouter", _a(d.agentRouter)),
             ", ",
@@ -254,7 +254,8 @@ abstract contract DeploymentFile is SystemDeployer {
         return v < 10 ? string.concat("0", vm.toString(v)) : vm.toString(v);
     }
 
-    /// Reads a deployments json back into `Deployed` (timelock from admin, ovrd from the stake contract).
+    /// Reads a deployments json back into `Deployed` (timelock from admin, ovrd from the stake contract). An empty
+    /// ODStake (phase 1, no $OVRD yet) reads as the zero address.
     function readDeployment(string memory j) public view returns (Deployed memory d) {
         d.timelock = vm.parseJsonAddress(j, ".admin.timelock");
         d.usdg = vm.parseJsonAddress(j, ".external.usdg");
@@ -270,10 +271,16 @@ abstract contract DeploymentFile is SystemDeployer {
         d.minter = vm.parseJsonAddress(j, ".contracts.ODMinter");
         d.backer = vm.parseJsonAddress(j, ".contracts.ODBacker");
         d.hook = vm.parseJsonAddress(j, ".contracts.ODHook");
-        d.stake = vm.parseJsonAddress(j, ".contracts.ODStake");
+        d.stake = _optionalAddress(j, ".contracts.ODStake");
         d.agentRouter = vm.parseJsonAddress(j, ".contracts.ODAgentRouter");
         d.paymaster = vm.parseJsonAddress(j, ".contracts.ODPaymaster");
         d.startBlock = vm.parseJsonUint(j, ".startBlock");
         if (d.stake.code.length != 0) d.ovrd = address(ODStake(d.stake).ovrd());
+    }
+
+    function _optionalAddress(string memory j, string memory key) internal view returns (address) {
+        if (!vm.keyExistsJson(j, key)) return address(0);
+        string memory v = vm.parseJsonString(j, key);
+        return bytes(v).length == 0 ? address(0) : vm.parseAddress(v);
     }
 }

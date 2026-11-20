@@ -82,8 +82,9 @@ contract DeploySystemTest is DeployFixture {
         assertEq(m.markets.length, 5);
         assertFalse(m.seedApproved, "hook seed figures wait for the owner");
         vm.chainId(4663);
-        // Roles are filled from the live Safes and bot wallets; $OVRD comes from the launchpad on launch day (D11).
-        vm.expectRevert(abi.encodeWithSelector(SystemConfig.ConfigRefused.selector, "placeholder ovrd"));
+        // Roles are filled from the live Safes and bot wallets; $OVRD comes from the launchpad on launch day (D11), so
+        // mainnet deploys in two phases: the system now without ODStake, the stake later (DeployStake).
+        assertTrue(ds.stakeLater(m), "mainnet waits for $OVRD");
         ds.validateConfig(m);
     }
 

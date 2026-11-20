@@ -183,7 +183,10 @@ abstract contract SystemChecks is DeploymentFile {
             d.paymaster
         ];
         ok = true;
+        // Phase 1 (no $OVRD yet): ovrd and stake are both absent. One without the other is a broken record.
+        bool noStake = d.stake == address(0) && d.ovrd == address(0);
         for (uint256 i; i < all.length; ++i) {
+            if (noStake && (i == 2 || i == 15)) continue;
             if (all[i] == address(0) || all[i].code.length == 0) {
                 _fail(a, "CODE", string.concat("no code at slot ", vm.toString(i), " ", vm.toString(all[i])));
                 ok = false;
@@ -231,13 +234,11 @@ abstract contract SystemChecks is DeploymentFile {
         _eq(a, d.registry, "factory()", d.factory, "registry.factory");
         _eq(a, d.minter, "hook()", d.hook, "minter.hook");
         _eq(a, d.minter, "poolManager()", d.poolManager, "minter.poolManager");
-        _eq(a, d.minter, "stake()", d.stake, "minter.stake");
         _eq(a, d.minter, "governor()", d.governor, "minter.governor");
         _eq(a, d.minter, "registry()", d.registry, "minter.registry");
         _eq(a, d.minter, "guard()", d.guard, "minter.guard");
         _eq(a, d.minter, "vol()", d.vol, "minter.vol");
         _eq(a, d.minter, "fees()", d.fees, "minter.fees");
-        _eq(a, d.backer, "stake()", d.stake, "backer.stake");
         _eq(a, d.backer, "minter()", d.minter, "backer.minter");
         _eq(a, d.backer, "governor()", d.governor, "backer.governor");
         _eq(a, d.backer, "registry()", d.registry, "backer.registry");
@@ -252,9 +253,6 @@ abstract contract SystemChecks is DeploymentFile {
         _eq(a, d.hook, "governor()", d.governor, "hook.governor");
         _eq(a, d.insurance, "governor()", d.governor, "insurance.governor");
         _eq(a, d.insurance, "backer()", d.backer, "insurance.backer");
-        _eq(a, d.stake, "governor()", d.governor, "stake.governor");
-        _eq(a, d.stake, "backer()", d.backer, "stake.backer");
-        _eq(a, d.stake, "ovrd()", d.ovrd, "stake.ovrd");
         _eq(a, d.agentRouter, "MINTER()", d.minter, "agentRouter.MINTER");
         _eq(a, d.agentRouter, "BACKER()", d.backer, "agentRouter.BACKER");
         _eq(a, d.agentRouter, "REGISTRY()", d.registry, "agentRouter.REGISTRY");
@@ -267,14 +265,66 @@ abstract contract SystemChecks is DeploymentFile {
         if (_getB(d.fees, abi.encodeWithSelector(sel, f.B_GOVERNOR())) != d.governor) {
             _fail(a, "WIRING", "fees GOVERNOR");
         }
-        if (_getB(d.fees, abi.encodeWithSelector(sel, f.B_STAKERS())) != d.stake) _fail(a, "WIRING", "fees STAKERS");
         if (_getB(d.fees, abi.encodeWithSelector(sel, f.B_TREASURY())) != c.roles.treasury) {
             _fail(a, "WIRING", "fees TREASURY");
         }
+        _checkStakeWiring(a, c, d);
+        if (!f.isNotifier(d.governor) || !f.isNotifier(d.backer)) _fail(a, "WIRING", "fees notifiers");
+    }
+
+    /// Phase 1: no stake anywhere and the STAKERS share addressed to the treasury (held in ODFees). Phase 2: the stake
+    /// is wired into the minter, the backer and the STAKERS bucket (after the DeployStake batch).
+    function _checkStakeWiring(Acc memory a, Config memory c, Deployed memory d) private view {
+        address stakersTo = _getB(d.fees, abi.encodeWithSignature("recipientOf(bytes32)", ODFees(d.fees).B_STAKERS()));
+        _eq(a, d.minter, "stake()", d.stake, "minter.stake");
+        _eq(a, d.backer, "stake()", d.stake, "backer.stake");
+        if (d.stake == address(0)) {
+            if (stakersTo != c.roles.treasury) _fail(a, "WIRING", "fees STAKERS (no stake yet: treasury)");
+            return;
+        }
+        if (stakersTo != d.stake) _fail(a, "WIRING", "fees STAKERS");
+        _checkStakeOwn(a, c, d);
+    }
+
+    /// The stake contract itself: immutables and its two operational roles.
+    function _checkStakeOwn(Acc memory a, Config memory c, Deployed memory d) private view {
+        _eq(a, d.stake, "governor()", d.governor, "stake.governor");
+        _eq(a, d.stake, "backer()", d.backer, "stake.backer");
+        _eq(a, d.stake, "ovrd()", d.ovrd, "stake.ovrd");
+        _eq(a, d.stake, "usdg()", d.usdg, "stake.usdg");
         if (!IAccessControl(d.stake).hasRole(ODStake(d.stake).FEES_ROLE(), d.fees)) {
             _fail(a, "WIRING", "stake FEES_ROLE");
         }
-        if (!f.isNotifier(d.governor) || !f.isNotifier(d.backer)) _fail(a, "WIRING", "fees notifiers");
+        _role(
+            a,
+            d.stake,
+            ODRoles.GUARDIAN_ROLE,
+            c.roles.guardianSafe,
+            true,
+            "guardian Safe missing GUARDIAN_ROLE on stake"
+        );
+    }
+
+    /// Phase 2, before the batch runs: the new stake alone (code, immutables, roles, admin with the timelock only).
+    function checkStakeDeployed(Config memory c, Deployed memory d, address deployer)
+        public
+        view
+        returns (string[] memory out)
+    {
+        Acc memory a = Acc(new string[](32), 0);
+        if (d.stake == address(0) || d.stake.code.length == 0) {
+            _fail(a, "CODE", "no code at the stake");
+        } else {
+            _checkStakeOwn(a, c, d);
+            _role(a, d.stake, 0x00, d.timelock, true, "timelock not admin of the stake");
+            _role(a, d.stake, 0x00, deployer, false, "deployer still admin of the stake");
+            _role(a, d.stake, ODRoles.GUARDIAN_ROLE, deployer, false, "deployer guardian of the stake");
+        }
+        uint256 n = a.n < a.f.length ? a.n : a.f.length;
+        out = a.f;
+        assembly {
+            mstore(out, n)
+        }
     }
 
     function _role(Acc memory a, address core, bytes32 role, address who, bool want, string memory what) private view {
@@ -301,7 +351,6 @@ abstract contract SystemChecks is DeploymentFile {
         for (uint256 i; i < guarded.length; ++i) {
             _role(a, guarded[i], ODRoles.GUARDIAN_ROLE, r.guardianSafe, true, "guardian Safe missing GUARDIAN_ROLE");
         }
-        _role(a, d.stake, ODRoles.GUARDIAN_ROLE, r.guardianSafe, true, "guardian Safe missing GUARDIAN_ROLE on stake");
         _role(a, d.governor, ODRoles.HEDGER_ROLE, r.hedger, true, "hedger bot missing HEDGER_ROLE");
         _role(a, d.marketHours, ODRoles.KEEPER_ROLE, r.keeper, true, "keeper bot missing KEEPER_ROLE");
         if (r.guardianSafe == r.ownerSafe || r.guardianSafe == r.keeper || r.guardianSafe == r.hedger) {

@@ -125,6 +125,7 @@ abstract contract SystemDeployer is SystemConfig {
     function _deployAll(Config memory c, address me) internal returns (Deployed memory d) {
         d.startBlock = vm.envOr("OD_START_BLOCK", _l2Block());
         d.usdg = c.dev.usdg ? address(new ODDevToken("Test USDG", "tUSDG", 6)) : c.ext.usdg;
+        // Phase 1 (stakeLater): no $OVRD yet, so no ODStake; DeployStake adds it after the token launch.
         d.ovrd = c.dev.ovrd ? address(new ODDevToken("Test OVRD", "tOVRD", 18)) : c.ext.ovrd;
         d.poolManager = c.dev.poolManager ? address(new PoolManager(c.roles.ownerSafe)) : c.ext.poolManager;
         {
@@ -181,7 +182,7 @@ abstract contract SystemDeployer is SystemConfig {
                 d.fees
             )
         );
-        d.stake = address(new ODStake(IERC20(d.ovrd), usdg, me, d.governor, d.backer));
+        if (d.ovrd != address(0)) d.stake = newStake(d, me);
         d.agentRouter =
             address(new ODAgentRouter(usdg, IODMinter(d.minter), IODBacker(d.backer), IODGearRegistry(d.registry)));
         d.hook = _deployHook(c, me, d);
@@ -239,18 +240,33 @@ abstract contract SystemDeployer is SystemConfig {
         ODFees fees = ODFees(d.fees);
         fees.setNotifier(d.governor, true);
         fees.setNotifier(d.backer, true);
-        fees.setRecipient(fees.B_STAKERS(), d.stake);
+        // Without a stake the STAKERS share is addressed to the treasury; ODFees pays that bucket only through
+        // notifyRewards, so it stays held in ODFees until the phase 2 batch points the bucket at the stake.
+        fees.setRecipient(fees.B_STAKERS(), d.stake == address(0) ? c.roles.treasury : d.stake);
         fees.setRecipient(fees.B_TREASURY(), c.roles.treasury);
         fees.setRecipient(fees.B_KEEPERS(), c.roles.keeper);
         fees.setRecipient(fees.B_HEDGERS(), c.roles.hedger);
+        if (d.stake != address(0)) setupStake(d, c.roles.guardianSafe);
+        ODMinter(d.minter).setHook(d.hook);
+        if (d.stake != address(0)) {
+            ODMinter(d.minter).setStake(d.stake);
+            ODBacker(d.backer).setStake(d.stake);
+        }
+        ODBacker(d.backer).setMintPaused(true);
+    }
+
+    /// ODStake with the deployer `me` as its first admin (handed to the timelock by `_handoff`).
+    function newStake(Deployed memory d, address me) internal returns (address) {
+        return address(new ODStake(IERC20(d.ovrd), IERC20(d.usdg), me, d.governor, d.backer));
+    }
+
+    /// The stake's own roles, the same in the one-phase deploy and in DeployStake: ODFees may notify rewards, the
+    /// guardian Safe may pause, and deposits start paused (D10).
+    function setupStake(Deployed memory d, address guardianSafe) internal {
         ODStake st = ODStake(d.stake);
         st.grantRole(st.FEES_ROLE(), d.fees);
-        st.grantRole(ODRoles.GUARDIAN_ROLE, c.roles.guardianSafe);
+        st.grantRole(ODRoles.GUARDIAN_ROLE, guardianSafe);
         st.setDepositsPaused(true);
-        ODMinter(d.minter).setHook(d.hook);
-        ODMinter(d.minter).setStake(d.stake);
-        ODBacker(d.backer).setStake(d.stake);
-        ODBacker(d.backer).setMintPaused(true);
     }
 
     function _configureMarkets(Config memory c, Deployed memory d) internal {
@@ -290,9 +306,9 @@ abstract contract SystemDeployer is SystemConfig {
         }
     }
 
-    /// Every AccessControl core whose DEFAULT_ADMIN_ROLE goes to the timelock.
+    /// Every AccessControl core whose DEFAULT_ADMIN_ROLE goes to the timelock (the stake only once it exists).
     function adminCores(Deployed memory d) public pure returns (address[] memory a) {
-        a = new address[](11);
+        a = new address[](d.stake == address(0) ? 10 : 11);
         a[0] = d.marketHours;
         a[1] = d.guard;
         a[2] = d.vol;
@@ -303,7 +319,7 @@ abstract contract SystemDeployer is SystemConfig {
         a[7] = d.minter;
         a[8] = d.backer;
         a[9] = d.hook;
-        a[10] = d.stake;
+        if (d.stake != address(0)) a[10] = d.stake;
     }
 
     /// Idempotent: grants the timelock admin where missing and renounces `me` where held. Returns the steps taken.

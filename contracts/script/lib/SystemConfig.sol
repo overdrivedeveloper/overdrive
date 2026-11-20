@@ -8,7 +8,9 @@ import {Holiday} from "overdrive/interfaces/IODMarketHours.sol";
 /// @title SystemConfig
 /// @notice Reads `script/config/<network>.json` (or the raw JSON in `OD_CONFIG_JSON`, or the path in `OD_CONFIG`). A
 /// role or required external left at the zero address is a placeholder: the loader refuses it, so the deploy cannot run
-/// until the owner fills the file. Gear count is held under the registry cap (MAX_GEARS 32, 12 per market).
+/// until the owner fills the file. `external.ovrd` is the exception: at zero (with `dev.ovrd` false) the system deploys
+/// without ODStake and the stake follows in phase 2 (DeployStake.s.sol). Gear count is held under the registry cap
+/// (MAX_GEARS 32, 12 per market).
 abstract contract SystemConfig is ODScript {
     uint256 internal constant MIN_DELAY = 172800;
     uint256 internal constant MAX_GEARS = 32;
@@ -240,6 +242,12 @@ abstract contract SystemConfig is ODScript {
         return string(out);
     }
 
+    /// True when the config names no $OVRD (no address yet, no test token): the system deploys without ODStake (phase
+    /// 1) and DeployStake adds it once the token exists (phase 2, one timelock batch wires it).
+    function stakeLater(Config memory c) public pure returns (bool) {
+        return !c.dev.ovrd && c.ext.ovrd == address(0);
+    }
+
     /// Refuses a config that still holds a placeholder, uses a test token on mainnet, breaks the gear caps or names a
     /// chain other than the RPC's (a fork accepts 4663 and anvil's 31337).
     function validateConfig(Config memory c) public view {
@@ -263,7 +271,6 @@ abstract contract SystemConfig is ODScript {
         }
         if (r.keeper == r.ownerSafe || r.hedger == r.ownerSafe) revert ConfigRefused("a bot is the owner Safe");
         if (!c.dev.usdg && c.ext.usdg == address(0)) revert ConfigRefused("placeholder usdg");
-        if (!c.dev.ovrd && c.ext.ovrd == address(0)) revert ConfigRefused("placeholder ovrd");
         if (!c.dev.poolManager && c.ext.poolManager == address(0)) revert ConfigRefused("placeholder poolManager");
         if (c.ext.entryPoint == address(0)) revert ConfigRefused("placeholder entryPoint");
         if (_isRealChain(c.chainId) && c.ext.createX == address(0)) revert ConfigRefused("placeholder createX");
