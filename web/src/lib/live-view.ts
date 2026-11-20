@@ -191,6 +191,32 @@ export function quoteAmountRows(q: Pick<Quote, 'execution' | 'output' | 'minimum
   return [pay, est, min, {label: 'How it is paid', value: q.settlement || EXIT_QUEUED_RULE, num: false}];
 }
 
+export const EXIT_VALUE_LABEL = 'Exit value now';
+export const EXIT_VALUE_UNAVAILABLE = 'Not available right now';
+export const EXIT_VALUE_NOTE = 'What selling these tokens right after buying would pay at this block. A buy uses the higher of the two price sources and a sell the lower, so a round trip can cost more than the two spreads.';
+
+/**
+ * The buy review's exit value: the sell quote for exactly the tokens this buy receives, and the round trip against what
+ * the buy pays. Null for a sell ticket. A sell that would only queue, or no sell quote, says so instead of a number.
+ */
+export function exitValueRow(
+  q: Pick<Quote, 'output'> & {input: {side: 'buy' | 'sell'; input: Amount}},
+  sell: {buyable: boolean; sellMode: string | null; usdgOut: string | null} | null,
+): {label: string; value: string; num: boolean; roundTripPct: string | null} | null {
+  if (q.input.side !== 'buy') return null;
+  const none = {label: EXIT_VALUE_LABEL, value: EXIT_VALUE_UNAVAILABLE, num: false, roundTripPct: null};
+  if (!q.output || !sell || !sell.buyable || sell.sellMode === 'queued' || sell.usdgOut === null || !/^\d+$/.test(sell.usdgOut)) return none;
+  const paid = BigInt(q.input.input.baseUnits);
+  if (paid <= 0n) return none;
+  const out = BigInt(sell.usdgOut);
+  // signed percent with two decimals, rounded toward zero, from integers only
+  const bp = ((out - paid) * 10_000n) / paid;
+  const abs = bp < 0n ? -bp : bp;
+  const pctText = `${bp < 0n ? '-' : bp > 0n ? '+' : ''}${abs / 100n}.${(abs % 100n).toString().padStart(2, '0')}%`;
+  const usdg = {token: q.input.input.token, baseUnits: sell.usdgOut};
+  return {label: EXIT_VALUE_LABEL, value: `${amountLine(usdg, 2)} (round trip ${pctText})`, num: true, roundTripPct: pctText};
+}
+
 /**
  * The pending line for a queued sell sent from this session. `seen` is true once the ticket has appeared in the queue;
  * a ticket that was seen and is gone has settled (filled or cancelled), so the line says only that it left the queue.

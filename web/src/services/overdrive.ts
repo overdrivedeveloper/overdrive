@@ -27,6 +27,9 @@ export function toServiceError(status: number, body: unknown): ServiceError {
   return {code: 'SERVICE_UNAVAILABLE', message: `The service answered ${status}.`, retryable: status >= 500 || status === 429};
 }
 
+/** The fields of the /v1/quote document the exit-value line reads (USDG out in 6 dp base units). */
+export type SellValueDoc = {buyable: boolean; sellMode: 'instant' | 'instant_min' | 'queued' | null; usdgOut: string | null; blockNumber: string};
+
 export function createOverdriveService(config: ServiceConfig, fetchImpl: FetchLike = (i, o) => fetch(i, o)) {
   const base = config.apiOrigin.replace(/\/$/, '');
   async function call<T>(procedure: string, query?: Record<string, string | undefined>, body?: unknown, signal?: AbortSignal, path = `/v1/compat/${procedure}`): Promise<T> {
@@ -58,6 +61,9 @@ export function createOverdriveService(config: ServiceConfig, fetchImpl: FetchLi
     governorSnapshot: (signal?: AbortSignal) => call<Snapshot<GovernorSnapshot>>('governor.snapshot', {chainId: chain}, undefined, signal),
     stakeAccount: (account: Address, signal?: AbortSignal) => call<Snapshot<StakeAccount>>('stake.account', {account, chainId: chain}, undefined, signal),
     stakeQuoteAction: (input: StakeAction, signal?: AbortSignal) => call<ActionQuote>('stake.quoteAction', undefined, input, signal),
+    /** GET /v1/quote side=sell: what selling `tokens` (18 dp) would pay at this block. Needs no balance, so the buy review can
+     * show the exit value of the tokens it is about to buy. */
+    sellValue: (gearId: string, tokens: string, signal?: AbortSignal) => call<SellValueDoc>('quote', {gear: gearId, side: 'sell', tokens}, undefined, signal, '/v1/quote'),
     /** GET /v1/status: service heartbeats, including the hedger's mode (dry_run or live). */
     systemStatus: (signal?: AbortSignal) => call<SystemStatus>('status', undefined, undefined, signal, '/v1/status'),
     activityList: (account: Address, cursor?: string, signal?: AbortSignal) => call<Paged<AccountEvent>>('activity.list', {account, cursor, chainId: chain}, undefined, signal),

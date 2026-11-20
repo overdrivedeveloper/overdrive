@@ -7,7 +7,7 @@ import {useOverdriveWallet} from '../../hooks/useOverdriveWallet';
 import {WalletConnectOption} from '../../components/WalletConnectOption';
 import {amountText, useTradeQuote} from '../../hooks/useTradeQuote';
 import {useBackerAction, useBackerVaults, useGearSnapshot, useGovernorSnapshot, useExitQueue, useMarketList, usePortfolioPositions, useSystemStatus, useTradeStatus} from '../../hooks/useLive';
-import {NOT_LIVE, closedSellView, feedLine, queuedSellLine, quoteAmountRows, quoteRefusal, reviewButton, ticketMarket, tollPctText, governorCards, hedgerMode, hedgingLine, listedMarkets, marketCount, marketLive, portfolioView, splitCatalog, tollLine, vaultsView} from '../../lib/live-view';
+import {NOT_LIVE, closedSellView, exitValueRow, EXIT_VALUE_NOTE, feedLine, queuedSellLine, quoteAmountRows, quoteRefusal, reviewButton, ticketMarket, tollPctText, governorCards, hedgerMode, hedgingLine, listedMarkets, marketCount, marketLive, portfolioView, splitCatalog, tollLine, vaultsView} from '../../lib/live-view';
 import {I} from './icons';
 import '../../styles/tokens.css';
 import '../../styles/base.css';
@@ -41,10 +41,11 @@ function QuoteReview({trade,onClose,indexed,queue}:{trade:ReturnType<typeof useT
  const q=trade.quote;const r=trade.result;
  if(trade.loading)return <p>Asking the quote service for an executable price. Nothing is signed until you confirm.</p>;
  if(!q)return <><p>{trade.error?.message}</p><button className="od-primary" onClick={onClose}>Return to trade {I.up}</button></>;
- const btn=reviewButton(r,trade.flow);const done=btn.done;const closed=closedSellView(q);
+ const btn=reviewButton(r,trade.flow);const done=btn.done;const closed=closedSellView(q);const exitRow=exitValueRow(q,trade.exit);
  return <><p>{closed?closed.lead:'Review the exact amounts before your wallet asks for a signature.'}</p>
  {closed&&<dl className="od-quote-review">{closed.paths.map(o=><Fragment key={o.label}><dt>{o.label}</dt><dd>{o.rule}{o.current?' This quote.':''}</dd></Fragment>)}</dl>}
- <dl className="od-quote-review">{quoteAmountRows(q).map(row=><Fragment key={row.label}><dt>{row.label}</dt><dd className={row.num?'ui-num':undefined}>{row.value}</dd></Fragment>)}<dt>Daily toll</dt><dd className="ui-num">{tollPctText(q.dailyTollPct)}</dd><dt>Spread</dt><dd className="ui-num">{(q.spreadBps/100).toFixed(2)}%</dd><dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
+ <dl className="od-quote-review">{quoteAmountRows(q).map(row=><Fragment key={row.label}><dt>{row.label}</dt><dd className={row.num?'ui-num':undefined}>{row.value}</dd></Fragment>)}{exitRow&&<><dt>{exitRow.label}</dt><dd className={exitRow.num?'ui-num':undefined}>{exitRow.value}</dd></>}<dt>Daily toll</dt><dd className="ui-num">{tollPctText(q.dailyTollPct)}</dd><dt>Spread</dt><dd className="ui-num">{(q.spreadBps/100).toFixed(2)}%</dd><dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
+ {exitRow&&<p className="od-footnote">{EXIT_VALUE_NOTE}</p>}
  {trade.error&&<p role="alert">{trade.error.message}</p>}
  {r&&<p role="status">{r.kind==='confirmed'?`Confirmed in block ${r.blockNumber}.`:r.kind==='failed'?'The transaction reverted on chain. No tokens moved.':r.kind==='rejected'?'You rejected the request in your wallet. Nothing was sent.':r.kind==='account_changed'?'Your wallet account changed. Ask for a new quote for this account.':r.error.message}</p>}
  {r&&indexed&&<p role="status">{indexed}</p>}

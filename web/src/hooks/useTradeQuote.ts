@@ -2,7 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {formatUnits, parseUnits} from 'viem';
 import type {Quote, ServiceError} from '../services/contract';
 import {deploymentFor} from '../services/deployments';
-import {ServiceFailure, createOverdriveService, executeQuote, publicConfig, type Eip1193, type FlowResult, type FlowStatus} from '../services/overdrive';
+import {ServiceFailure, createOverdriveService, executeQuote, publicConfig, type Eip1193, type FlowResult, type FlowStatus, type SellValueDoc} from '../services/overdrive';
 
 export const service = createOverdriveService(publicConfig(import.meta.env as Record<string, string | undefined>));
 
@@ -19,13 +19,15 @@ export function useTradeQuote(wallet: Wallet) {
   const [loading, setLoading] = useState(false);
   const [flow, setFlow] = useState<FlowStatus | null>(null);
   const [result, setResult] = useState<FlowResult | null>(null);
+  /** Buys only: the sell quote for the tokens this buy receives (the exit value line); null until it answers or on failure. */
+  const [exit, setExit] = useState<SellValueDoc | null>(null);
   const version = useRef(0);
   const abort = useRef<AbortController | null>(null);
   const deployment = useMemo(() => deploymentFor(service.config.chainId), []);
 
   const reset = useCallback(() => {
     version.current += 1; abort.current?.abort(); abort.current = null;
-    setQuote(null); setError(null); setLoading(false); setFlow(null); setResult(null);
+    setQuote(null); setError(null); setLoading(false); setFlow(null); setResult(null); setExit(null);
   }, []);
   useEffect(() => { reset(); }, [wallet.address, wallet.chainId, reset]);
 
@@ -38,6 +40,12 @@ export function useTradeQuote(wallet: Wallet) {
     try {
       const q = await service.tradeQuote({chainId: service.config.chainId, account: wallet.address as `0x${string}`, gearId: r.gearId, side: r.side, input: {token: r.inputToken, baseUnits: r.baseUnits}, slippageBps: r.slippageBps}, controller.signal);
       if (mine === version.current) setQuote(q);
+      if (mine === version.current && r.side === 'buy' && q.execution === 'immediate' && q.output && BigInt(q.output.baseUnits) > 0n) {
+        // best effort: a failed sell quote leaves the line at "not available", never blocks the buy
+        service.sellValue(r.gearId, q.output.baseUnits, controller.signal)
+          .then((doc) => { if (mine === version.current) setExit(doc); })
+          .catch(() => undefined);
+      }
     } catch (e) {
       if (mine !== version.current || (e as {name?: string})?.name === 'AbortError') return;
       setError(e instanceof ServiceFailure ? e.error : {code: 'SERVICE_UNAVAILABLE', message: 'The quote could not be fetched.', retryable: true});
@@ -67,7 +75,7 @@ export function useTradeQuote(wallet: Wallet) {
     void request({gearId, side, baseUnits: baseUnits.toString(), slippageBps: Number.isFinite(slippageBps) ? slippageBps : 50, inputToken: token});
   }, [deployment, request, reset]);
 
-  return {quote, error, loading, flow, result, request, requestTicket, execute, reset, configured: Boolean(service.config.apiOrigin)};
+  return {quote, exit, error, loading, flow, result, request, requestTicket, execute, reset, configured: Boolean(service.config.apiOrigin)};
 }
 
 /** An Amount for display: exact decimal text from base units. */
