@@ -110,6 +110,7 @@ export function Closing({reduced}: {reduced: boolean}) {
           />
           <div className="absolute inset-x-0 bottom-0 flex flex-wrap justify-between gap-2 px-5 pb-4 font-mono text-[0.6rem] text-white/85 uppercase md:px-10">
             <span>{footer.note}</span>
+            <a href="/roadmap" className="link-underline">Roadmap</a>
             <span>{footer.year} Overdrive</span>
           </div>
         </div>

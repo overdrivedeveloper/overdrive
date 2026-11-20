@@ -35,6 +35,13 @@ export const ROUTES = [
     description: 'Browse the launch markets, compare the Cruise and Sport gears, and quote a trade on Robinhood Chain.',
     canonical: '/dashboard',
   },
+  {
+    path: '/roadmap',
+    file: 'roadmap.html',
+    title: 'Overdrive roadmap - the first 48 hours of updates',
+    description: 'The 24 launch updates in release order. An item shows LIVE only when its changelog entry exists. Nothing else is promised past update 24.',
+    canonical: '/roadmap',
+  },
 ];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

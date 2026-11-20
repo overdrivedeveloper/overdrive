@@ -1,0 +1,149 @@
+{
+  "note": "Generated from the release order of the first 48 hours. An item is LIVE only when its changelog entry exists in CHANGELOG.md (a line with its id, like update-1, or with \"Update 1: <title>\").",
+  "items": [
+    {
+      "id": "update-1",
+      "number": 1,
+      "day": 1,
+      "title": "Health route with indexer lag"
+    },
+    {
+      "id": "update-2",
+      "number": 2,
+      "day": 1,
+      "title": "Status page"
+    },
+    {
+      "id": "update-3",
+      "number": 3,
+      "day": 1,
+      "title": "Markets status route"
+    },
+    {
+      "id": "update-4",
+      "number": 4,
+      "day": 1,
+      "title": "Toll and move calculators"
+    },
+    {
+      "id": "update-5",
+      "number": 5,
+      "day": 1,
+      "title": "Clear closed and stale price errors"
+    },
+    {
+      "id": "update-6",
+      "number": 6,
+      "day": 1,
+      "title": "Market strip and closed-market banner"
+    },
+    {
+      "id": "update-7",
+      "number": 7,
+      "day": 1,
+      "title": "Toll and value history routes"
+    },
+    {
+      "id": "update-8",
+      "number": 8,
+      "day": 1,
+      "title": "Gear page: toll history chart and honest limits"
+    },
+    {
+      "id": "update-9",
+      "number": 9,
+      "day": 1,
+      "title": "Governor read routes: exit reserve and exposure"
+    },
+    {
+      "id": "update-10",
+      "number": 10,
+      "day": 1,
+      "title": "Exit reserve gauge on the Governor page"
+    },
+    {
+      "id": "update-11",
+      "number": 11,
+      "day": 1,
+      "title": "Cache headers and a clear 429"
+    },
+    {
+      "id": "update-12",
+      "number": 12,
+      "day": 1,
+      "title": "Glossary and liquidation FAQ"
+    },
+    {
+      "id": "update-13",
+      "number": 13,
+      "day": 2,
+      "title": "SDK read helpers"
+    },
+    {
+      "id": "update-14",
+      "number": 14,
+      "day": 2,
+      "title": "Tested API quickstart"
+    },
+    {
+      "id": "update-15",
+      "number": 15,
+      "day": 2,
+      "title": "SDK offline math helpers"
+    },
+    {
+      "id": "update-16",
+      "number": 16,
+      "day": 2,
+      "title": "Scripts: daily toll table and chain facts check"
+    },
+    {
+      "id": "update-17",
+      "number": 17,
+      "day": 2,
+      "title": "SDK typed errors and polite retry"
+    },
+    {
+      "id": "update-18",
+      "number": 18,
+      "day": 2,
+      "title": "Site checks: links and page weight"
+    },
+    {
+      "id": "update-19",
+      "number": 19,
+      "day": 2,
+      "title": "MCP read tools"
+    },
+    {
+      "id": "update-20",
+      "number": 20,
+      "day": 2,
+      "title": "Gear maths explained with numbers"
+    },
+    {
+      "id": "update-21",
+      "number": 21,
+      "day": 2,
+      "title": "MCP tools: toll estimate and explain quote"
+    },
+    {
+      "id": "update-22",
+      "number": 22,
+      "day": 2,
+      "title": "Runbook for each alert"
+    },
+    {
+      "id": "update-23",
+      "number": 23,
+      "day": 2,
+      "title": "MCP dry run and session-limit refusal"
+    },
+    {
+      "id": "update-24",
+      "number": 24,
+      "day": 2,
+      "title": "Launch recap page"
+    }
+  ]
+}

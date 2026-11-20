@@ -27,6 +27,7 @@ const PAGES = [
   {file: 'index.html', url: 'https://get-overdrive.com/', min: 800, copy: ['Pick a gear, hold the token', 'What happens when you shift.', 'Holders are never liquidated']},
   {file: 'how-it-works.html', url: 'https://get-overdrive.com/how-it-works', min: 800, copy: ['What happens when you shift.', 'Know what you hold.']},
   {file: 'dashboard.html', url: 'https://get-overdrive.com/dashboard', min: 150, copy: ['Pick a gear. Make your move.']},
+  {file: 'roadmap.html', url: 'https://get-overdrive.com/roadmap', min: 150, copy: ['Update 1', 'Health route with indexer lag', 'Update 24', 'Launch recap page', 'Nothing else is promised past update 24.', 'Scheduled']},
 ];
 
 describe('pre-rendered public routes', () => {
