@@ -39,7 +39,7 @@ export const ROUTES = [
     path: '/roadmap',
     file: 'roadmap.html',
     title: 'Overdrive roadmap - the first 48 hours of updates',
-    description: 'The 24 launch updates in release order. An item shows LIVE only when its changelog entry exists. Nothing else is promised past update 24.',
+    description: 'The 24 launch updates in release order, then staking opens 2 days after launch. An item shows LIVE only when its changelog entry exists. Nothing else is promised past update 25.',
     canonical: '/roadmap',
   },
 ];

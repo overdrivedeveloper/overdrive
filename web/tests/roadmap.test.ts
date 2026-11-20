@@ -1,18 +1,28 @@
-// /roadmap: 24 updates in release order, each Scheduled until its entry is in CHANGELOG.md, then LIVE.
+// /roadmap: 24 updates in release order, then staking 2 days after launch, each Scheduled until its entry is in CHANGELOG.md, then LIVE.
 import {describe, expect, test} from 'bun:test';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {ROADMAP_ITEMS, hasChangelogEntry, liveIds, statusOf} from '../src/lib/roadmap';
+import {ROADMAP_DAYS, ROADMAP_ITEMS, hasChangelogEntry, itemText, liveIds, statusOf} from '../src/lib/roadmap';
 
 const item = (n: number) => ROADMAP_ITEMS.find((i) => i.number === n)!;
 const LOG = (body: string) => `# Changelog\n\n## Unreleased\n\n${body}\n`;
 
 describe('roadmap data', () => {
-  test('24 updates, numbered 1 to 24, 12 on each day, unique ids', () => {
-    expect(ROADMAP_ITEMS.map((i) => i.number)).toEqual(Array.from({length: 24}, (_, k) => k + 1));
+  test('25 updates, numbered 1 to 25, 12 on each hourly day, unique ids', () => {
+    expect(ROADMAP_ITEMS.map((i) => i.number)).toEqual(Array.from({length: 25}, (_, k) => k + 1));
     expect(ROADMAP_ITEMS.filter((i) => i.day === 1)).toHaveLength(12);
     expect(ROADMAP_ITEMS.filter((i) => i.day === 2)).toHaveLength(12);
-    expect(new Set(ROADMAP_ITEMS.map((i) => i.id)).size).toBe(24);
+    expect(new Set(ROADMAP_ITEMS.map((i) => i.id)).size).toBe(25);
+    expect(ROADMAP_DAYS.map((d) => d.label)).toEqual(['Day 1', 'Day 2', 'Launch + 2 days']);
+    expect(ROADMAP_ITEMS.every((i) => ROADMAP_DAYS.some((d) => d.day === i.day))).toBe(true);
+  });
+  test('staking opens 2 days after launch, Scheduled until its changelog entry exists', () => {
+    const staking = item(25);
+    expect(staking).toMatchObject({id: 'update-25', day: 3, title: 'Staking opens', when: 'launch + 2 days'});
+    expect(itemText(staking)).toBe('Staking opens: launch + 2 days');
+    expect(itemText(item(1))).toBe('Health route with indexer lag');
+    expect(statusOf(staking, liveIds(LOG('- Something unrelated.')))).toBe('Scheduled');
+    expect(statusOf(staking, liveIds(LOG('### Update 25: Staking opens')))).toBe('LIVE');
   });
   test('public wording only: no slot times, dates or internal queue ids', () => {
     const raw = readFileSync(join(import.meta.dir, '../src/data/roadmap.json'), 'utf8');
@@ -43,7 +53,7 @@ describe('LIVE only when the changelog entry exists', () => {
     expect(hasChangelogEntry(item(2), LOG('- Update 2: Status page tweaks are planned'))).toBe(true);
     expect(hasChangelogEntry(item(2), LOG('- Update 3: Status page'))).toBe(false);
   });
-  test("today's CHANGELOG.md has none of the 24", () => {
+  test("today's CHANGELOG.md has none of the 25", () => {
     expect(liveIds(readFileSync(join(import.meta.dir, '../../CHANGELOG.md'), 'utf8'))).toEqual([]);
   });
 });
