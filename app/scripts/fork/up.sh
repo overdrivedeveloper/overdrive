@@ -153,6 +153,9 @@ if want indexer || [ ! -s "$FORK_DIR/gears-listed.json" ]; then start indexer no
 # --env again after the fill: the vol engine keys pair gears from the filled record (setup.ts volEngineEnv).
 (cd "$APP" && "$BUN" scripts/fork/setup.ts --fill-gears --env) 2>>"$FORK_DIR/logs/setup.log" | sed 's/^setup: /up: /' \
   || { tail -20 "$FORK_DIR/logs/setup.log" >&2; die "filling the deployment gears failed"; }
+# The site (web --mode fork) reads app/deployments/local/fork-stack.json, copied above while `gears` was still empty, so
+# refresh it from the filled record; without this every trade on the fork site fails with "unknown gear".
+cp "$FORK_DIR/deployment.json" "$STACK_DEPLOYMENT"
 
 if want api; then start api "http://127.0.0.1:$API_PORT/health" -- "$BUN" src/bin/api.ts; fi
 if want crank; then start crank none -- "$BUN" src/bin/crank.ts; fi

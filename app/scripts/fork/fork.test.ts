@@ -202,6 +202,16 @@ describe("fork stack", () => {
     expect(setup).toContain("fillDeploymentGears");
   });
 
+  test("up_refreshes_the_site_record_after_the_gears_are_filled", () => {
+    const u = src("up.sh");
+    const fill = u.indexOf("--fill-gears"), web = u.indexOf("if want web");
+    const copies = [...u.matchAll(/cp "\$FORK_DIR\/deployment\.json" "\$STACK_DEPLOYMENT"/g)].map((m) => m.index!);
+    expect(copies.length).toBe(1);
+    expect(copies[0]!).toBeGreaterThan(fill); // after the gears are filled (the first copy, at deploy, has `gears: []`)
+    expect(copies[0]!).toBeLessThan(web); // before the site starts and reads fork-stack.json
+    expect(src("../../../web/src/services/deployments.ts")).toContain("fork-stack");
+  });
+
   test("bash32_lint_and_up_twice_is_idempotent", async () => {
     for (const f of ["env.sh", "up.sh", "down.sh", "reset.sh"]) {
       const text = src(f);
