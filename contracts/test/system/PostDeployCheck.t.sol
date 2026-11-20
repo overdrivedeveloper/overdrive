@@ -182,6 +182,17 @@ contract PostDeployCheckTest is DeployFixture {
         _expect("SEEDED");
     }
 
+    /// F8: a wound-down Governor (zero shares) holding rounding dust or USDG its own books account for is not a seed.
+    function test_WoundDownDustIsNotSeeded() public {
+        ODDevToken(d.usdg).mint(d.governor, 11);
+        assertFalse(_has(_run(_cfg(), _d()), "SEEDED"), "11 units of dust");
+        ODDevToken(d.usdg).mint(d.governor, 50e6);
+        vm.mockCall(d.governor, abi.encodeWithSignature("freeCash()"), abi.encode(uint256(50e6)));
+        assertFalse(_has(_run(_cfg(), _d()), "SEEDED"), "booked as free cash");
+        vm.clearMockedCalls();
+        _expect("SEEDED");
+    }
+
     function test_FailsOnGearCap() public {
         vm.mockCall(d.registry, abi.encodeWithSignature("MAX_GEARS()"), abi.encode(uint8(33)));
         _expect("GEAR_CAP");

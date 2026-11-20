@@ -446,11 +446,17 @@ abstract contract SystemChecks is DeploymentFile {
         }
     }
 
+    uint256 internal constant SEED_DUST_USDG = 1e6;
+
     function _checkSeed(Acc memory a, Deployed memory d) private view {
         ODGovernor gov = ODGovernor(d.governor);
         uint256 supply = gov.totalSupply();
         uint256 bal = IERC20(d.usdg).balanceOf(d.governor);
-        if (supply == 0 && bal != 0) _fail(a, "SEEDED", "Governor holds USDG with no shares (seeded by transfer)");
+        // F8: a wound-down Governor (every share redeemed) keeps rounding dust and whatever its own books still hold;
+        // only USDG beyond its free cash, exit reserve and 1 USDG of dust reads as a seed by transfer.
+        if (supply == 0 && bal > gov.freeCash() + gov.exitReserve() + SEED_DUST_USDG) {
+            _fail(a, "SEEDED", "Governor holds unbooked USDG with no shares (seeded by transfer)");
+        }
         if (supply != 0 && gov.freeCash() == 0) _fail(a, "SEEDED", "Governor shares with no deposited cash");
     }
 }
