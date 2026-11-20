@@ -1,3 +1,4 @@
+import { staleRecordMessage } from "../lib/gear-catalog";
 import type { Logger } from "pino";
 import type { Sql } from "postgres";
 import type { Address, Hex } from "viem";
@@ -86,6 +87,9 @@ export async function createIndexerState(args: CreateIndexerStateArgs): Promise<
   const gearByToken = new Map<string, string>();
   for (const gear of deployment.gears) gearByToken.set(gear.token.toLowerCase(), gear.id.toLowerCase());
   for (const row of gearRows) gearByToken.set(row.token, row.id);
+  const recorded = new Set(deployment.gears.map((g) => g.id.toLowerCase()));
+  const unrecorded = gearRows.map((r) => r.id).filter((id) => !recorded.has(id.toLowerCase()));
+  if (unrecorded.length > 0) args.logger.error({ gears: unrecorded }, staleRecordMessage(unrecorded));
   const addresses = watchedAddresses(deployment);
   const watched = new Set(addresses.own);
   for (const token of gearByToken.keys()) watched.add(token);

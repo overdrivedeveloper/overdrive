@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { safeErrorSummary } from "../log";
+import { adoptIndexedGears, readIndexedGears, staleRecordMessage } from "../lib/gear-catalog";
 import { renderDocsHtml } from "./docs";
 import { registerCompatRoutes } from "./compat/routes";
 import { ApiError } from "./errors";
@@ -33,6 +34,30 @@ import type { ApiDependencies } from "./types";
 
 export const INTENT_BODY_LIMIT = 16 * 1024;
 const WALLET = /^0x[0-9a-fA-F]{40}$/;
+/** How often the API looks for gears listed on chain that the deployment record does not name (one small SELECT). */
+export const INDEXED_GEARS_REFRESH_MS = 30_000;
+const catalogState = new WeakMap<object, { at: number; inflight: Promise<void> | undefined }>();
+
+/** Adds gears the indexer saw listed (GearListed) but the record lacks to deps.deployment, at most once per refresh window.
+ *  Never fails a request: a read error keeps the current list and is logged. */
+export async function refreshIndexedGears(deps: Pick<ApiDependencies, "sql" | "deployment" | "logger">, force = false): Promise<void> {
+  const state = catalogState.get(deps.deployment) ?? { at: 0, inflight: undefined };
+  catalogState.set(deps.deployment, state);
+  if (state.inflight) return state.inflight;
+  if (!force && state.at !== 0 && Date.now() - state.at < INDEXED_GEARS_REFRESH_MS) return;
+  state.inflight = (async () => {
+    try {
+      const added = adoptIndexedGears(deps.deployment, await readIndexedGears(deps.sql));
+      if (added.length > 0) deps.logger.error({ gears: added.map((g) => ({ id: g.id, symbol: g.symbol })) }, staleRecordMessage(added.map((g) => g.id)));
+    } catch (error) {
+      deps.logger.warn({ err: safeErrorSummary(error) }, "indexed gears read failed; serving the deployment record's gears");
+    } finally {
+      state.at = Date.now();
+      state.inflight = undefined;
+    }
+  })();
+  return state.inflight;
+}
 
 export function createApiApp(deps: ApiDependencies, options: { compat?: boolean } = {}): OpenAPIHono {
   const allowedOrigins = new Set(deps.config.CORS_ORIGINS);
@@ -60,6 +85,8 @@ export function createApiApp(deps: ApiDependencies, options: { compat?: boolean 
   });
   app.use("*", httpCache());
   app.use("*", rateLimit({ limit: perMinute, windowMs: 60_000, clientIpHeader }));
+  // Gears listed through the timelock after the deploy are known from the index even before the record names them.
+  app.use("/v1/*", async (_context, next) => { await refreshIndexedGears(deps); await next(); });
   // Intents: a write-class route (they build calldata) with a small body and its own tighter per-client and per-wallet limit.
   app.use("/v1/intent/*", bodyLimit({ maxSize: INTENT_BODY_LIMIT, onError: (c) => c.json({ error: "BAD_REQUEST", message: "Request body too large." }, 400) }));
   app.on(["POST"], "/v1/intent/*", rateLimit({ limit: writeLimit, windowMs: 60_000, clientIpHeader, walletKeys: walletsFromBody(["account", "recipient"]) }));

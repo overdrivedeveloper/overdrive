@@ -1,6 +1,7 @@
 // The website contract (web/src/services/contract.ts, from the team handoff) as pure rules: the 14 service error codes, how
 // our API codes map onto them, and how each /v1 document becomes the shape the site reads. No I/O here, so every rule has
 // a table test. Amounts stay integer strings; a value we do not have is null, never 0.
+import { isPlaceholderPool } from "../../lib/gear-catalog";
 import { formatUnits } from "viem";
 import type { Deployment } from "../../lib/deployments";
 
@@ -137,7 +138,7 @@ export function marketGearOf(d: Deployment, g: GearDoc, underlyings = RACE_VOL_U
   const deployed = a.availability !== "not_deployed";
   return {
     id: g.symbol, underlying: g.underlying, gear: gearTitle(g.gear ?? cfg?.gear) ?? "Sport", power: g.power,
-    token: gearToken(d, g.symbol), poolId: cfg?.poolId && /^0x[0-9a-fA-F]{64}$/.test(cfg.poolId) ? cfg.poolId : null,
+    token: gearToken(d, g.symbol), poolId: cfg?.poolId && /^0x[0-9a-fA-F]{64}$/.test(cfg.poolId) && !isPlaceholderPool(cfg.poolId) ? cfg.poolId : null,
     availability: a.availability, ...(a.reason ? { reason: a.reason } : {}),
     canBuy: a.availability === "available",
     canSell: deployed && a.availability !== "paused" && (g.sellMode === "instant" || g.sellMode === "instant_min"),

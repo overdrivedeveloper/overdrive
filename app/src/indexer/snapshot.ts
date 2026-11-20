@@ -3,6 +3,7 @@ import type { Sql } from "postgres";
 import type { Hex } from "viem";
 import type { Deployment } from "../chain/deployment";
 import { safeErrorSummary } from "../log";
+import { marketSymbol } from "./units";
 import { mulWad, toBigInt, WAD, wadToUsdg } from "../lib/fixed";
 
 /** What a snapshot reads from the chain (production: multicall over the state route; tests: a fixture). */
@@ -76,7 +77,14 @@ export async function takeSnapshot(
     const gearRows = await sql<{ id: string; token: string; market_a: string; market_b: string | null; power_wad: string; status: string }[]>`
       SELECT id, token, market_a, market_b, power_wad, status FROM gears WHERE status <> 'retired' ORDER BY id`;
     const symbols = new Map(deployment.markets.map((market) => [market.id.toLowerCase(), market.symbol]));
-    const symbolOf = (market: string) => symbols.get(market) ?? market;
+    // a market only the chain knows (listed through the timelock after the deploy, record not synced yet) reads by its id
+    const symbolOf = (market: string) => symbols.get(market.toLowerCase()) ?? marketSymbol(market);
+    const unrecorded = new Map<string, string>();
+    for (const row of gearRows) {
+      for (const m of [row.market_a, row.market_b]) {
+        if (m && /^0x[0-9a-fA-F]{64}$/.test(m) && !symbols.has(m.toLowerCase())) unrecorded.set(symbolOf(m), m.toLowerCase());
+      }
+    }
     const books: GearBook[] = [];
     for (const row of gearRows) {
       const read = await reader.gear(row.id as Hex, row.token);
@@ -94,6 +102,11 @@ export async function takeSnapshot(
     }
     const prices: { symbol: string; stockToken: string | null; read: Awaited<ReturnType<SnapshotReader["price"]>> }[] = [];
     for (const market of deployment.markets) prices.push({ symbol: market.symbol, stockToken: market.stockToken?.toLowerCase() ?? null, read: await reader.price(market.id) });
+    for (const [symbol, id] of unrecorded) {
+      // never let a market the record lacks fail the whole snapshot: skip it and say so
+      try { prices.push({ symbol, stockToken: null, read: await reader.price(id as Hex) }); }
+      catch (error) { logger?.warn({ err: safeErrorSummary(error), market: symbol }, "price read failed for a market the deployment record does not list"); }
+    }
 
     const ts = at.ts.toISOString();
     const block = at.block.toString();

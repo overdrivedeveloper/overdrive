@@ -4,6 +4,7 @@ import { asAddress, asNumber, gearStatusName, ZERO_BYTES32 } from "../units";
 import { addr, big, id32, iso, recordEntity } from "./common";
 import { applyEntity } from "./entities";
 import { pairVolKey } from "../../db/queries/gears";
+import { staleRecordMessage } from "../../lib/gear-catalog";
 
 const SECONDS_PER_YEAR = 31_536_000n;
 
@@ -31,6 +32,7 @@ export async function handleRegistryEvent(context: IndexerContext, event: ChainE
     });
     context.gearByToken.set(token, id);
     context.newTokens.push(token);
+    if (!context.deployment.gears.some((g) => g.id.toLowerCase() === id)) context.logger.error({ gear: id, token }, staleRecordMessage([id]));
   } else if (event.eventName === "GearParamsSet") {
     await change(context, event, "gear", id, "params", { capUsdWad: big(event, "capUsdWad"), spreadBps: asNumber(event.args.spreadBps) });
   } else if (event.eventName === "GearStatusSet") {
