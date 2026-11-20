@@ -23,7 +23,7 @@ export function Mechanics() {
         <div className="mechanics-toast-ledge" aria-hidden="true"/>
         <div className="mechanics-toast">
           <span className="mechanics-utility-icon">{check}</span>
-          <div><h3>A token, with a purpose.</h3><p>Stake for fee discounts.<br/>Vote weight on markets and caps.</p></div>
+          <div><h3>A token, with a purpose.</h3><p>Coming later: stake for fee discounts<br/>and vote weight on markets and caps.</p></div>
           <span className="mechanics-ticker">UTILITY</span>
         </div>
         <p className="mechanics-utility-note">Slashable first-loss capital. No revenue claim.</p>

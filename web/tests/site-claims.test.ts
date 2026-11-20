@@ -95,3 +95,21 @@ describe('hedging: no active-hedging claim in dry run', () => {
     expect(readFileSync(join(SRC, 'sections/Mechanics.tsx'), 'utf8')).not.toContain('COIN');
   });
 });
+
+describe('staking and votes: closed at launch (D10), so every claim says coming later', () => {
+  test('each fee-discount, vote or stakers-receive claim sits next to "coming later" or "once staking opens"', () => {
+    const SRC = join(import.meta.dir, '../src');
+    const walk = (d: string): string[] => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(f) ? [p] : []; });
+    const CLAIM = /fee discounts?|\bvotes?\b|\bvoting\b|stakers receive/gi;
+    const LATER = /coming later|once staking opens|staking opens after/i;
+    const bad: string[] = [];
+    for (const f of walk(SRC)) {
+      const s = readFileSync(f, 'utf8');
+      for (const m of s.matchAll(CLAIM)) {
+        const near = s.slice(Math.max(0, m.index! - 120), m.index! + m[0].length + 120);
+        if (!LATER.test(near)) bad.push(`${f.slice(SRC.length)}: ${m[0]}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
