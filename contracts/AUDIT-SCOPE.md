@@ -61,8 +61,9 @@ Compiler: solc 0.8.26 (pinned in `foundry.toml`). Chain: Robinhood Chain (4663).
 
 Total: 9895 lines.
 
-## Supporting, not in scope: `script/` (11 files)
+## Supporting, not in scope: `script/` (12 files)
 
+- `script/DeployStake.s.sol`
 - `script/DeploySystem.s.sol`
 - `script/HookSeed.s.sol`
 - `script/ListGears.s.sol`

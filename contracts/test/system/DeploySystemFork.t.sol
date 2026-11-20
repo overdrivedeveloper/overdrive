@@ -8,6 +8,31 @@ import {SystemConfig} from "../../script/lib/SystemConfig.sol";
 import {SystemDeployer} from "../../script/lib/SystemDeployer.sol";
 import {ODHookMiner} from "overdrive/hook/ODHookMiner.sol";
 import {ODGearRegistry} from "overdrive/gear/ODGearRegistry.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {DeployStake} from "../../script/DeployStake.s.sol";
+import {TimelockBatch} from "../../script/ListGears.s.sol";
+import {ODDevToken} from "../../script/lib/SystemDeployer.sol";
+
+/// The two-phase fork test arms under its own variable names, so it never races the other test on the process env.
+contract StakeLaterForkDeploySystem is DeploySystem {
+    function _armFlagEnv() internal pure override returns (string memory) {
+        return "OD_TEST_ARM_STAKE_LATER";
+    }
+
+    function _armFileEnv() internal pure override returns (string memory) {
+        return "OD_TEST_ARM_STAKE_LATER_FILE";
+    }
+}
+
+contract StakeLaterForkDeployStake is DeployStake {
+    function _armFlagEnv() internal pure override returns (string memory) {
+        return "OD_TEST_ARM_STAKE_LATER";
+    }
+
+    function _armFileEnv() internal pure override returns (string memory) {
+        return "OD_TEST_ARM_STAKE_LATER_FILE";
+    }
+}
 
 /// Rule R7, fork half: DeploySystem with the committed script/config/fork.json on a fork of Robinhood Chain mainnet
 /// (REAL USDG, PoolManager, CreateX, feeds, Stock Tokens, v3 pools). The hook goes through CreateX at the address
@@ -76,5 +101,45 @@ contract DeploySystemForkTest is ODTest {
             emit log(f[i]);
         }
         assertEq(f.length, 0, "post-deploy check passes on the fork");
+    }
+
+    /// The two-phase mainnet path on the fork: no $OVRD (phase 1) passes the checks; DeployStake plus its timelock
+    /// batch after 48 h (phase 2) pass them again with the stake wired and deposits open.
+    function test_ForkDeployWithoutOvrdThenStake() public {
+        SystemConfig.Config memory c =
+            ds.parseConfig(vm.readFile(string.concat(vm.projectRoot(), "/script/config/fork.json")));
+        c.dev.ovrd = false;
+        c.ext.ovrd = address(0);
+        _mockFresh(c, "ETH", 3000e8);
+        _mockFresh(c, "BTC", 90000e8);
+        string memory flag = string.concat(vm.projectRoot(), "/out/od-fork-stake-later-armed.flag");
+        vm.writeFile(flag, "test\n");
+        vm.setEnv("OD_TEST_ARM_STAKE_LATER", "1");
+        vm.setEnv("OD_TEST_ARM_STAKE_LATER_FILE", flag);
+        SystemDeployer.Deployed memory d = new StakeLaterForkDeploySystem().deploy(c, deployer);
+        assertEq(d.stake, address(0), "phase 1 has no stake");
+        string[] memory f = ds.checkSystem(c, d, deployer);
+        for (uint256 i; i < f.length; ++i) {
+            emit log(f[i]);
+        }
+        assertEq(f.length, 0, "phase 1 checks pass on the fork");
+        DeployStake st = new StakeLaterForkDeployStake();
+        d = st.deploy(c, d, address(new ODDevToken("Test OVRD", "tOVRD", 18)), deployer);
+        vm.setEnv("OD_TEST_ARM_STAKE_LATER", "");
+        assertEq(st.checkStakeDeployed(c, d, deployer).length, 0, "stake alone checks");
+        TimelockBatch.Batch memory b = st.stakeBatch(d);
+        TimelockController t = TimelockController(payable(d.timelock));
+        vm.prank(c.roles.ownerSafe);
+        t.scheduleBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt, c.minDelay);
+        vm.warp(block.timestamp + c.minDelay);
+        vm.prank(c.roles.ownerSafe);
+        t.executeBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt);
+        _mockFresh(c, "ETH", 3000e8);
+        _mockFresh(c, "BTC", 90000e8);
+        f = ds.checkSystem(c, d, deployer);
+        for (uint256 i; i < f.length; ++i) {
+            emit log(f[i]);
+        }
+        assertEq(f.length, 0, "phase 2 checks pass on the fork");
     }
 }
