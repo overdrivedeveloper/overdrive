@@ -36,6 +36,7 @@ export interface Operations {
           /** ISO 8601 time. */
           lastOk: string | null;
           lastError: string | null;
+          mode: "dry_run" | "live" | null;
         }>;
         oracle: {
           /** ISO 8601 time. */

@@ -7,7 +7,8 @@ import { nowOf, type ApiDependencies } from "../types";
 const Status = z.object({
   ...MetaFields,
   indexer: z.object({ lagBlocks: z.string().nullable(), lastOk: Iso.nullable(), lastError: z.string().nullable(), snapshotStale: z.boolean() }),
-  services: z.array(z.object({ job: z.string(), lastRun: Iso.nullable(), lastOk: Iso.nullable(), lastError: z.string().nullable() })),
+  /** mode: "dry_run" or "live" for a job that reports a dry-run flag (the hedger), null for every other job. The site says hedging is active only on "live". */
+  services: z.array(z.object({ job: z.string(), lastRun: Iso.nullable(), lastOk: Iso.nullable(), lastError: z.string().nullable(), mode: z.enum(["dry_run", "live"]).nullable() })),
   /** Per market, whether the guard reads a reference price (fresh Pyth or a TWAP pool). Written by the crank's pyth-push job; null until it has run. */
   oracle: z.object({
     checkedAt: Iso.nullable(), ok: z.boolean(),
@@ -26,11 +27,17 @@ export function registerStatusRoutes(app: OpenAPIHono, deps: ApiDependencies): v
     return {
       ...metaOf(fresh),
       indexer: { lagBlocks: fresh.lagBlocks, lastOk: fresh.lastOk, lastError: fresh.lastError, snapshotStale: fresh.snapshotStale },
-      services: services.map((s) => ({ job: s.job, lastRun: s.lastRun, lastOk: s.lastOk, lastError: s.lastError })),
+      services: services.map((s) => ({ job: s.job, lastRun: s.lastRun, lastOk: s.lastOk, lastError: s.lastError, mode: modeOf(s.meta) })),
       oracle: oracleOf(services.find((s) => s.job === "pyth-push")?.meta.reference),
       pauses: pauses.map((p) => ({ scope: p.scope, ref: p.ref, since: p.ts, reason: p.reason, pausedBy: p.actor, whoCanUnpause: WHO_CAN_UNPAUSE })),
     };
   });
+}
+
+/** A job's run mode from its stored meta.dryRun: true is "dry_run", false is "live", absent or malformed is null. */
+export function modeOf(meta: Record<string, unknown> | null | undefined): "dry_run" | "live" | null {
+  const v = meta?.dryRun;
+  return v === true ? "dry_run" : v === false ? "live" : null;
 }
 
 interface StoredReference { checkedAt?: unknown; ok?: unknown; markets?: unknown }
