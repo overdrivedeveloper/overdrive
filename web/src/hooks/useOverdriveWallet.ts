@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHAIN_ID } from '../lib/overdrive';
 import { addChainParams, isUnknownChain, switchOrAddChain } from '../lib/chains';
+import { reownProjectId, walletConnectProvider } from '../lib/walletconnect';
 
 type Provider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   on?: (event: string, listener: (value: unknown) => void) => void;
   removeListener?: (event: string, listener: (value: unknown) => void) => void;
+  enable?: () => Promise<unknown>;
+  disconnect?: () => Promise<void>;
 };
+// Public config: with no Reown project id the WalletConnect option is hidden.
+const REOWN_PROJECT_ID = reownProjectId({ VITE_REOWN_PROJECT_ID: import.meta.env.VITE_REOWN_PROJECT_ID });
 const injected = (): Provider | undefined => typeof window === 'undefined' ? undefined : (window as Window & { ethereum?: Provider }).ethereum;
 const accountFrom = (value: unknown): string => Array.isArray(value) && typeof value[0] === 'string' && /^0x[0-9a-f]{40}$/i.test(value[0]) ? value[0] : '';
 const chainFrom = (value: unknown): number | null => {
@@ -30,10 +35,13 @@ export function useOverdriveWallet() {
   const active = useRef(true);
   const requestVersion = useRef(0);
   const mounted = useRef(true);
+  // The wallet the user chose (injected or WalletConnect); switching and signing go to the same one.
+  const chosen = useRef<Provider | undefined>(undefined);
+  const current = () => chosen.current ?? injected();
 
   useEffect(() => {
     mounted.current = true;
-    const detect = () => setProvider(injected());
+    const detect = () => { if (!chosen.current) setProvider(injected()); };
     window.addEventListener('ethereum#initialized', detect);
     return () => { mounted.current = false; window.removeEventListener('ethereum#initialized', detect); };
   }, []);
@@ -58,17 +66,19 @@ export function useOverdriveWallet() {
     };
   }, [provider]);
 
-  const connect = useCallback(async () => {
+  const open = useCallback(async (walletConnect: boolean) => {
     if (connecting) return false;
-    const wallet = injected();
-    if (!wallet) { setError('Open Overdrive in an EVM wallet browser, or install a browser wallet to connect.'); return false; }
+    const found = walletConnect ? undefined : injected();
+    if (!walletConnect && !found) { setError('Open Overdrive in an EVM wallet browser, or install a browser wallet to connect.'); return false; }
     active.current = true;
-    setProvider(wallet);
     setError('');
     setConnecting(true);
     const version = ++requestVersion.current;
     try {
-      const result = await wallet.request({ method: 'eth_requestAccounts' });
+      const wallet: Provider = found ?? await walletConnectProvider(REOWN_PROJECT_ID, CHAIN_ID);
+      chosen.current = wallet;
+      setProvider(wallet);
+      const result = walletConnect && wallet.enable ? await wallet.enable() : await wallet.request({ method: 'eth_requestAccounts' });
       const account = accountFrom(result);
       const chain = chainFrom(await wallet.request({ method: 'eth_chainId' }));
       if (!mounted.current || version !== requestVersion.current) return false;
@@ -83,9 +93,11 @@ export function useOverdriveWallet() {
       if (mounted.current && version === requestVersion.current) setConnecting(false);
     }
   }, [connecting]);
+  const connect = useCallback(() => open(false), [open]);
+  const connectWalletConnect = useCallback(() => open(true), [open]);
 
   const switchNetwork = useCallback(async () => {
-    const wallet = injected();
+    const wallet = current();
     if (!wallet) { setError('Connect an EVM wallet to switch networks.'); return false; }
     setError('');
     try {
@@ -99,6 +111,10 @@ export function useOverdriveWallet() {
   }, []);
 
   const disconnect = useCallback(() => {
+    // A WalletConnect session is closed on the wallet side too; an injected wallet keeps its own permission.
+    if (chosen.current?.disconnect) chosen.current.disconnect().catch(() => {});
+    chosen.current = undefined;
+    setProvider(injected());
     active.current = false;
     requestVersion.current += 1;
     setAddress('');
@@ -118,6 +134,8 @@ export function useOverdriveWallet() {
     error,
     shortAddress: address ? `${address.slice(0, 6)}…${address.slice(-4)}` : 'Connect wallet',
     connect,
+    walletConnectEnabled: REOWN_PROJECT_ID !== '',
+    connectWalletConnect,
     switchNetwork,
     disconnect,
     clearError: () => setError(''),

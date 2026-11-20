@@ -17,7 +17,7 @@ test('R3 grep gate: only src/services/overdrive.ts calls fetch, XMLHttpRequest o
 
 test('R8: VITE_ values are public config only, and no secret-shaped strings in web/', () => {
   const used = new Set(files(SRC).flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/VITE_[A-Z0-9_]+/g)].map((m) => m[0])));
-  expect([...used].sort()).toEqual(['VITE_API_ORIGIN', 'VITE_CHAIN_ID']);
+  expect([...used].sort()).toEqual(['VITE_API_ORIGIN', 'VITE_CHAIN_ID', 'VITE_REOWN_PROJECT_ID']);
   const root = join(import.meta.dir, '..');
   const scan = [...files(SRC), ...readdirSync(root).filter((f) => f.startsWith('.env')).map((f) => join(root, f))];
   for (const f of scan) {

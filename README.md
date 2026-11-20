@@ -26,7 +26,7 @@ The website and dashboard live in `web/` (built by the design team, imported unc
 
 ### Frontend (`web/`)
 
-A Vite, React and Tailwind single-page app: the landing page plus the dashboard views (Dashboard, Markets, Portfolio, Trade, Backers, Governor, Activity, Token). It is static; there is no server code and no secret. Wallet connection is by injected EVM wallet on Robinhood Chain (4663).
+A Vite, React and Tailwind single-page app: the landing page plus the dashboard views (Dashboard, Markets, Portfolio, Trade, Backers, Governor, Activity, Token). It is static; there is no server code and no secret. Wallet connection is by injected EVM wallet, or WalletConnect for mobile wallets when `VITE_REOWN_PROJECT_ID` is set, on Robinhood Chain (4663).
 
 All network access goes through one module, `web/src/services/overdrive.ts`, which calls the API's website contract routes, `POST /v1/compat/<procedure>` (`market.list`, `gear.snapshot`, `trade.quote`, `trade.status`, `exit.queueStatus`, `portfolio.positions`, `backer.vaults`, `backer.quoteAction`, `governor.snapshot`, `stake.account`, `stake.quoteAction`, `activity.list`; typed errors with the 14 `ServiceErrorCode` values). A transaction is sent only after the trade ticket shows the quote review, the intent passes `services/allowlist.ts` (known contract, known function) and the wallet is on the right chain; a wrong chain, a rejected signature and an account change are each handled in the ticket.
 
@@ -36,6 +36,7 @@ Public build config (every `VITE_` value ships to the browser, so never a key):
 | --- | --- |
 | `VITE_API_ORIGIN` | API base URL, e.g. `http://127.0.0.1:3101` for the local fork stack |
 | `VITE_CHAIN_ID` | Chain the wallet must be on: 4663 (Robinhood Chain) or 31337 (the fork) |
+| `VITE_REOWN_PROJECT_ID` | Reown (WalletConnect) project id for mobile wallets (allowlisted origin https://get-overdrive.com). Set in the Vercel project env (production and preview), not in the repo. Empty hides the WalletConnect option |
 
 `web/.env.fork` holds the fork values for `npm run dev -- --mode fork`; `app/scripts/fork/up.sh` starts the web service in that mode. `web/tests/fork.test.ts` runs the compat smoke, QUOTE-1 and the wallet flows against a running fork stack when `FORK_API_URL`, `FORK_RPC_URL` and `FORK_DEPLOYMENT` are set (skipped otherwise).
 
