@@ -62,8 +62,17 @@ def cmd_run(args, settings: C.Settings) -> int:
             return 2
         from .store import read_conn
 
-        with read_conn(settings.database_url) as rc:
-            book = load_book(rc, now)
+        try:
+            with read_conn(settings.database_url) as rc:
+                book = load_book(rc, now)
+        except LookupError as e:
+            # an empty indexer (no gears listed yet, so no governor_ledger rows) is a state, not a crash: record it and keep
+            # the previous cap plan, so the timer unit does not fail and restart every RestartSec
+            store.heartbeat(False, {"run_date": args.date or now.strftime("%Y-%m-%d"), "no_book": str(e)}, "no_book")
+            store.close()
+            log("no_book", reason=str(e))
+            print(json.dumps({"status": "no_book", "reason": str(e)}, sort_keys=True))
+            return 0
     run_date = args.date or now.strftime("%Y-%m-%d")
     stale = freshness(book, now.timestamp(), settings.max_book_age_s, C.STALE_PRICE_S)
     if stale:

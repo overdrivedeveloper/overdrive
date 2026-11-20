@@ -386,6 +386,7 @@ for pair in crank:crank hedger:hedger liquidator:liquidator vol-engine:vol-signe
   check "  ... ${pair%%:*} waits for its keystore (ConditionPathExists)" grep -q "^ConditionPathExists=/etc/overdrive/keys/${pair##*:}.json" "$U/overdrive-${pair%%:*}.service"
 done
 check "  ... risk-sim timer is 02:30 UTC and runs the nightly job" bash -c 'grep -q "^OnCalendar=\*-\*-\* 02:30:00 UTC" "$1/overdrive-risk-sim.timer" && grep -q "risk-sim run --nightly" "$1/overdrive-risk-sim.service" && grep -q "^User=overdrive-risk-sim" "$1/overdrive-risk-sim.service"' _ "$U"
+check "  ... risk-sim retries a failed nightly at most 4 times in 6 h, not forever" bash -c 'grep -q "^StartLimitIntervalSec=6h" "$1/overdrive-risk-sim.service" && grep -q "^StartLimitBurst=4" "$1/overdrive-risk-sim.service"' _ "$U"
 check "  ... backup timer is nightly and the script keeps 14 dumps" bash -c 'grep -q "^OnCalendar=\*-\*-\* 03:10:00 UTC" "$1/overdrive-backup.timer" && grep -q "^KEEP=\"\${KEEP:-14}\"" "$2/backup.sh"' _ "$U" "$HERE"
 check "  ... the migrate unit is a oneshot that runs the migrator as the overdrive user" bash -c 'grep -q "^Type=oneshot" "$1/overdrive-migrate.service" && grep -q "src/bin/migrate.ts" "$1/overdrive-migrate.service" && grep -q "^User=overdrive$" "$1/overdrive-migrate.service"' _ "$U"
 check "  ... the slice caps Overdrive at 1536M and the long-running units fit inside it" bash -c '

@@ -154,3 +154,13 @@ def test_gear_stored_under_a_raw_market_id_matches_its_sigma(pg):
     assert [g.key for g in book.gears] == ["MCKA"]
     assert book.sigma_bps["MCKA"] == 5100.0
     assert not [r for r in freshness(book, parse_ts("2026-11-13T02:00:00Z"), 3600, 3600) if r.startswith("sigma_missing")]
+
+
+def test_nightly_with_an_empty_indexer_records_no_book_and_exits_zero(pg, tmp_path, monkeypatch):
+    # the server log: "LookupError: no governor_ledger rows: the indexer has not run", exit 1, Restart=on-failure every 300 s
+    host = pg.rsplit("/", 1)[0].replace("risk@", "risk_ro@")
+    env(monkeypatch, host + "/overdrive_lane18", tmp_path / "tg.txt", tmp_path / "out", RISK_WRITE_DATABASE_URL=pg)
+    assert main(["run", "--nightly", "--now", str(AS_OF)]) == 0
+    assert rows(pg, "SELECT count(*) FROM risk_runs") == [(0,)]
+    assert rows(pg, "SELECT count(*) FROM risk_caps") == [(0,)]
+    assert rows(pg, "SELECT last_ok IS NULL, last_error FROM service_status WHERE job = 'risk-sim'") == [(True, "no_book")]

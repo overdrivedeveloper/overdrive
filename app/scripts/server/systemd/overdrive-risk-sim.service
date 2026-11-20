@@ -2,6 +2,9 @@
 Description=Overdrive risk-sim nightly stress run (started by overdrive-risk-sim.timer)
 After=network-online.target postgresql.service docker.service
 ConditionPathExists=/opt/overdrive/current/app/python/risk-sim/.venv/bin/risk-sim
+# a nightly job retries a real failure a few times, then waits for the next timer run (it restarted 840 times in 3 days)
+StartLimitIntervalSec=6h
+StartLimitBurst=4
 
 [Service]
 Type=oneshot
