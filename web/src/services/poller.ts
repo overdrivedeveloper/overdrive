@@ -7,7 +7,7 @@ import {ServiceFailure} from './overdrive';
 /** The compat GETs answer `Cache-Control: public, max-age=5`, so a faster poll only re-reads the cache. */
 export const MIN_POLL_MS = 5_000;
 /** Poll intervals: prices and accounts move per block, the catalog and the Governor book move slowly. */
-export const POLL = {marketList: 60_000, gearSnapshot: 15_000, governor: 30_000, positions: 15_000, vaults: 15_000, tradeStatus: 5_000, exitQueue: 15_000} as const;
+export const POLL = {marketList: 60_000, gearSnapshot: 15_000, governor: 30_000, positions: 15_000, vaults: 15_000, tradeStatus: 5_000, exitQueue: 15_000, status: 60_000} as const;
 /** A transaction status that will not change again: polling stops. */
 export const TERMINAL: ReadonlySet<string> = new Set(['confirmed', 'failed', 'replaced']);
 

@@ -51,6 +51,19 @@ describe('pre-rendered public routes', () => {
     expect(new Set(heads).size).toBe(PAGES.length);
   });
 
+  test('no unlisted market or active-hedging claim is baked into the static HTML', () => {
+    // Pre-rendered without an API answer, so no market may show as tradeable and the counter must not count the catalog.
+    const dash = text(read('dashboard.html'));
+    expect(dash).not.toContain('COIN');
+    expect(dash).toContain('Listed markets');
+    expect(dash).not.toMatch(/\b1[67]\b Listed markets|Listed markets \b1[67]\b/);
+    for (const f of ['index.html', 'how-it-works.html', 'dashboard.html']) {
+      const body = text(read(f));
+      expect(body).not.toContain('COIN / MSTR');
+      expect(body).not.toMatch(/hedges what remains|nets and hedges|remaining exposure is hedged|Hedge coverage/i);
+    }
+  });
+
   test('copy rules hold in the head tags (no em dashes)', () => {
     for (const p of PAGES) expect(read(p.file).match(/<head>.*<\/head>/s)?.[0]).not.toContain('\u2014');
   });

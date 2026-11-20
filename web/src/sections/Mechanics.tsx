@@ -23,17 +23,16 @@ export function Mechanics() {
         <div className="mechanics-toast-ledge" aria-hidden="true"/>
         <div className="mechanics-toast">
           <span className="mechanics-utility-icon">{check}</span>
-          <div><h3>A token, with a purpose.</h3><p>Stake for fee discounts.<br/>Vote on markets and caps.</p></div>
+          <div><h3>A token, with a purpose.</h3><p>Stake for fee discounts.<br/>Vote weight on markets and caps.</p></div>
           <span className="mechanics-ticker">UTILITY</span>
         </div>
         <p className="mechanics-utility-note">Slashable first-loss capital. No revenue claim.</p>
       </article>
 
       <article className="mechanics-card mechanics-pairs" data-reveal="mosaic">
-        <div className="mechanics-pairs-copy"><span className="extras-kicker">Pair gears</span><h3>One name<br/>against another.</h3><p>Sport on a price ratio.<br/>Your view on which one leads.</p></div>
+        <div className="mechanics-pairs-copy"><span className="extras-kicker">Pair gears · Coming later</span><h3>One name<br/>against another.</h3><p>Sport on a price ratio.<br/>Your view on which one leads.</p></div>
         <div className="mechanics-pair-stack">
           <div className="mechanics-pair-chip"><span>NVDA / AMD</span><MarketMark symbol="NVDA/AMD" size={30} decorative/></div>
-          <div className="mechanics-pair-chip"><span>COIN / MSTR</span><MarketMark symbol="COIN/MSTR" size={30} decorative/></div>
           <div className="mechanics-pair-chip"><span>QQQ / SPY</span><MarketMark symbol="QQQ/SPY" size={30} decorative/></div>
           <span className="mechanics-pair-badge">SPORT · POWER 2</span>
         </div>

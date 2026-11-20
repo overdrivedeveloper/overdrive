@@ -17,6 +17,9 @@ export type MarketGear = {
   reason?: string; canBuy: boolean; canSell: boolean; canQueueSell: boolean;
   capUsd: DecimalString; openValueUsd: DecimalString | null; spreadBps: number;
 };
+/** The part of GET /v1/status the site reads. mode is "live" only when the hedger runs with real venue orders. */
+export type ServiceHeartbeat = { job: string; lastRun: string | null; lastOk: string | null; lastError: string | null; mode?: 'dry_run' | 'live' | null };
+export type SystemStatus = { services: ServiceHeartbeat[] };
 export type GearSnapshot = {
   gearId: string; underlyingPrice: DecimalString | null; valuePerToken: DecimalString | null;
   priceCurrency: 'USDG'; normalisation: DecimalString | null;

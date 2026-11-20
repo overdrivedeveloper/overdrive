@@ -1,7 +1,7 @@
 // What the dashboard paints from a live read. Pure, so tests can prove no figure is ever invented: every number here
 // comes from an API answer, and every gap is a named state (not configured, loading, unavailable, not live yet).
 import {formatUnits} from 'viem';
-import type {Amount, Availability, BackerVault, ExitQueueRow, Quote, GearSnapshot, GovernorSnapshot, MarketGear, Position, Snapshot} from '../services/contract';
+import type {Amount, Availability, BackerVault, ExitQueueRow, Quote, GearSnapshot, GovernorSnapshot, MarketGear, Position, Snapshot, SystemStatus} from '../services/contract';
 import type {LiveState} from '../services/poller';
 
 export const NOT_LIVE = 'Not live yet';
@@ -39,21 +39,55 @@ export function gapOf<T>(s: LiveState<Snapshot<T>>, configured: boolean, what: s
 }
 
 export type StatCard = {title: string; value: string; hint: string; live: boolean};
-const GOVERNOR_TITLES = ['Governor equity', 'Exit reserve', 'Net exposure', 'Hedge coverage'] as const;
+const GOVERNOR_TITLES = ['Governor equity', 'Exit reserve', 'Net exposure', 'Outside hedge'] as const;
 
-/** The four Governor cards. A stale book (the API marks it not live) shows "Not live yet" and the reading only as reference. */
-export function governorCards(s: LiveState<Snapshot<GovernorSnapshot>>, configured: boolean): StatCard[] {
+/** The hedger's run mode from GET /v1/status. 'live' only when the hedger reports dryRun false; no report is 'unknown'. */
+export type HedgerMode = 'live' | 'dry_run' | 'unknown';
+export function hedgerMode(s: LiveState<SystemStatus>): HedgerMode {
+  const mode = s.data?.services?.find((x) => x.job === 'hedger')?.mode;
+  return mode === 'live' ? 'live' : mode === 'dry_run' ? 'dry_run' : 'unknown';
+}
+export const HEDGE_OFF = 'Off';
+/** One sentence about outside hedging that is true in every mode: it says hedging is on only when the hedger is live. */
+export function hedgingLine(mode: HedgerMode): string {
+  if (mode === 'live') return 'Gears net against each other inside one book, and the Governor offsets what remains on an outside venue.';
+  if (mode === 'dry_run') return 'Gears net against each other inside one book. The Governor can offset what remains on an outside venue; that is off until the venues are set up.';
+  return 'Gears net against each other inside one book. The hedger has not reported, so no outside hedge is claimed.';
+}
+
+/** The four Governor cards. A stale book (the API marks it not live) shows "Not live yet" and the reading only as reference.
+ * The outside hedge card shows a coverage figure only when the hedger is live and a hedge is open; otherwise it says so. */
+export function governorCards(s: LiveState<Snapshot<GovernorSnapshot>>, configured: boolean, hedger: HedgerMode = 'unknown'): StatCard[] {
   const gap = gapOf(s, configured, 'Governor');
   if (gap) return GOVERNOR_TITLES.map((title) => ({title, ...gap, live: false}));
   const snap = s.data!; const g = snap.data!;
   const delta = Number(g.deltaUsd), hedge = Number(g.hedgeDeltaUsd);
-  const coverage = !Number.isFinite(delta) || !Number.isFinite(hedge) ? NOT_REPORTED : delta === 0 ? 'No net exposure' : `${Math.round(Math.abs(hedge) / Math.abs(delta) * 100)}%`;
+  const open = hedger === 'live' && Number.isFinite(hedge) && hedge !== 0;
+  const coverage = hedger !== 'live' ? HEDGE_OFF : !open ? 'No hedge open' : !Number.isFinite(delta) || delta === 0 ? NOT_REPORTED : `${Math.round(Math.abs(hedge) / Math.abs(delta) * 100)}%`;
+  const hedgeHint = hedger === 'dry_run' ? 'Off until the venues are set up (the hedger runs in dry run)' : hedger === 'unknown' ? 'The hedger has not reported' : open ? `Offset ${usd(g.hedgeDeltaUsd) ?? NOT_REPORTED} of net exposure` : 'The hedger is on; nothing is offset now';
   const values = [usd(g.equityUsd) ?? NOT_REPORTED, usd(g.exitReserveUsd) ?? NOT_REPORTED, usd(g.deltaUsd) ?? NOT_REPORTED, coverage];
-  const hints = [`Risk state: ${g.riskState}`, `Floor ${usd(g.exitReserveFloorUsd) ?? NOT_REPORTED}`, `Gamma ${usd(g.gammaUsd) ?? NOT_REPORTED}`, `Hedged ${usd(g.hedgeDeltaUsd) ?? NOT_REPORTED}`];
+  const hints = [`Risk state: ${g.riskState}`, `Floor ${usd(g.exitReserveFloorUsd) ?? NOT_REPORTED}`, `Gamma ${usd(g.gammaUsd) ?? NOT_REPORTED}`, hedgeHint];
   return GOVERNOR_TITLES.map((title, i) => snap.stale
     ? {title, value: NOT_LIVE, hint: `Last reading ${values[i]} at block ${snap.stamp.blockNumber}, for reference only.`, live: false}
     : {title, value: values[i]!, hint: `${hints[i]} · block ${snap.stamp.blockNumber}`, live: true});
 }
+
+/** Which markets the site may show as tradeable: only underlyings the API lists with a deployed gear token, never the catalog.
+ * Until the market list answers, no market is shown as tradeable and `ready` is false. */
+export type ListedView = {ready: boolean; symbols: string[]; message: string};
+export function listedMarkets(s: LiveState<Snapshot<MarketGear[]>>, configured: boolean): ListedView {
+  const gap = gapOf(s, configured, 'market');
+  if (gap) return {ready: false, symbols: [], message: `${gap.hint} No market is shown as tradeable until it answers.`};
+  const symbols = [...new Set(s.data!.data!.filter((r) => r.token !== null && r.availability !== 'not_deployed').map((r) => r.underlying))];
+  return {ready: true, symbols, message: symbols.length ? `${symbols.length} listed on chain, as of block ${s.data!.stamp.blockNumber}.` : 'No market is listed on chain yet.'};
+}
+/** Split a catalog into the listed (tradeable) part and the part that is coming later. Not ready: nothing is tradeable or listed as later. */
+export function splitCatalog<M extends {symbol: string}>(catalog: readonly M[], view: ListedView): {tradeable: M[]; later: M[]} {
+  if (!view.ready) return {tradeable: [], later: []};
+  return {tradeable: catalog.filter((m) => view.symbols.includes(m.symbol)), later: catalog.filter((m) => !view.symbols.includes(m.symbol))};
+}
+/** The markets counter: the number of listed markets, or a dash while the list is not read. */
+export const marketCount = (catalog: readonly {symbol: string}[], view: ListedView): string => (view.ready ? String(splitCatalog(catalog, view).tradeable.length) : '-');
 
 export type PortfolioView = {total: string; unit: boolean; positionValue: string; accruedToll: string; rows: {gearId: string; quantity: string; value: string}[]; title: string; message: string};
 const sumUsd = (xs: (string | null)[]): string | null => (xs.some((x) => x === null) ? null : usd(String(xs.reduce((a, x) => a + Number(x), 0))));

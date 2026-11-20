@@ -3,7 +3,7 @@
 // cache (MIN_POLL_MS). With no API origin configured the state is 'idle' and views show an honest "not connected" line.
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {parseUnits} from 'viem';
-import type {ActionQuote, AccountEvent, BackerVault, ExitQueueRow, GearSnapshot, GovernorSnapshot, MarketGear, Position, ServiceError, Snapshot} from '../services/contract';
+import type {ActionQuote, AccountEvent, BackerVault, ExitQueueRow, GearSnapshot, GovernorSnapshot, MarketGear, Position, ServiceError, Snapshot, SystemStatus} from '../services/contract';
 import {deploymentFor} from '../services/deployments';
 import {executeQuote, type Eip1193, type FlowResult, type FlowStatus} from '../services/overdrive';
 import {IDLE, POLL, TERMINAL, asServiceError, createPoller, type LiveState} from '../services/poller';
@@ -31,6 +31,8 @@ const acct = (a: Account) => (a && /^0x[0-9a-fA-F]{40}$/.test(a) ? (a as `0x${st
 
 export const useMarketList = () => useLive<Snapshot<MarketGear[]>>('markets', (s) => service.marketList(s), POLL.marketList);
 export const useGearSnapshot = (gearId: string | null) => useLive<Snapshot<GearSnapshot>>(gearId, (s) => service.gearSnapshot(gearId!, s), POLL.gearSnapshot);
+/** GET /v1/status, read for the hedger's mode so the Governor tab never says hedging is on while it runs dry. */
+export const useSystemStatus = () => useLive<SystemStatus>('status', (s) => service.systemStatus(s), POLL.status);
 export const useGovernorSnapshot = () => useLive<Snapshot<GovernorSnapshot>>('governor', (s) => service.governorSnapshot(s), POLL.governor);
 export const usePortfolioPositions = (account: Account) => { const a = acct(account); return useLive<Snapshot<Position[]>>(a, (s) => service.portfolioPositions(a!, s), POLL.positions); };
 export const useBackerVaults = (account: Account) => { const a = acct(account); return useLive<Snapshot<BackerVault[]>>(a, (s) => service.backerVaults(a!, s), POLL.vaults); };

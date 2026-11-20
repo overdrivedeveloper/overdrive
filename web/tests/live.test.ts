@@ -92,8 +92,8 @@ describe('one hook per procedure, against the contract shapes', () => {
   test('governor.snapshot: the four cards come from the API, stale shows Not live yet', async () => {
     const {service} = api({'governor.snapshot': () => ({body: snap(GOV)})});
     const r = await poll((s) => service.governorSnapshot(s), POLL.governor);
-    const cards = governorCards(r.last(), true);
-    expect(cards.map((c) => [c.title, c.value])).toEqual([['Governor equity', '$125,000.50'], ['Exit reserve', '$40,000.00'], ['Net exposure', '-$8,000.00'], ['Hedge coverage', '75%']]);
+    const cards = governorCards(r.last(), true, 'live');
+    expect(cards.map((c) => [c.title, c.value])).toEqual([['Governor equity', '$125,000.50'], ['Exit reserve', '$40,000.00'], ['Net exposure', '-$8,000.00'], ['Outside hedge', '75%']]);
     expect(cards.every((c) => c.live)).toBe(true);
     const stale = governorCards({...r.last(), data: snap(GOV, {stale: true})}, true);
     expect(stale.every((c) => c.value === NOT_LIVE && !c.live)).toBe(true);
@@ -233,7 +233,7 @@ describe('no placeholder figure remains in the wired tabs', () => {
     });
   }
   test('each wired tab reads its live view', () => {
-    expect(tab('Governor')).toContain('governorCards(governor,configured)');
+    expect(tab('Governor')).toContain('governorCards(governor,configured,hedger)');
     expect(tab('Portfolio')).toContain('port.total');
     expect(tab('Backers')).toContain('vaultView.rows');
     expect(tab('Token')).toContain('NOT_LIVE');

@@ -73,7 +73,7 @@ export const layers = {
   nodes:[{id:'cruise',label:'Cruise · 1.5',x:0.12,y:0.5},{id:'sport',label:'Sport · 2',x:0.86,y:0.2},{id:'race',label:'Race · Coming soon',x:0.88,y:0.78},{id:'eco',label:'Eco · Coming soon',x:0.3,y:0.86},{id:'reverse',label:'Reverse · Coming soon',x:0.3,y:0.14}],
   eyebrow:'Under the hood', capsTitle:['Built for every','side of the market'],
   caps:[
-    {title:'One connected book',body:'Gears offset each other inside one book, and the Governor hedges what remains. Race, Eco and Reverse are coming soon.'},
+    {title:'One connected book',body:'Gears offset each other inside one book. The Governor can also offset what remains on an outside venue once that is switched on; the dashboard shows whether it is. Race, Eco and Reverse are coming soon.'},
     {title:'A daily toll',body:'A published formula adjusts token value. Your balance stays the same.'},
     {title:'An exit reserve',body:'USDG is ring-fenced for holder exits. When prices pause, sells use the lower price or queue for a fresh feed.'},
   ],
@@ -81,7 +81,7 @@ export const layers = {
 export const integrations = {
   eyebrow:'The market family',title:['The names you know.', 'More ways to hold them.'],pill:'Overdrive',pillNote:'one family',
   caption:'Stocks. Index ETFs. Crypto. Pair gears.',
-  body:'Mega-caps, retail favourites, SPY and QQQ, ETH and BTC - with gears matched to each market. Crypto runs 24/7; equity feeds follow their market sessions.',
+  body:'At launch: ETH, BTC, NVDA, TSLA and SPY. More mega-caps, retail favourites, QQQ and pair gears are coming later, each only once it is listed on chain. Crypto runs 24/7; equity feeds follow their market sessions.',
   marks:['NVDA','TSLA','AAPL','MSFT','META','AMZN','MSTR','SPY','QQQ','ETH','BTC'],
 };
 export const compare = {

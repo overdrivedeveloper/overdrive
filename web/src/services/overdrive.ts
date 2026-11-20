@@ -5,7 +5,7 @@ import {decodeErrorResult, encodeFunctionData, type Hex} from 'viem';
 import {ERC20_ABI, ERRORS_ABI, IntentRefused, encodeApproval, encodeIntent, type DeploymentFile} from './allowlist';
 import type {
   AccountEvent, ActionQuote, Address, BackerAction, BackerVault, ExitQueueRow, GearSnapshot, GovernorSnapshot, MarketGear, Paged, Position,
-  Quote, QuoteInput, ServiceError, ServiceErrorCode, Snapshot, StakeAccount, StakeAction,
+  Quote, QuoteInput, ServiceError, ServiceErrorCode, Snapshot, StakeAccount, StakeAction, SystemStatus,
 } from './contract';
 import {SERVICE_ERROR_CODES} from './contract';
 
@@ -29,11 +29,11 @@ export function toServiceError(status: number, body: unknown): ServiceError {
 
 export function createOverdriveService(config: ServiceConfig, fetchImpl: FetchLike = (i, o) => fetch(i, o)) {
   const base = config.apiOrigin.replace(/\/$/, '');
-  async function call<T>(procedure: string, query?: Record<string, string | undefined>, body?: unknown, signal?: AbortSignal): Promise<T> {
+  async function call<T>(procedure: string, query?: Record<string, string | undefined>, body?: unknown, signal?: AbortSignal, path = `/v1/compat/${procedure}`): Promise<T> {
     const qs = query ? Object.entries(query).filter(([, v]) => v !== undefined).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`).join('&') : '';
     let res: Response;
     try {
-      res = await fetchImpl(`${base}/v1/compat/${procedure}${qs ? `?${qs}` : ''}`, body === undefined
+      res = await fetchImpl(`${base}${path}${qs ? `?${qs}` : ''}`, body === undefined
         ? {method: 'GET', signal}
         : {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body), signal});
     } catch (e) {
@@ -58,6 +58,8 @@ export function createOverdriveService(config: ServiceConfig, fetchImpl: FetchLi
     governorSnapshot: (signal?: AbortSignal) => call<Snapshot<GovernorSnapshot>>('governor.snapshot', {chainId: chain}, undefined, signal),
     stakeAccount: (account: Address, signal?: AbortSignal) => call<Snapshot<StakeAccount>>('stake.account', {account, chainId: chain}, undefined, signal),
     stakeQuoteAction: (input: StakeAction, signal?: AbortSignal) => call<ActionQuote>('stake.quoteAction', undefined, input, signal),
+    /** GET /v1/status: service heartbeats, including the hedger's mode (dry_run or live). */
+    systemStatus: (signal?: AbortSignal) => call<SystemStatus>('status', undefined, undefined, signal, '/v1/status'),
     activityList: (account: Address, cursor?: string, signal?: AbortSignal) => call<Paged<AccountEvent>>('activity.list', {account, cursor, chainId: chain}, undefined, signal),
   };
 }
