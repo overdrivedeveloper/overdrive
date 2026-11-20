@@ -38,10 +38,18 @@ export interface PythDeps {
   nowMs?: () => number;
 }
 
-interface PythMarket { id: Hex; symbol: string; pythId: Hex }
+export interface PythMarket { id: Hex; symbol: string; pythId: Hex; /** A gear on this market is in the deployment record. */ listed: boolean }
 
-const pythMarkets = (context: Pick<CrankContext, "deployment">): PythMarket[] =>
-  context.deployment.markets.filter((m) => m.pythId && m.pythId.toLowerCase() !== ZERO_ID).map((m) => ({ id: m.id, symbol: m.symbol, pythId: m.pythId as Hex }));
+/**
+ * Every market the job keeps fresh: each market of the deployment record (the deploy config's full market list) that has a Pyth
+ * id, whether a gear on it is listed yet or still waits for the list-gears batch. A market without a TWAP pool (ETH, BTC) can
+ * list only while Pyth is under its refMaxAge (else listGear reverts MarketNotReady), so a pending market must be pushed too.
+ */
+export const pythPushMarkets = (deployment: Pick<CrankContext, "deployment">["deployment"]): PythMarket[] =>
+  deployment.markets.filter((m) => m.pythId && m.pythId.toLowerCase() !== ZERO_ID).map((m) => ({
+    id: m.id, symbol: m.symbol, pythId: m.pythId as Hex,
+    listed: deployment.gears.some((g) => g.marketA === m.symbol || g.marketB === m.symbol),
+  }));
 
 /** Per market: does the guard read a reference right now? Pure reads, used by the job and available to any health caller. */
 export async function checkReferences(context: Pick<CrankContext, "clients" | "deployment" | "now" | "metadata">): Promise<MarketReference[]> {
@@ -125,7 +133,7 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
   };
 
   return async (): Promise<Record<string, unknown>> => {
-    const markets = pythMarkets(context);
+    const markets = pythPushMarkets(context.deployment);
     if (!markets.length) return { idle: true, reason: "no_pyth_markets" };
     let pushed: Record<string, unknown> = { idle: true, reason: "fresh" };
     const skipped: string[] = [];
@@ -174,6 +182,8 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
       const price = rows[i * 2 + 1]!;
       if (cfg.status !== "success") { skipped.push(`${market.symbol}:no_config`); return; }
       const refMaxAge = Number((cfg.result as { refMaxAge: number | bigint }).refMaxAge);
+      // a market the guard has no config for cannot list or trade; pushing it would only spend the budget every pass
+      if (!(refMaxAge > 0)) { skipped.push(`${market.symbol}:not_on_guard`); return; }
       const published = price.status === "success" ? Number((price.result as { publishTime: bigint }).publishTime) : 0;
       if (!intervalChecked && config.PYTH_PUSH_INTERVAL_SECONDS >= refMaxAge) {
         logger.warn({ job: PYTH_PUSH_JOB, symbol: market.symbol, refMaxAge, interval: config.PYTH_PUSH_INTERVAL_SECONDS }, "PYTH_PUSH_INTERVAL_SECONDS is not below this market's refMaxAge; its price can expire between pushes");
@@ -220,7 +230,8 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
         spentWei += fee + (result.gasUsed ?? 0n) * (receipt?.effectiveGasPrice ?? 0n);
       }
       logger.info({ job: PYTH_PUSH_JOB, symbols: newer.map((n) => n.market.symbol), feeWei: fee.toString(), spentTodayWei: spentWei.toString(), dryRun: result.simulated }, "Pyth prices pushed");
-      return { idle: false, pushed: newer.map((n) => n.market.symbol), feeWei: fee.toString(), dryRun: result.simulated, unknown };
+      const pending = newer.filter((n) => !n.market.listed).map((n) => n.market.symbol);
+      return { idle: false, pushed: newer.map((n) => n.market.symbol), pending, feeWei: fee.toString(), dryRun: result.simulated, unknown };
     }
   }
 }

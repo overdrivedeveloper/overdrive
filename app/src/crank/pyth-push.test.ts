@@ -3,7 +3,7 @@ import { encodeFunctionData } from "viem";
 import { RevertError } from "../chain/revert";
 import { oracleOf } from "../api/routes/status";
 import { authHeaderValue, fetchLatestUpdates, HermesError } from "./hermes";
-import { checkReferences, createPythPushJob, PythAbi } from "./jobs/pyth-push";
+import { checkReferences, createPythPushJob, PythAbi, pythPushMarkets } from "./jobs/pyth-push";
 import { resetAlertMemory, setAlertSender, type Alert } from "./alerts";
 import { FakeChain, MARKET_ETH, MARKET_NVDA, MARKET_TSLA, nullSql } from "../testing/mock-chain";
 
@@ -53,6 +53,27 @@ describe("pyth push", () => {
     expect(chain.sent).toHaveLength(1);
     expect(chain.sent[0]).toMatchObject({ contract: "Pyth", name: "updatePriceFeeds", value: fee, simulated: false });
     expect(chain.sent[0]!.data).toBe(encodeFunctionData({ abi: PythAbi, functionName: "updatePriceFeeds", args: [[BLOB]] }));
+  });
+
+  test("pushes for a market with no listed gear yet (ETH waits for the list-gears batch) and for a listed one", async () => {
+    const gear = { id: `0x${"33".repeat(32)}`, symbol: "NVDA-SPORT", gear: "SPORT", power: "2", marketA: "NVDA", marketB: null, token: "0x0000000000000000000000000000000000000001", poolId: `0x${"44".repeat(32)}`, capUsd: "1000000", spreadBps: 60, unitUsd: "1" };
+    chain.deployment.gears = [gear as never];
+    expect(pythPushMarkets(chain.deployment).map((m) => [m.symbol, m.listed])).toEqual([["NVDA", true], ["ETH", false]]);
+    const result = await job()();
+    expect(result).toMatchObject({ idle: false, pushed: ["NVDA", "ETH"], pending: ["ETH"] });
+    expect(chain.sent).toHaveLength(1);
+  });
+
+  test("with no gear listed at all every Pyth market is still pushed (the chicken-and-egg of the first listing)", async () => {
+    chain.deployment.gears = [];
+    expect(await job()()).toMatchObject({ idle: false, pushed: ["NVDA", "ETH"], pending: ["NVDA", "ETH"] });
+  });
+
+  test("a market the guard has no config for is skipped, not pushed every pass", async () => {
+    chain.readers.set("ODOracleGuard.config", (a) => ({ refMaxAge: a[0] === MARKET_ETH ? 0 : 120 }));
+    const result = await job()();
+    expect(result).toMatchObject({ idle: false, pushed: ["NVDA"] });
+    expect(result.skipped).toContain("ETH:not_on_guard");
   });
 
   test("skips when the on-chain price is already fresh enough, and when Hermes has nothing newer", async () => {
