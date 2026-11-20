@@ -202,6 +202,14 @@ describe("fork stack", () => {
     expect(setup).toContain("fillDeploymentGears");
   });
 
+  test("warp_to_open_session_restamps_the_feeds_before_reading_the_session", () => {
+    const s = src("setup.ts");
+    const body = s.slice(s.indexOf("export async function warpToOpenSession"), s.indexOf("export const SESSION_OPEN"));
+    const refresh = body.indexOf("await refreshPyth()"), read = body.indexOf('functionName: "read"');
+    expect(refresh).toBeGreaterThan(body.indexOf("test.mine")); // after each warp
+    expect(read).toBeGreaterThan(refresh); // before the guard is asked for the session
+  });
+
   test("up_refreshes_the_site_record_after_the_gears_are_filled", () => {
     const u = src("up.sh");
     const fill = u.indexOf("--fill-gears"), web = u.indexOf("if want web");

@@ -348,6 +348,9 @@ export async function warpToOpenSession(minSec = 0): Promise<number> {
     const target = warpTarget(from, "to-next-open") + 600;
     await test.increaseTime({ seconds: target - now });
     await test.mine({ blocks: 1 });
+    // Re-stamp the mirror feeds at the new clock first: a round stamped before the warp reads HALTED at the reopen (the
+    // guard's pre-close-round rule, I7-2/I8-1), so without this no session is ever OPEN and the gear listing fails.
+    await refreshPyth();
     if (!stock) return target;
     const r = (await pub.readContract({ address: guard, abi: IODOracleGuardAbi, functionName: "read", args: [marketId(stock.symbol)] })) as { session: number };
     if (r.session === SESSION_OPEN) return target;
