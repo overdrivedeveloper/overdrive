@@ -8,6 +8,7 @@ import {ListGears} from "../../script/ListGears.s.sol";
 import {ODGearRegistry} from "overdrive/gear/ODGearRegistry.sol";
 import {ODHookMiner} from "overdrive/hook/ODHookMiner.sol";
 import {Gear} from "overdrive/interfaces/ODTypes.sol";
+import {IODGovernor} from "overdrive/interfaces/IODGovernor.sol";
 
 /// DeploySystem on a plain EVM (rule R7 local half), the config files, the gear cap, no proxies (R6), the
 /// deployments json round trip, and the ListGears batch through the real timelock.
@@ -80,7 +81,10 @@ contract DeploySystemTest is DeployFixture {
             ds.parseConfig(vm.readFile(string.concat(vm.projectRoot(), "/script/config/mainnet.json")));
         assertEq(m.gears.length, 10, "D10 launch set: SPORT and CRUISE on five names");
         assertEq(m.markets.length, 5);
-        assertFalse(m.seedApproved, "hook seed figures wait for the owner");
+        assertTrue(m.seedApproved, "the owner approved a tiny hook seed");
+        assertEq(m.seedUsdgPerGear, 0, "no USDG in the hook seed");
+        assertEq(m.seedGearWadPerGear, 1e18, "one gear token per gear");
+        assertEq(m.minExitReserveUsdg, 100e6, "D-tiny-reserve: 100 USDG exit reserve minimum");
         vm.chainId(4663);
         // Roles are filled from the live Safes and bot wallets; $OVRD comes from the launchpad on launch day (D11), so
         // mainnet deploys in two phases: the system now without ODStake, the stake later (DeployStake).
@@ -137,5 +141,63 @@ contract DeploySystemTest is DeployFixture {
         _timelock().executeBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt);
         assertEq(ODGearRegistry(d.registry).gearCount(), 5);
         assertEq(ds.checkSystem(_cfg(), _d(), deployer).length, 0, "checks pass after the batch");
+    }
+
+    /// D-tiny-reserve: the batch also sets minExitReserveUsdg; every other Governor param is the live one.
+    function test_ListGearsBatchSetsMinExitReserve() public {
+        _addGear(ETH, Gear.ECO, 5_000_000, 40);
+        SystemConfig.Config memory c = _cfg();
+        c.minExitReserveUsdg = 100e6;
+        IODGovernor g = IODGovernor(d.governor);
+        IODGovernor.Params memory before = g.getParams();
+        assertEq(before.minExitReserveUsdg, 1_000e6, "deploy default");
+        ListGears lg = new ListGears();
+        ListGears.Batch memory b = lg.listBatch(c, _d());
+        assertEq(b.targets.length, 3, "listing, pool init, setParams");
+        assertEq(b.targets[2], d.governor);
+        vm.prank(ownerSafe);
+        _timelock().scheduleBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt, 172800);
+        vm.warp(block.timestamp + 172800);
+        feedOf[ETH].push(3000e8);
+        pyth.setPrice(keccak256(abi.encode("pyth", ETH)), 3000e8, 3e5, -8, block.timestamp);
+        vm.prank(ownerSafe);
+        _timelock().executeBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt);
+        IODGovernor.Params memory got = g.getParams();
+        before.minExitReserveUsdg = 100e6;
+        assertEq(keccak256(abi.encode(got)), keccak256(abi.encode(before)), "only minExitReserveUsdg changed");
+        assertEq(g.exitReserveFloor(), 100e6, "floor is the minimum with no open interest");
+        // once applied (and every gear listed) the batch is empty
+        assertEq(lg.listBatch(c, _d()).targets.length, 0, "nothing left to do");
+    }
+
+    function test_MinExitReserveValidated() public {
+        SystemConfig.Config memory c = _cfg();
+        c.minExitReserveUsdg = 100e6 + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SystemConfig.ConfigRefused.selector, "governorParams.minExitReserveUsdg out of range"
+            )
+        );
+        ds.validateConfig(c);
+        c.minExitReserveUsdg = 1_000_001e6;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SystemConfig.ConfigRefused.selector, "governorParams.minExitReserveUsdg out of range"
+            )
+        );
+        ds.validateConfig(c);
+        ListGears lg = new ListGears();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SystemConfig.ConfigRefused.selector, "governorParams.minExitReserveUsdg out of range"
+            )
+        );
+        lg.listBatch(c, _d());
+        string memory j = vm.readFile(string.concat(vm.projectRoot(), "/script/config/mainnet.json"));
+        j = vm.replace(j, '"minExitReserveUsdg": "100000000"', '"minExitReserveUsdg": "0"');
+        vm.expectRevert(
+            abi.encodeWithSelector(SystemConfig.ConfigRefused.selector, "governorParams.minExitReserveUsdg is zero")
+        );
+        ds.parseConfig(j);
     }
 }

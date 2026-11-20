@@ -7,6 +7,7 @@ import {SystemChecks} from "./lib/SystemChecks.sol";
 import {ODGearRegistry} from "overdrive/gear/ODGearRegistry.sol";
 import {ODHook} from "overdrive/hook/ODHook.sol";
 import {ODMinter} from "overdrive/governor/ODMinter.sol";
+import {IODGovernor} from "overdrive/interfaces/IODGovernor.sol";
 import {GearStatus} from "overdrive/interfaces/ODTypes.sol";
 
 /// @title TimelockBatch
@@ -64,7 +65,9 @@ abstract contract TimelockBatch is SystemChecks {
 }
 
 /// @title ListGears
-/// @notice Writes a timelock batch that lists every config gear not yet listed and initialises its hook pool.
+/// @notice Writes a timelock batch that lists every config gear not yet listed and initialises its hook pool. When the
+/// config sets governorParams.minExitReserveUsdg (D-tiny-reserve) and the deployed Governor holds another figure, the
+/// batch ends with ODGovernor.setParams: every field read live from the Governor, only minExitReserveUsdg replaced.
 contract ListGears is TimelockBatch {
     function run() external returns (bytes32[] memory batchIds) {
         string memory network = _network();
@@ -73,7 +76,7 @@ contract ListGears is TimelockBatch {
         Batch memory b = listBatch(c, d);
         batchIds = new bytes32[](b.targets.length == 0 ? 0 : 1);
         if (b.targets.length == 0) {
-            console2.log("ListGears: every config gear is listed");
+            console2.log("ListGears: every config gear is listed and the Governor params match the config");
             return batchIds;
         }
         batchIds[0] = batchId(b);
@@ -86,9 +89,11 @@ contract ListGears is TimelockBatch {
         for (uint256 i; i < c.gears.length; ++i) {
             if (reg.gear(reg.idOf(c.gears[i].marketA, c.gears[i].marketB, c.gears[i].gear)).token == address(0)) ++n;
         }
-        b.targets = new address[](2 * n);
-        b.values = new uint256[](2 * n);
-        b.payloads = new bytes[](2 * n);
+        (bool setP, IODGovernor.Params memory p) = governorParamsUpdate(c, d);
+        uint256 len = 2 * n + (setP ? 1 : 0);
+        b.targets = new address[](len);
+        b.values = new uint256[](len);
+        b.payloads = new bytes[](len);
         uint256 k;
         for (uint256 i; i < c.gears.length; ++i) {
             GearCfg memory g = c.gears[i];
@@ -104,7 +109,28 @@ contract ListGears is TimelockBatch {
             b.targets[k] = d.hook;
             b.payloads[k++] = abi.encodeCall(ODHook.initializeGearPool, (id));
         }
+        if (setP) {
+            b.targets[k] = d.governor;
+            b.payloads[k++] = abi.encodeCall(IODGovernor.setParams, (p));
+        }
         b.salt = keccak256(abi.encode("overdrive-list-gears", b.payloads));
+    }
+
+    /// @notice D-tiny-reserve: the params the batch sets, or `needed` false when the config sets no figure or the
+    /// Governor already holds it. Every other field is the deployed Governor's own value, read at script time.
+    function governorParamsUpdate(Config memory c, Deployed memory d)
+        public
+        view
+        returns (bool needed, IODGovernor.Params memory p)
+    {
+        if (c.minExitReserveUsdg == 0) return (false, p);
+        if (c.minExitReserveUsdg % 1e6 != 0 || c.minExitReserveUsdg > MAX_MIN_EXIT_RESERVE) {
+            revert ConfigRefused("governorParams.minExitReserveUsdg out of range");
+        }
+        p = IODGovernor(d.governor).getParams();
+        if (p.minExitReserveUsdg == c.minExitReserveUsdg) return (false, p);
+        p.minExitReserveUsdg = uint64(c.minExitReserveUsdg);
+        needed = true;
     }
 }
 

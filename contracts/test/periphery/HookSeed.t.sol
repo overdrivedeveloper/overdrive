@@ -77,6 +77,23 @@ contract HookSeedTest is Test {
         _assertHelperEmpty();
     }
 
+    /// The owner approved a tiny seed with 0 USDG (mainnet.json hookSeed.usdgPerGear "0"): the batch still runs, the
+    /// Safe gets only its gear claim, and the remove batch skips the empty USDG claim.
+    function test_zeroUsdgSeed() public {
+        _seed(0, 1e18);
+        assertEq(pm.balanceOf(safe, uint160(address(usdg))), 0);
+        assertEq(pm.balanceOf(safe, uint160(address(gear))), 1e18);
+        assertEq(usdg.balanceOf(safe), 10_000e6, "no USDG moved");
+        assertEq(usdg.balanceOf(address(pm)), 777e6);
+        _assertHelperEmpty();
+        (address[] memory held, uint256[] memory claims) = batch.claimsOf(address(pm), safe, _tokens());
+        assertEq(held.length, 1, "only the gear claim");
+        assertEq(held[0], address(gear));
+        _exec(batch.removeTxs(address(pm), address(helper), held, claims));
+        assertEq(gear.balanceOf(safe), 10e18);
+        _assertHelperEmpty();
+    }
+
     function test_removeReturnsEverythingToSafe() public {
         _seed(500e6, 1e18);
         (address[] memory held, uint256[] memory claims) = batch.claimsOf(address(pm), safe, _tokens());

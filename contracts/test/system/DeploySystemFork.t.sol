@@ -12,6 +12,8 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {DeployStake} from "../../script/DeployStake.s.sol";
 import {TimelockBatch} from "../../script/ListGears.s.sol";
 import {ODDevToken} from "../../script/lib/SystemDeployer.sol";
+import {ListGears} from "../../script/ListGears.s.sol";
+import {IODGovernor} from "overdrive/interfaces/IODGovernor.sol";
 
 /// The two-phase fork test arms under its own variable names, so it never races the other test on the process env.
 contract StakeLaterForkDeploySystem is DeploySystem {
@@ -21,6 +23,17 @@ contract StakeLaterForkDeploySystem is DeploySystem {
 
     function _armFileEnv() internal pure override returns (string memory) {
         return "OD_TEST_ARM_STAKE_LATER_FILE";
+    }
+}
+
+/// The tiny exit reserve fork test arms under its own names too (forge runs tests in parallel on one process env).
+contract TinyReserveForkDeploySystem is DeploySystem {
+    function _armFlagEnv() internal pure override returns (string memory) {
+        return "OD_TEST_ARM_TINY_RESERVE";
+    }
+
+    function _armFileEnv() internal pure override returns (string memory) {
+        return "OD_TEST_ARM_TINY_RESERVE_FILE";
     }
 }
 
@@ -141,5 +154,48 @@ contract DeploySystemForkTest is ODTest {
             emit log(f[i]);
         }
         assertEq(f.length, 0, "phase 2 checks pass on the fork");
+    }
+
+    /// D-tiny-reserve on the fork: the list-gears batch built with mainnet.json's governorParams sets the exit reserve
+    /// minimum through the real timelock; with no open interest the floor is 100 USDG and every other param is kept.
+    function test_ForkListGearsBatchSetsTinyExitReserve() public {
+        SystemConfig.Config memory c =
+            ds.parseConfig(vm.readFile(string.concat(vm.projectRoot(), "/script/config/fork.json")));
+        SystemConfig.Config memory m =
+            ds.parseConfig(vm.readFile(string.concat(vm.projectRoot(), "/script/config/mainnet.json")));
+        c.minExitReserveUsdg = m.minExitReserveUsdg;
+        _mockFresh(c, "ETH", 3000e8);
+        _mockFresh(c, "BTC", 90000e8);
+        string memory flag = string.concat(vm.projectRoot(), "/out/od-fork-tiny-reserve-armed.flag");
+        vm.writeFile(flag, "test\n");
+        vm.setEnv("OD_TEST_ARM_TINY_RESERVE", "1");
+        vm.setEnv("OD_TEST_ARM_TINY_RESERVE_FILE", flag);
+        SystemDeployer.Deployed memory d = new TinyReserveForkDeploySystem().deploy(c, deployer);
+        vm.setEnv("OD_TEST_ARM_TINY_RESERVE", "");
+        IODGovernor g = IODGovernor(d.governor);
+        IODGovernor.Params memory before = g.getParams();
+        // the stock gears wait for their markets; the batch here carries only what is ready plus setParams
+        SystemConfig.GearCfg[] memory ready = new SystemConfig.GearCfg[](4);
+        uint256 n;
+        for (uint256 i; i < c.gears.length; ++i) {
+            if (c.gears[i].marketA == "ETH" || c.gears[i].marketA == "BTC") ready[n++] = c.gears[i];
+        }
+        assertEq(n, 4);
+        c.gears = ready;
+        ListGears lg = new ListGears();
+        TimelockBatch.Batch memory b = lg.listBatch(c, d);
+        assertEq(b.targets.length, 1, "only setParams: the crypto gears are listed");
+        assertEq(b.targets[0], d.governor);
+        TimelockController t = TimelockController(payable(d.timelock));
+        vm.prank(c.roles.ownerSafe);
+        t.scheduleBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt, c.minDelay);
+        vm.warp(block.timestamp + c.minDelay);
+        vm.prank(c.roles.ownerSafe);
+        t.executeBatch(b.targets, b.values, b.payloads, bytes32(0), b.salt);
+        IODGovernor.Params memory got = g.getParams();
+        assertEq(got.minExitReserveUsdg, 100e6);
+        before.minExitReserveUsdg = 100e6;
+        assertEq(keccak256(abi.encode(got)), keccak256(abi.encode(before)), "every other param unchanged");
+        assertEq(g.exitReserveFloor(), 100e6, "100 USDG floor with zero open interest");
     }
 }

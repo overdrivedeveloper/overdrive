@@ -35,10 +35,14 @@
   "globalDailyCapWei": "1000000000000000000"
  },
  "hookSeed": {
-  "usdgPerGear": "500000000",
+  "usdgPerGear": "0",
   "gearWadPerGear": "1000000000000000000",
-  "approvedByOwner": false,
-  "note": "D26 small hook seed per launch gear, held by the owner Safe as ERC-6909; figures need the owner's approval"
+  "approvedByOwner": true,
+  "note": "D26 hook seed per launch gear, held by the owner Safe as ERC-6909; the owner approved a tiny seed (0 USDG, 1 gear token per gear)"
+ },
+ "governorParams": {
+  "minExitReserveUsdg": "100000000",
+  "note": "D-tiny-reserve: the ListGears timelock batch sets ODGovernor minExitReserveUsdg to this (6 decimals, 100 USDG); every other param is read from the deployed Governor and kept"
  },
  "holidaysNote": "NYSE full closes (closeMinute 0) and 13:00 Eastern early closes (closeMinute 780), 2026 to 2028, from the exchange calendar; day = days since 1970-01-01 of the Eastern date. The deploy writes them to ODMarketHours.setHolidays and the post-deploy check compares them (R8-1). Same list as app/src/crank/holidays.ts.",
  "holidays": [

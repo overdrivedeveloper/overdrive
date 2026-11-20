@@ -15,6 +15,7 @@ abstract contract SystemConfig is ODScript {
     uint256 internal constant MIN_DELAY = 172800;
     uint256 internal constant MAX_GEARS = 32;
     uint256 internal constant MAX_GEARS_PER_MARKET = 12;
+    uint256 internal constant MAX_MIN_EXIT_RESERVE = 1_000_000e6;
 
     struct Roles {
         address ownerSafe;
@@ -81,6 +82,9 @@ abstract contract SystemConfig is ODScript {
         uint256 seedUsdgPerGear;
         uint256 seedGearWadPerGear;
         bool seedApproved;
+        /// D-tiny-reserve: the Governor's minExitReserveUsdg the ListGears batch sets (6 decimals); 0 = the config sets
+        /// no figure and the batch leaves the Governor's params alone.
+        uint256 minExitReserveUsdg;
         MarketCfg[] markets;
         GearCfg[] gears;
         /// R8-1: NYSE full and early closes written to ODMarketHours at deploy (ascending by Eastern day).
@@ -139,6 +143,10 @@ abstract contract SystemConfig is ODScript {
         c.seedUsdgPerGear = vm.parseUint(vm.parseJsonString(j, ".hookSeed.usdgPerGear"));
         c.seedGearWadPerGear = vm.parseUint(vm.parseJsonString(j, ".hookSeed.gearWadPerGear"));
         c.seedApproved = vm.parseJsonBool(j, ".hookSeed.approvedByOwner");
+        if (vm.keyExistsJson(j, ".governorParams.minExitReserveUsdg")) {
+            c.minExitReserveUsdg = vm.parseUint(vm.parseJsonString(j, ".governorParams.minExitReserveUsdg"));
+            if (c.minExitReserveUsdg == 0) revert ConfigRefused("governorParams.minExitReserveUsdg is zero");
+        }
         c.markets = _markets(j);
         c.gears = _gears(j);
         c.holidays = _holidays(j);
@@ -276,6 +284,13 @@ abstract contract SystemConfig is ODScript {
         if (_isRealChain(c.chainId) && c.ext.createX == address(0)) revert ConfigRefused("placeholder createX");
         if (c.markets.length != 0 && c.ext.pythCore == address(0)) revert ConfigRefused("placeholder pythCore");
         if (c.gears.length > MAX_GEARS) revert ConfigRefused("more gears than MAX_GEARS");
+        // D-tiny-reserve: a set figure is a whole USDG amount between 1 and 1,000,000 USDG (fits the uint64 field).
+        if (
+            c.minExitReserveUsdg != 0
+                && (c.minExitReserveUsdg % 1e6 != 0 || c.minExitReserveUsdg > MAX_MIN_EXIT_RESERVE)
+        ) {
+            revert ConfigRefused("governorParams.minExitReserveUsdg out of range");
+        }
         // R8-1: the calendar must know the holidays from the first block. The list must reach past today (a list
         // that ended in the past would read the next holiday as a trading day).
         uint256 nh = c.holidays.length;
