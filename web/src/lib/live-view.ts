@@ -3,6 +3,7 @@
 import {formatUnits} from 'viem';
 import type {Amount, Availability, BackerVault, ExitQueueRow, Quote, GearSnapshot, GovernorSnapshot, MarketGear, Position, Snapshot, SystemStatus} from '../services/contract';
 import type {LiveState} from '../services/poller';
+import {isGearAllowed, type Gear} from './overdrive';
 
 export const NOT_LIVE = 'Not live yet';
 export const NOT_REPORTED = 'Not reported';
@@ -205,3 +206,29 @@ export function queuedSellLine(state: LiveState<Snapshot<ExitQueueRow[]>>, gearI
   return {text: 'Queued sell sent. Waiting for the queue record.', pending: true, seen};
 }
 
+
+/** A daily toll percent with at most 3 decimals ("0.03356172520704" -> "0.034%"); null when the service reports none. */
+export function tollPctText(v: string | number | null | undefined): string {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return 'Not reported';
+  const r = Number(n.toFixed(3));
+  return `${Object.is(r, -0) ? 0 : r}%`;
+}
+
+/** The trade ticket's market: the current one while it is listed, else the first listed one (the one the select shows). */
+export const ticketMarket = (current: string, listed: readonly string[]): string =>
+  listed.length === 0 || listed.includes(current) ? current : listed[0];
+
+/** Why a quote request is refused before it reaches the service, or null when it may go ahead. */
+export function quoteRefusal(market: string, gear: Gear, amount: string, listed: readonly string[]): string | null {
+  if (!listed.includes(market)) return 'This market is not listed on chain yet.';
+  if (!isGearAllowed(market, gear)) return 'Choose an available gear for this market.';
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) return 'Enter an amount greater than zero.';
+  return null;
+}
+
+/** The review dialog's main button: Done closes once confirmed; it is disabled only while a wallet step is open. */
+export function reviewButton(r: {kind: string} | null | undefined, flow: string | null | undefined): {done: boolean; disabled: boolean; action: 'close' | 'execute'} {
+  const done = r?.kind === 'confirmed';
+  return {done, disabled: !done && !!flow && !r, action: done ? 'close' : 'execute'};
+}

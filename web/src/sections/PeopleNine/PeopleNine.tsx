@@ -7,7 +7,7 @@ import {useOverdriveWallet} from '../../hooks/useOverdriveWallet';
 import {WalletConnectOption} from '../../components/WalletConnectOption';
 import {amountText, useTradeQuote} from '../../hooks/useTradeQuote';
 import {useBackerAction, useBackerVaults, useGearSnapshot, useGovernorSnapshot, useExitQueue, useMarketList, usePortfolioPositions, useSystemStatus, useTradeStatus} from '../../hooks/useLive';
-import {NOT_LIVE, closedSellView, feedLine, queuedSellLine, quoteAmountRows, governorCards, hedgerMode, hedgingLine, listedMarkets, marketCount, marketLive, portfolioView, splitCatalog, tollLine, vaultsView} from '../../lib/live-view';
+import {NOT_LIVE, closedSellView, feedLine, queuedSellLine, quoteAmountRows, quoteRefusal, reviewButton, ticketMarket, tollPctText, governorCards, hedgerMode, hedgingLine, listedMarkets, marketCount, marketLive, portfolioView, splitCatalog, tollLine, vaultsView} from '../../lib/live-view';
 import {I} from './icons';
 import '../../styles/tokens.css';
 import '../../styles/base.css';
@@ -41,29 +41,29 @@ function QuoteReview({trade,onClose,indexed,queue}:{trade:ReturnType<typeof useT
  const q=trade.quote;const r=trade.result;
  if(trade.loading)return <p>Asking the quote service for an executable price. Nothing is signed until you confirm.</p>;
  if(!q)return <><p>{trade.error?.message}</p><button className="od-primary" onClick={onClose}>Return to trade {I.up}</button></>;
- const done=r?.kind==='confirmed';const closed=closedSellView(q);
+ const btn=reviewButton(r,trade.flow);const done=btn.done;const closed=closedSellView(q);
  return <><p>{closed?closed.lead:'Review the exact amounts before your wallet asks for a signature.'}</p>
  {closed&&<dl className="od-quote-review">{closed.paths.map(o=><Fragment key={o.label}><dt>{o.label}</dt><dd>{o.rule}{o.current?' This quote.':''}</dd></Fragment>)}</dl>}
- <dl className="od-quote-review">{quoteAmountRows(q).map(row=><Fragment key={row.label}><dt>{row.label}</dt><dd className={row.num?'ui-num':undefined}>{row.value}</dd></Fragment>)}<dt>Daily toll</dt><dd className="ui-num">{q.dailyTollPct===null?'Not reported':`${q.dailyTollPct}%`}</dd><dt>Spread</dt><dd className="ui-num">{(q.spreadBps/100).toFixed(2)}%</dd><dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
+ <dl className="od-quote-review">{quoteAmountRows(q).map(row=><Fragment key={row.label}><dt>{row.label}</dt><dd className={row.num?'ui-num':undefined}>{row.value}</dd></Fragment>)}<dt>Daily toll</dt><dd className="ui-num">{tollPctText(q.dailyTollPct)}</dd><dt>Spread</dt><dd className="ui-num">{(q.spreadBps/100).toFixed(2)}%</dd><dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
  {trade.error&&<p role="alert">{trade.error.message}</p>}
  {r&&<p role="status">{r.kind==='confirmed'?`Confirmed in block ${r.blockNumber}.`:r.kind==='failed'?'The transaction reverted on chain. No tokens moved.':r.kind==='rejected'?'You rejected the request in your wallet. Nothing was sent.':r.kind==='account_changed'?'Your wallet account changed. Ask for a new quote for this account.':r.error.message}</p>}
  {r&&indexed&&<p role="status">{indexed}</p>}
  {r&&queue&&<p role="status">{queue}</p>}
  {trade.flow&&!r&&<p role="status">{trade.flow==='approving'?'Approve the token in your wallet.':trade.flow==='signing'?'Confirm the transaction in your wallet.':trade.flow==='confirming'||trade.flow==='submitted'?'Waiting for the receipt.':'Checking the quote.'}</p>}
- <button className="od-primary" disabled={done||(!!trade.flow&&!r)} onClick={()=>trade.execute(q.execution==='queued')}>{done?'Done':closed?closed.action:'Confirm in wallet'} {I.up}</button></>;
+ <button className="od-primary" disabled={btn.disabled} onClick={btn.action==='close'?onClose:()=>trade.execute(q.execution==='queued')}>{done?'Done':closed?closed.action:'Confirm in wallet'} {I.up}</button></>;
 }
 
 function BackerReview({backer,label,onClose}:{backer:ReturnType<typeof useBackerAction>;label:string;onClose:()=>void}){
  const q=backer.quote;const r=backer.result;
  if(backer.loading)return <p>Asking the vault service for an opening transaction. Nothing is signed until you confirm.</p>;
  if(!q)return <><p>{backer.error?.message}</p><button className="od-primary" onClick={onClose}>Return to backers {I.up}</button></>;
- const done=r?.kind==='confirmed';
+ const btn=reviewButton(r,backer.flow);const done=btn.done;
  return <><p>{`Open a ${label} backer vault. Review the approval and the call before your wallet asks for a signature. Backer vaults can be liquidated.`}</p>
  <dl className="od-quote-review"><dt>Contract call</dt><dd>{q.transaction.functionName}</dd>{q.approvals.map(a=><Fragment key={a.token.address}><dt>Approval</dt><dd className="ui-num">{amountText({token:a.token,baseUnits:a.requiredBaseUnits},2)}</dd></Fragment>)}<dt>Quote block</dt><dd className="ui-num">{q.stamp.blockNumber}</dd><dt>Expires</dt><dd>{new Date(q.expiresAt).toLocaleTimeString()}</dd></dl>
  {backer.error&&<p role="alert">{backer.error.message}</p>}
  {r&&<p role="status">{r.kind==='confirmed'?`Vault opened in block ${r.blockNumber}.`:r.kind==='failed'?'The transaction reverted on chain. No collateral moved.':r.kind==='rejected'?'You rejected the request in your wallet. Nothing was sent.':r.kind==='account_changed'?'Your wallet account changed. Ask for a new vault quote for this account.':r.error.message}</p>}
  {backer.flow&&!r&&<p role="status">{backer.flow==='approving'?'Approve USDG in your wallet.':backer.flow==='signing'?'Confirm the transaction in your wallet.':backer.flow==='confirming'||backer.flow==='submitted'?'Waiting for the receipt.':'Checking the vault quote.'}</p>}
- <button className="od-primary" disabled={done||(!!backer.flow&&!r)} onClick={()=>backer.execute()}>{done?'Done':'Confirm in wallet'} {I.up}</button></>;
+ <button className="od-primary" disabled={btn.disabled} onClick={btn.action==='close'?onClose:()=>backer.execute()}>{done?'Done':'Confirm in wallet'} {I.up}</button></>;
 }
 
 export default function PeopleNine({navigate}:{navigate:(p:string)=>void}){
@@ -87,7 +87,9 @@ export default function PeopleNine({navigate}:{navigate:(p:string)=>void}){
  const selectMarket=(symbol:string,open=false)=>{setMarket(symbol);if(!isGearAllowed(symbol,gear))setGear('Sport');setVol(symbol==='SPY'||symbol==='QQQ'?18:symbol==='NVDA'?50:60);if(open)go('Trade')};
  // Without a browser wallet (most mobile browsers), Connect wallet opens WalletConnect when it is configured.
  const connect=async()=>{await (!wallet.available&&wallet.walletConnectEnabled?wallet.connectWalletConnect():wallet.connect())};
- const requestQuote=()=>{if(!listed.symbols.includes(market)){setNotice('This market is not listed on chain yet.');return}if(!isGearAllowed(market,gear)){setNotice('Choose an available gear for this market.');return}if(!Number.isFinite(Number(amount))||Number(amount)<=0){setNotice('Enter an amount greater than zero.');return}if(!wallet.connected){connect();return}if(!wallet.correctChain){wallet.switchNetwork();return}trade.requestTicket({market,gear,side,amount,slippagePct:slippage});setModal('quote')};
+ // The ticket's select shows the first listed market when the current one is not listed; keep the state in step.
+ const listedKey=listed.symbols.join(',');useEffect(()=>{const next=ticketMarket(market,listed.symbols);if(next!==market)selectMarket(next)},[market,listedKey]);
+ const requestQuote=()=>{const refused=quoteRefusal(market,gear,amount,listed.symbols);if(refused){setNotice(refused);return}if(!wallet.connected){connect();return}if(!wallet.correctChain){wallet.switchNetwork();return}trade.requestTicket({market,gear,side,amount,slippagePct:slippage});setModal('quote')};
  const filtered=tradeable.filter(m=>(group==='All markets'||group==='Watchlist'&&watch.includes(m.symbol)||m.group===group)&&`${m.symbol} ${m.name}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>sort==='Name A–Z'?a.name.localeCompare(b.name):sort==='Spread low–high'?a.spreadBps-b.spreadBps:0);
  const rows=(compact=false)=>{const list=compact?tradeable.filter(m=>['TSLA','NVDA','SPY','ETH','BTC'].includes(m.symbol)&&`${m.symbol} ${m.name}`.toLowerCase().includes(query.toLowerCase())):filtered;return <div className="od-table-scroll"><table className="p9__table"><thead><tr><th><span className="sr-only">Watch</span></th><th>Market</th><th>{compact?'Gear':'Available gears'}</th><th>Spread</th><th>{compact?'Session':'Open-value cap'}</th>{!compact&&<th>Session</th>}<th><span className="sr-only">Open market</span></th></tr></thead><tbody>{list.map(m=><tr key={m.symbol} data-on={market===m.symbol}><td><button className="p9__check" data-on={watch.includes(m.symbol)} aria-label={`${watch.includes(m.symbol)?'Remove':'Add'} ${m.symbol} ${watch.includes(m.symbol)?'from':'to'} watchlist`} aria-pressed={watch.includes(m.symbol)} onClick={()=>toggleWatch(m.symbol)}>{watch.includes(m.symbol)?I.check:<span>+</span>}</button></td><td><button className="p9__person" onClick={()=>selectMarket(m.symbol,true)}><MarketMark symbol={m.symbol}/><span><b>{m.symbol}</b><small>{m.name}</small></span></button></td><td>{compact?'Sport':m.gears.map(x=>isGearLive(x)?x:`${x} (${COMING_SOON})`).join(' · ')}</td><td className="ui-num">{((liveOf(m.symbol)?.spreadBps??m.spreadBps)/100).toFixed(1)}%</td><td>{compact?<span className="p9__status" data-st={m.group==='Crypto'?'paid':'pending'}>{m.group==='Crypto'?'24 / 7':'US hours'}</span>:money(liveOf(m.symbol)?.capUsd??m.capUsd)}</td>{!compact&&<td><span className="p9__status" data-st={m.group==='Crypto'?'paid':m.group==='Pairs'?'absent':'pending'}>{m.group==='Crypto'?'24 / 7':m.group==='Pairs'?'Pair feed':'US hours'}</span></td>}<td><Arrow label={`Trade ${m.symbol}`} onClick={()=>selectMarket(m.symbol,true)}/></td></tr>)}</tbody></table>{!list.length&&(tradeable.length?<div className="od-empty-small">No markets match your search. <button onClick={()=>{setQuery('');setGroup('All markets')}}>Clear filters</button></div>:<div className="od-empty-small">{listed.message}</div>)}</div>};
  const gearList=(mini=false)=><div className={mini?'p9__slots od-gears-list':'od-gear-options'}>{GEARS.map((g,i)=>{const allowed=isGearAllowed(market,g.id);return <button key={g.id} className={mini?`p9__slot ${g.id===gear?'p9__slot--now':''}`:''} data-active={g.id===gear} disabled={!allowed} title={g.soon?`${g.title}: ${COMING_SOON}`:allowed?g.description:`${g.title} is not available for ${market}`} onClick={()=>setGear(g.id)}><span className="p9__slotTime">0{i+1}</span><span><b>{g.title}</b><i>{g.soon?COMING_SOON:mini?(allowed?(g.id===gear?tollLine(gearSnap,g.tollLabel):g.tollLabel):'Not available'):g.description}</i></span><span className="p9__slotBadge">{g.power}</span></button>})}</div>;
