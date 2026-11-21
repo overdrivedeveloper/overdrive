@@ -13,6 +13,26 @@ CONTRACTS="$BACKEND/contracts"
 say() { printf '%s\n' "$*"; }
 die() { printf 'refused: %s\n' "$*" >&2; exit 1; }
 
+# The arming file the owner creates for a real run. Forge reads it through vm.exists, which only sees the paths in
+# contracts/foundry.toml fs_permissions; a file elsewhere reads as missing and the guard reverts mid-run.
+ARM_FILE_DEFAULT="$BACKEND/.batches/.overdrive-armed"
+
+# check_allow_file: OVERDRIVE_ALLOW_FILE must exist and sit inside a forge-readable path. Run it before any network step.
+check_allow_file() {
+  local f="${OVERDRIVE_ALLOW_FILE:-}" dir real root
+  [ -n "$f" ] && [ -f "$f" ] || die "the arming file OVERDRIVE_ALLOW_FILE is missing (create it with: mkdir -p $BACKEND/.batches && touch $ARM_FILE_DEFAULT)"
+  dir="$(cd "$(dirname "$f")" && pwd -P)"
+  real="$dir/$(basename "$f")"
+  root="$(cd "$BACKEND" && pwd -P)"
+  case "$real" in
+    "$root/.batches/"*|"$root/contracts/"*|"$root/app/deployments/"*|"$root/security/"*) ;;
+    *) die "the arming file $real is outside the paths forge may read (contracts/foundry.toml fs_permissions); use $ARM_FILE_DEFAULT" ;;
+  esac
+}
+
+# The Foundry keystore account that signs: OD_ACCOUNT, else the per-network default (mainnet has its own deployer).
+default_account() { case "$1" in mainnet) echo overdrive-main-deployer ;; *) echo overdrive-deployer ;; esac; }
+
 # od_init NETWORK RPC OUTFILE: checks tools, the chain id and the deployer address (public, no secret).
 od_init() {
   NETWORK="$1"; RPC="$2"; OUT="$3"
@@ -21,7 +41,7 @@ od_init() {
   [ -n "${OD_DEPLOYER:-}" ] || die "set OD_DEPLOYER to the deployer's public address"
   mkdir -p "$(dirname "$OUT")" "$BACKEND/security" "$BACKEND/.batches"
   CHAIN_ID="$("$CAST" chain-id --rpc-url "$RPC")"
-  SIGN_ARGS="--account ${OD_ACCOUNT:-overdrive-deployer}"
+  SIGN_ARGS="--account ${OD_ACCOUNT:-$(default_account "$NETWORK")}"
   if [ -n "${OD_KEYSTORE:-}" ]; then
     case "$("$CAST" rpc web3_clientVersion --rpc-url "$RPC")" in *anvil/*) ;; *) die "a test keystore is only used on a local anvil node" ;; esac
     [ -n "${OD_PASSWORD_FILE:-}" ] || die "OD_KEYSTORE needs OD_PASSWORD_FILE"
@@ -81,14 +101,25 @@ stage_check() {
   fi
 }
 
-# DEP-1: publish source to Sourcify from the real broadcast and require exact_match for every created contract.
-# Never on a local anvil node (Sourcify does not know it); the result is security/sourcify-<network>.txt.
+# DEP-1: publish source to Sourcify from the real broadcast and require every created contract to be verified.
+# exact_match passes; match (partial: bytecode equal, metadata hash not) passes with a warning; anything else (no
+# match, a failed submit, a contract to verify by hand) stops the run. Never on a local anvil node (Sourcify does not
+# know it); the result is security/sourcify-<network>.txt. sourcify-verify.sh exits 0 all exact, 3 all verified with
+# at least one partial, anything else not verified.
 stage_sourcify() {
   case "$("$CAST" rpc web3_clientVersion --rpc-url "$RPC")" in *anvil/*) say "stage sourcify: skip (local anvil node)"; return 0 ;; esac
-  local run="$CONTRACTS/broadcast/DeploySystem.s.sol/$CHAIN_ID/run-latest.json"
-  bash "$CONTRACTS/script/sourcify-verify.sh" "$run" "$CHAIN_ID" "$BACKEND/security/sourcify-$NETWORK.txt" >/dev/null \
-    || { cat "$BACKEND/security/sourcify-$NETWORK.txt" 2>/dev/null || true; die "Sourcify verification is not exact_match for every contract"; }
-  say "stage sourcify: ALL exact_match (security/sourcify-$NETWORK.txt)"
+  local run="$CONTRACTS/broadcast/DeploySystem.s.sol/$CHAIN_ID/run-latest.json" rc=0
+  bash "$CONTRACTS/script/sourcify-verify.sh" "$run" "$CHAIN_ID" "$BACKEND/security/sourcify-$NETWORK.txt" >/dev/null || rc=$?
+  sourcify_result "$rc" "security/sourcify-$NETWORK.txt"
+}
+
+# sourcify_result RC REPORT: the stage verdict for a sourcify-verify.sh exit code (split out so the test can drive it).
+sourcify_result() {
+  case "$1" in
+    0) say "stage sourcify: ALL exact_match ($2)" ;;
+    3) say "stage sourcify: WARNING every contract verified, some only as match (partial: metadata hash differs) ($2)" ;;
+    *) cat "$BACKEND/$2" 2>/dev/null || true; die "Sourcify verification failed: a contract is not verified ($2)" ;;
+  esac
 }
 
 stage_batch() {

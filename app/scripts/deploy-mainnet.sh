@@ -3,12 +3,16 @@
 # Refuses unless: OVERDRIVE_ALLOW_REAL_DEPLOY=1, the OVERDRIVE_ALLOW_FILE file exists, script/config/mainnet.json has
 # no placeholder and the owner approved the hook seed figures, a dry run on a local anvil fork at the deployer's REAL nonce
 # passes PostDeployCheck, and the owner types the chain id at the prompt.
-# Usage: OD_DEPLOYER=0x... OVERDRIVE_ALLOW_REAL_DEPLOY=1 OVERDRIVE_ALLOW_FILE=~/.overdrive-armed /bin/bash app/scripts/deploy-mainnet.sh
+# Usage: OD_DEPLOYER=0x... OVERDRIVE_ALLOW_REAL_DEPLOY=1 OVERDRIVE_ALLOW_FILE="$PWD/.batches/.overdrive-armed" \
+#          /bin/bash app/scripts/deploy-mainnet.sh   (from backend/, after: mkdir -p .batches && touch .batches/.overdrive-armed)
+# The arming file must sit inside a path forge may read (contracts/foundry.toml fs_permissions: .batches/ is the one
+# meant for it, git-ignored); the script refuses any other path before it touches the network.
+# Signs with the Foundry keystore account overdrive-main-deployer (OD_ACCOUNT to change).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/deploy/lib.sh"
 MAINNET_RPC="${MAINNET_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}"
 [ "${OVERDRIVE_ALLOW_REAL_DEPLOY:-}" = "1" ] || die "OVERDRIVE_ALLOW_REAL_DEPLOY is not 1"
-[ -n "${OVERDRIVE_ALLOW_FILE:-}" ] && [ -f "$OVERDRIVE_ALLOW_FILE" ] || die "the arming file OVERDRIVE_ALLOW_FILE is missing"
+check_allow_file # before any network step: inside a forge-readable path, see lib.sh
 [ -z "${OD_KEYSTORE:-}" ] || die "OD_KEYSTORE is for the self-test only"
 python3 - "$CONTRACTS/script/config/mainnet.json" <<'PY' || die "script/config/mainnet.json is not ready"
 import json, sys

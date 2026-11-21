@@ -340,6 +340,7 @@ jobs:
       - run: .github/scripts/export-abis.sh
       - run: bash app/scripts/server/deploy-local.test.sh
       - run: bash contracts/script/ci/sourcify-verify.test.sh
+      - run: bash app/scripts/deploy/lib.test.sh
 
   web:
     name: web (typecheck, build, tests)

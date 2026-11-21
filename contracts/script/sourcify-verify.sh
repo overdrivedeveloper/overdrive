@@ -4,7 +4,8 @@
 # Addresses and linked libraries come from the REAL broadcast file, never from predictions. macOS bash 3.2.
 # Usage (any folder): bash script/sourcify-verify.sh <broadcast/<Script>.s.sol/<chain>/run-latest.json> <chain-id> [report]
 #   DRY=1 ...   print what would be verified; no forge, no network (the CI test runs this way)
-# Writes the per-contract result to [report] when given. Exit 0 only when every created contract is exact_match.
+# Writes the per-contract result to [report] when given. Exit 0 when every created contract is exact_match, 3 when every
+# one is verified but at least one only as match (partial: bytecode equal, metadata hash differs), 1 otherwise.
 set -euo pipefail
 [ $# -ge 2 ] || { echo "usage: $0 <broadcast run json> <chain-id> [report]" >&2; exit 2; }
 RUN="$1"; CHAIN="$2"; REPORT="${3:-/dev/null}"
@@ -12,6 +13,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 CONTRACTS="$(cd "$HERE/.." && pwd)"
 FORGE="${FORGE:-$HOME/.foundry/bin/forge}"
 SOURCIFY="${SOURCIFY:-https://sourcify.dev/server}"
+# SOURCIFY_POLL_WAIT: seconds between the 12 status polls of one contract (default 10; the offline test sets 0).
 [ -f "$RUN" ] || { echo "no broadcast file at $RUN (has the deploy run?)" >&2; exit 1; }
 case "$CHAIN" in 4663|46630) ;; *) [ "${DRY:-0}" = 1 ] || { echo "Sourcify verification is for chains 4663 and 46630, not $CHAIN" >&2; exit 2; } ;; esac
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/sourcify.XXXXXX")"
@@ -32,7 +34,7 @@ LIBS="$(python3 -c 'import json,sys
 print(" ".join("--libraries " + l for l in (json.load(open(sys.argv[1])).get("libraries") or [])))' "$RUN")"
 [ -s "$WORK/list" ] || { echo "the broadcast created no contracts" >&2; exit 1; }
 
-bad=0
+bad=0; partial=0
 : >"$REPORT"
 while read -r name addr kind; do
   if [ "$name" = UNKNOWN ]; then
@@ -53,10 +55,12 @@ while read -r name addr kind; do
 try: print(json.load(sys.stdin).get("match"))
 except Exception: print("None")')"
     [ "$m" != None ] && break
-    sleep 10
+    sleep "${SOURCIFY_POLL_WAIT:-10}"
   done
   echo "$name $addr $m" | tee -a "$REPORT"
-  [ "$m" = exact_match ] || bad=1
+  case "$m" in exact_match) ;; match) partial=1 ;; *) bad=1 ;; esac
 done <"$WORK/list"
 [ "${DRY:-0}" = 1 ] && exit 0
-if [ "$bad" = 0 ]; then echo "ALL exact_match" | tee -a "$REPORT"; else echo "NOT all exact_match" | tee -a "$REPORT"; exit 1; fi
+if [ "$bad" != 0 ]; then echo "NOT all verified" | tee -a "$REPORT"; exit 1; fi
+if [ "$partial" != 0 ]; then echo "ALL verified, some only match (partial)" | tee -a "$REPORT"; exit 3; fi
+echo "ALL exact_match" | tee -a "$REPORT"

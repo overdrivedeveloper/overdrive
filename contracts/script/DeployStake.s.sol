@@ -17,8 +17,10 @@ import {ODStake} from "overdrive/stake/ODStake.sol";
 /// and writes ONE timelock batch for the owner Safe: fees.setRecipient(STAKERS, stake), minter.setStake(stake),
 /// backer.setStake(stake), stake.setDepositsPaused(false). Idempotent: a recorded stake with code is not redeployed;
 /// only the batch is written again. On 4663/46630 it refuses to broadcast unless armed (ODScript).
-/// Usage: OD_NETWORK=mainnet OD_OVRD=0x... forge script script/DeployStake.s.sol --rpc-url $RPC
-///        --account overdrive-deployer --broadcast
+/// Usage (from backend/contracts, armed like deploy-mainnet.sh: OVERDRIVE_ALLOW_REAL_DEPLOY=1 and
+/// OVERDRIVE_ALLOW_FILE=../.batches/.overdrive-armed, a path inside fs_permissions so vm.exists can see it):
+///        OD_NETWORK=mainnet OD_OVRD=0x... forge script script/DeployStake.s.sol --rpc-url $RPC
+///        --account overdrive-main-deployer --broadcast
 contract DeployStake is TimelockBatch {
     error StakeRefused(string why);
 

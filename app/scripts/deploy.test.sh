@@ -2,7 +2,7 @@
 # Self-test of the owner deploy script (todo 11 R10): runs deploy-fork.sh twice against a local anvil fork with
 # /bin/bash and shows the second run skips every finished stage. The wallet is a throwaway created here
 # (`cast wallet new` into a temp keystore, generated password), funded with anvil_setBalance on the LOCAL node only.
-# It also shows deploy-fork.sh refuses a non-anvil RPC and deploy-mainnet.sh refuses unarmed or with placeholders.
+# It also shows deploy-fork.sh refuses a non-anvil RPC and deploy-mainnet.sh refuses unarmed or with an unreadable arming file.
 # Usage: ANVIL_URL=http://127.0.0.1:8547 /bin/bash app/scripts/deploy.test.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -53,11 +53,14 @@ if env -u OVERDRIVE_ALLOW_REAL_DEPLOY OD_DEPLOYER="$ADDR" /bin/bash "$HERE/deplo
 else
   grep -q "OVERDRIVE_ALLOW_REAL_DEPLOY is not 1" "$TMP/m.txt" && ok "mainnet refused unarmed" || bad "mainnet refused unarmed"
 fi
+# deploy-mainnet.sh refuses an arming file forge cannot read (outside fs_permissions), before any network step.
+# (The old "refused with config placeholders" case is gone: script/config/mainnet.json is filled since the deploy, and
+# an armed run with a readable file would start the fork dry run. lib.test.sh covers the arming checks offline.)
 touch "$TMP/armed"
 if OVERDRIVE_ALLOW_REAL_DEPLOY=1 OVERDRIVE_ALLOW_FILE="$TMP/armed" OD_KEYSTORE= OD_DEPLOYER="$ADDR" /bin/bash "$HERE/deploy-mainnet.sh" </dev/null >"$TMP/m2.txt" 2>&1; then
-  bad "deploy-mainnet.sh ran with placeholders"
+  bad "deploy-mainnet.sh ran with an unreadable arming file"
 else
-  grep -q "placeholders:" "$TMP/m2.txt" && ok "mainnet refused with config placeholders" || { cat "$TMP/m2.txt"; bad "mainnet placeholders"; }
+  grep -q "outside the paths forge may read" "$TMP/m2.txt" && ok "mainnet refused an arming file outside fs_permissions" || { cat "$TMP/m2.txt"; bad "mainnet arming path"; }
 fi
 
 echo "deploy.test: $pass passed, $fail failed"
