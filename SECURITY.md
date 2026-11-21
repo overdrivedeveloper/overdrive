@@ -8,7 +8,7 @@ Use GitHub private vulnerability reporting: open the repository's Security tab a
 
 ## Scope
 
-Reviewed commit: the commit that carries the audit tag `audit-2026-11-15` (private dev commit `96d4225`). Since the tag, the only change under `contracts/src` is NatSpec comments (`git diff audit-2026-11-15 -- contracts/src`). `contracts/AUDIT-SCOPE.md` lists every contract file in scope and is checked against `contracts/src` by `.github/scripts/ci-local.sh`, so the list is exact at whichever commit is tagged. The contracts are frozen at that commit and findings are reported against it. Nothing is deployed, so there are no addresses in scope yet.
+Reviewed commit: the commit that carries the audit tag `audit-2026-11-15` (private dev commit `96d4225`). Since the tag, the only change under `contracts/src` is NatSpec comments (`git diff audit-2026-11-15 -- contracts/src`). `contracts/AUDIT-SCOPE.md` lists every contract file in scope and is checked against `contracts/src` by `.github/scripts/ci-local.sh`, so the list is exact at whichever commit is tagged. The contracts are frozen at that commit and findings are reported against it. The mainnet deployment of 2026-11-21 (addresses in the README Deployment section and `app/deployments/mainnet.json`) was built from the private dev commit `430a769`.
 
 In scope:
 
@@ -69,7 +69,7 @@ Out of scope: third-party infrastructure (Robinhood Chain, Chainlink, Pyth, Unis
 
 ## Privileged functions
 
-Generated from `contracts/src` at the reviewed commit. The holder column is the intended holder at deployment; nothing is deployed, so no holder is set on any chain yet (the deploy scripts under `contracts/script` grant them). "Admin" below means `DEFAULT_ADMIN_ROLE` (or the contract owner for `ODPaymaster`), held by the Safe 3-of-5 through the 48 hour timelock. "Guardian" means `GUARDIAN_ROLE` held by the Safe 2-of-5, acting at once.
+Generated from `contracts/src` at the reviewed commit. The holder column is the holder set by the deploy scripts under `contracts/script`; on mainnet these holders are in place since the 2026-11-21 deploy. "Admin" below means `DEFAULT_ADMIN_ROLE` (or the contract owner for `ODPaymaster`), held by the Safe 3-of-5 through the 48 hour timelock. "Guardian" means `GUARDIAN_ROLE` held by the Safe 2-of-5, acting at once.
 
 ### Admin (timelock, 48 hours)
 

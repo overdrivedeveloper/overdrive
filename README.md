@@ -4,7 +4,7 @@ Smart contracts and backend services for Overdrive: geared tokens on Robinhood C
 
 Holders are never liquidated. The cost of the gear is a daily toll, applied by shrinking a normalisation factor, so the position can lose value but never owes more than it holds. Backers fund the house book and post collateral in vaults; their vaults, not holders, face liquidation.
 
-Status: in development. Not deployed. Unaudited. Do not rely on it with funds. The security model, privileged roles and known issues are in [SECURITY.md](SECURITY.md); internal review records are in [security/](security/).
+Status: deployed to Robinhood Chain mainnet on 2026-11-21 (addresses in Deployment below); no gear is listed yet, listing goes through the 48 hour timelock. Unaudited. Do not rely on it with funds. The security model, privileged roles and known issues are in [SECURITY.md](SECURITY.md); internal review records are in [security/](security/).
 
 ## Layout
 
@@ -129,11 +129,38 @@ The cores are non-upgradeable. Admin actions go through a 48 hour timelock; the 
 
 ### Deployment
 
-Not deployed yet. No addresses are published. This section will list them from `app/deployments/<chain>.json` once the contracts are live.
+**Robinhood Chain mainnet (`4663`)**, deployed at block 120,030,328 from commit `430a769`. Every address is in [`app/deployments/mainnet.json`](app/deployments/mainnet.json).
+
+| Contract | Address | Sourcify |
+| --- | --- | --- |
+| `ODMarketHours` | [`0x2BaC445808c8112C110d50079E7764F8aAF29161`](https://robinhoodchain.blockscout.com/address/0x2BaC445808c8112C110d50079E7764F8aAF29161) | [match](https://repo.sourcify.dev/4663/0x2BaC445808c8112C110d50079E7764F8aAF29161) |
+| `ODOracleGuard` | [`0xE5270f2876667DdB284677C6273ba3E750F1c677`](https://robinhoodchain.blockscout.com/address/0xE5270f2876667DdB284677C6273ba3E750F1c677) | [match](https://repo.sourcify.dev/4663/0xE5270f2876667DdB284677C6273ba3E750F1c677) |
+| `ODVolOracle` | [`0xb4b5A40E35D5713b368Ac6914a8390684dEC9d09`](https://robinhoodchain.blockscout.com/address/0xb4b5A40E35D5713b368Ac6914a8390684dEC9d09) | [match](https://repo.sourcify.dev/4663/0xb4b5A40E35D5713b368Ac6914a8390684dEC9d09) |
+| `ODGearRegistry` | [`0x017783D944bA727E326313ee41B5d09AF6Cf9619`](https://robinhoodchain.blockscout.com/address/0x017783D944bA727E326313ee41B5d09AF6Cf9619) | [match](https://repo.sourcify.dev/4663/0x017783D944bA727E326313ee41B5d09AF6Cf9619) |
+| `ODGearFactory` | [`0x170118C488186125e521739D76D9a5C3Bd8B2A5A`](https://robinhoodchain.blockscout.com/address/0x170118C488186125e521739D76D9a5C3Bd8B2A5A) | [match](https://repo.sourcify.dev/4663/0x170118C488186125e521739D76D9a5C3Bd8B2A5A) |
+| `ODMinter` | [`0x1407be331F42b9bf48873a00ac7B4884428aE1FE`](https://robinhoodchain.blockscout.com/address/0x1407be331F42b9bf48873a00ac7B4884428aE1FE) | [match](https://repo.sourcify.dev/4663/0x1407be331F42b9bf48873a00ac7B4884428aE1FE) |
+| `ODGovernor` | [`0xfCA2765F9769C0f6Fc1BdFBDdFC1E87334BB493a`](https://robinhoodchain.blockscout.com/address/0xfCA2765F9769C0f6Fc1BdFBDdFC1E87334BB493a) | [match](https://repo.sourcify.dev/4663/0xfCA2765F9769C0f6Fc1BdFBDdFC1E87334BB493a) |
+| `ODInsurance` | [`0xE4e5799bD42E947C676ea672b0E8BF3e41122595`](https://robinhoodchain.blockscout.com/address/0xE4e5799bD42E947C676ea672b0E8BF3e41122595) | [match](https://repo.sourcify.dev/4663/0xE4e5799bD42E947C676ea672b0E8BF3e41122595) |
+| `ODHook` | [`0x330f33e46e2c6a825D6a052445952e7315Da6888`](https://robinhoodchain.blockscout.com/address/0x330f33e46e2c6a825D6a052445952e7315Da6888) | [match](https://repo.sourcify.dev/4663/0x330f33e46e2c6a825D6a052445952e7315Da6888) |
+| `ODBacker` | [`0x31F230bD7414761a19Ae93EC99D0578ff3184BB3`](https://robinhoodchain.blockscout.com/address/0x31F230bD7414761a19Ae93EC99D0578ff3184BB3) | [match](https://repo.sourcify.dev/4663/0x31F230bD7414761a19Ae93EC99D0578ff3184BB3) |
+| `ODFees` | [`0xFADC1aB6b7EFbECdc9663Be805A45B203fd386AE`](https://robinhoodchain.blockscout.com/address/0xFADC1aB6b7EFbECdc9663Be805A45B203fd386AE) | [match](https://repo.sourcify.dev/4663/0xFADC1aB6b7EFbECdc9663Be805A45B203fd386AE) |
+| `ODAgentRouter` | [`0x31fb51367b610e8cd9cf6998806A65d8b2112318`](https://robinhoodchain.blockscout.com/address/0x31fb51367b610e8cd9cf6998806A65d8b2112318) | [match](https://repo.sourcify.dev/4663/0x31fb51367b610e8cd9cf6998806A65d8b2112318) |
+| `ODPaymaster` | [`0x2CD96D9A2B637B983aA99A2Af8e0B80cD7ABD75D`](https://robinhoodchain.blockscout.com/address/0x2CD96D9A2B637B983aA99A2Af8e0B80cD7ABD75D) | [match](https://repo.sourcify.dev/4663/0x2CD96D9A2B637B983aA99A2Af8e0B80cD7ABD75D) |
+| Timelock | [`0xEe7f7A13DB23922Ebb5cb4262CaC0858a0f161d7`](https://robinhoodchain.blockscout.com/address/0xEe7f7A13DB23922Ebb5cb4262CaC0858a0f161d7) | [match](https://repo.sourcify.dev/4663/0xEe7f7A13DB23922Ebb5cb4262CaC0858a0f161d7) |
+| Owner Safe | [`0x176F3d70fB5f10A90f0Ed822A6BB7910485f8A27`](https://robinhoodchain.blockscout.com/address/0x176F3d70fB5f10A90f0Ed822A6BB7910485f8A27) | n/a |
+| Guardian Safe | [`0x1818B7DA01e1F36E54FdFdA15Ac6212762cAb483`](https://robinhoodchain.blockscout.com/address/0x1818B7DA01e1F36E54FdFdA15Ac6212762cAb483) | n/a |
+| `ODGovernorRisk` | [`0x992a394a5cf23cc926b3d142b65c07ac506959a3`](https://robinhoodchain.blockscout.com/address/0x992a394a5cf23cc926b3d142b65c07ac506959a3) | [match](https://repo.sourcify.dev/4663/0x992a394a5cf23cc926b3d142b65c07ac506959a3) |
+| `ODSaleCredit` | [`0x0ec70eede562026e82b55d797d279494bb492944`](https://robinhoodchain.blockscout.com/address/0x0ec70eede562026e82b55d797d279494bb492944) | [match](https://repo.sourcify.dev/4663/0x0ec70eede562026e82b55d797d279494bb492944) |
+| `ODMinterPricing` | [`0x35d22fbc092cdc73bbfb878d6788cecacad02aec`](https://robinhoodchain.blockscout.com/address/0x35d22fbc092cdc73bbfb878d6788cecacad02aec) | [match](https://repo.sourcify.dev/4663/0x35d22fbc092cdc73bbfb878d6788cecacad02aec) |
+| `ODGear` | [`0x08c145ae485afb7d553d5afd276e5ef3210f650b`](https://robinhoodchain.blockscout.com/address/0x08c145ae485afb7d553d5afd276e5ef3210f650b) | [match](https://repo.sourcify.dev/4663/0x08c145ae485afb7d553d5afd276e5ef3210f650b) |
+
+Sourcify verification (18 contracts): `match` for 18. `match` is a partial match: the deployed bytecode matches the source, the metadata hash does not (`exact_match` would mean both do). The Safes are Safe's own audited contracts and are not verified here.
+
+This section is generated from the files (`python3 .github/scripts/readme-deployments.py`).
 
 ### Actors and roles
 
-Intended holders at deployment. Nothing is deployed, so no address holds any role yet. The full list of privileged functions, with bounds, is in [SECURITY.md](SECURITY.md).
+Holders on mainnet since the 2026-11-21 deploy (the timelock, Owner Safe and Guardian Safe addresses are in Deployment above). The full list of privileged functions, with bounds, is in [SECURITY.md](SECURITY.md).
 
 | Actor | Role | What it can do | Holder |
 | --- | --- | --- | --- |
@@ -184,7 +211,7 @@ forge test
 
 ## Deploy
 
-Everything here is a script in this repository; nothing is deployed yet and no address is published (see Deployment above). Steps marked **owner** are run by the project owner only: they sign, spend or need an account. No agent broadcasts.
+Everything here is a script in this repository; the mainnet addresses are in Deployment above. Steps marked **owner** are run by the project owner only: they sign, spend or need an account. No agent broadcasts.
 
 **Contracts** (`contracts/script`, driven by `app/scripts/deploy-{fork,testnet,mainnet}.sh`)
 

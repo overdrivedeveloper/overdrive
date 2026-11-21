@@ -11,6 +11,7 @@ What fills it (all read-only, public RPC, no key):
 2. `bash contracts/script/verify-deployment.sh mainnet` compares the code at every recorded address with this
    tree's build (immutables and linked libraries masked); its PASS/FAIL lines are added below.
 3. `bash contracts/script/sourcify-verify.sh` (deploy stage `stage_sourcify`) writes `sourcify-mainnet.txt` here;
-   every contract must read `exact_match`.
+   every contract must read `exact_match` or `match` (a partial match: bytecode equal, metadata hash not; the stage
+   warns on it).
 
 Until all three are committed here with the deploy commit, treat the deployment as unverified.

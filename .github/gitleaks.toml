@@ -18,3 +18,12 @@ regexes = [
 [[allowlists]]
 description = "Vendored Foundry libraries (forge install --no-git, upstream code at the versions in contracts/lib/VERSIONS.md)"
 paths = ['''^contracts/lib/''']
+
+[[allowlists]]
+description = "Robinhood Chain (4663) stock token ERC-20 addresses NVDA, TSLA, SPY (public contract addresses, the markets' stockToken in app/deployments/mainnet.json, read live on chain): exact values"
+regexTarget = "secret"
+regexes = [
+  '''^0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC$''',
+  '''^0x322F0929c4625eD5bAd873c95208D54E1c003b2d$''',
+  '''^0x117cc2133c37B721F49dE2A7a74833232B3B4C0C$''',
+]

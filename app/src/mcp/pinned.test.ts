@@ -26,7 +26,9 @@ describe("R8 pinned deployment", () => {
     expect(pin.quoter).toBe(fixture.external.v4Quoter);
     expect(pin.usdg).toBe(fixture.external.usdg);
     expect(pin.gears["TSLA-SPORT"]).toBe(addr("tok-TSLA-SPORT"));
-    expect(pinFor(MAINNET_DEPLOYMENT, 4663)).toBeUndefined(); // an empty pin pins nothing
+    expect(pinFor(EMPTY_PIN(4663), 4663)).toBeUndefined(); // an empty pin pins nothing
+    // the shipped pin pins mainnet once deployments/mainnet.json is released (2026-11-21), nothing before
+    expect(pinFor(MAINNET_DEPLOYMENT, 4663)).toEqual(MAINNET_DEPLOYMENT.router === EMPTY_PIN(4663).router ? undefined : MAINNET_DEPLOYMENT);
     expect(pinFor(pin, 4663)).toBeUndefined(); // wrong chain
     expect(pinFor(pin, fixture.chainId)).toBe(pin);
   });

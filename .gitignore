@@ -65,6 +65,8 @@ app/python/vol-engine/tests/fixtures/test.*
 # security/ is committed (public audit evidence); only local dry-run reports stay out.
 /security/post-deploy-anvil.txt
 /security/post-deploy-fork.txt
+# The mainnet script's fork rehearsal record (deploy-mainnet.sh dry run); the real record is app/deployments/mainnet.json.
+/security/*-dry.json
 /.batches/
 
 # Coverage output (.github/scripts/coverage.sh); reproduce it, never commit it.

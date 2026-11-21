@@ -8,6 +8,10 @@ The section is the text between the `### Deployment` heading and the next headin
 (mainnet.json or 4663.json, testnet.json or 46630.json); anvil.json is the local record and is never published. A chain is
 listed once its file names at least one contract address. With none, the section reads "Not deployed yet". After a
 deploy, run it without --check and commit README.md together with the deployment file.
+
+When security/sourcify-<network>.txt exists (written by the deploy script: `<name> <address> <status>` per line), the
+table gains a Sourcify column with the status and a link per address, and lists the verified contracts the record does
+not name (libraries, the gear implementation) below the record's own rows.
 """
 import json
 import pathlib
@@ -25,6 +29,21 @@ FILE_CHAIN = {"mainnet": 4663, "testnet": 46630}
 NAMES = {4663: "Robinhood Chain mainnet", 46630: "Robinhood Chain testnet"}
 EXPLORERS = {4663: "https://robinhoodchain.blockscout.com", 46630: "https://explorer.testnet.chain.robinhood.com"}
 ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
+SOURCIFY_REPO = "https://repo.sourcify.dev"
+NETWORK_NAME = {v: k for k, v in FILE_CHAIN.items()}
+
+
+def sourcify(chain):
+    """[(name, address, status)] from security/sourcify-<network>.txt, or None when the file is absent."""
+    path = ROOT / "security" / f"sourcify-{NETWORK_NAME.get(chain, chain)}.txt"
+    if not path.exists():
+        return None
+    out = []
+    for line in path.read_text().splitlines():
+        parts = line.split()
+        if len(parts) == 3 and ADDRESS.match(parts[1]):
+            out.append((parts[0], parts[1], parts[2]))
+    return out
 
 
 def chains():
@@ -51,22 +70,48 @@ def link(addr, chain):
 def section(chain, path, d):
     rel = path.relative_to(ROOT).as_posix()
     name = NAMES.get(chain, f"chain {chain}")
+    verified = sourcify(chain)
+    status = {a.lower(): st for _, a, st in (verified or [])}
+
+    def row(label, addr):
+        if verified is None:
+            return f"| {label} | {link(addr, chain)} |"
+        st = status.get(addr.lower())
+        cell = f"[{st}]({SOURCIFY_REPO}/{chain}/{addr})" if st else "n/a"
+        return f"| {label} | {link(addr, chain)} | {cell} |"
+
     rows = [
         f"**{name} (`{chain}`)**, deployed at block {int(d['startBlock']):,} from commit `{d['commit']}`. "
         f"Every address is in [`{rel}`]({rel}).",
         "",
-        "| Contract | Address |",
-        "| --- | --- |",
+        "| Contract | Address |" if verified is None else "| Contract | Address | Sourcify |",
+        "| --- | --- |" if verified is None else "| --- | --- | --- |",
     ]
+    seen = set()
     for cname, addr in (d.get("contracts") or {}).items():
         if addr:
-            rows.append(f"| `{cname}` | {link(addr, chain)} |")
+            rows.append(row(f"`{cname}`", addr))
+            seen.add(addr.lower())
     for g in d.get("gears") or []:
-        rows.append(f"| gear `{g['symbol']}` | {link(g['token'], chain)} |")
+        rows.append(row(f"gear `{g['symbol']}`", g["token"]))
+        seen.add(g["token"].lower())
     admin = d.get("admin") or {}
     for key, label in (("timelock", "Timelock"), ("ownerSafe", "Owner Safe"), ("guardianSafe", "Guardian Safe")):
         if admin.get(key) and int(admin[key], 16) != 0:
-            rows.append(f"| {label} | {link(admin[key], chain)} |")
+            rows.append(row(label, admin[key]))
+            seen.add(admin[key].lower())
+    for vname, addr, _ in verified or []:
+        if addr.lower() not in seen:
+            rows.append(row(f"`{vname}`", addr))
+            seen.add(addr.lower())
+    if verified:
+        counts = {}
+        for _, _, st in verified:
+            counts[st] = counts.get(st, 0) + 1
+        summary = ", ".join(f"`{st}` for {n}" for st, n in sorted(counts.items()))
+        rows += ["", f"Sourcify verification ({len(verified)} contracts): {summary}. `match` is a partial match: the "
+                 "deployed bytecode matches the source, the metadata hash does not (`exact_match` would mean both do). "
+                 "The Safes are Safe's own audited contracts and are not verified here."]
     return rows
 
 
