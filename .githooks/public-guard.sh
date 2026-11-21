@@ -28,6 +28,9 @@ if [ -z "$patterns" ]; then
   echo "public-guard: ERROR denylist $deny has no patterns. Seed it with the project's private words." >&2
   exit 2
 fi
+# Exact public 32-byte values (public-guard.allowlist next to the denylist); optional, an absent file allows nothing.
+allow="$(dirname "$deny")/public-guard.allowlist"
+[ -f "$allow" ] || allow=""
 # Repo-relative path of the denylist (empty if it sits outside the repo), so it is not scanned for its own words.
 deny_rel=""
 case "$deny" in "$root_real"/*) deny_rel="${deny#"$root_real"/}";; esac
@@ -49,9 +52,17 @@ done <<< "$files"
 text_files=$(echo "$files" | grep -vE '\.(png|jpg|jpeg|webp|gif|ico|lock|lockb)$' | grep -vxF "${deny_rel:-//none//}" || true)
 if [ -n "$text_files" ]; then
   tmp=$(mktemp "${TMPDIR:-/tmp}/public-guard.XXXXXX")
-  # 32-byte hex = possible private key. Allowed only with a marker on the same line.
+  # 32-byte hex = possible private key. Allowed only with a marker on the same line, or when every 32-byte hex
+  # value on the line is an exact entry of public-guard.allowlist (public constants such as Pyth feed ids).
   echo "$text_files" | tr '\n' '\0' | xargs -0 grep -nIE '0x[0-9a-fA-F]{64}' 2>/dev/null \
-    | grep -vE '// (test-key|not-a-key)|# (test-key|not-a-key)' | while IFS= read -r l; do echo "public-guard: possible private key: $l"; done > "$tmp"
+    | grep -vE '// (test-key|not-a-key)|# (test-key|not-a-key)' \
+    | awk -v allow="$allow" '
+        BEGIN { if (allow != "") while ((getline a < allow) > 0) { if (a ~ /^[[:space:]]*(#|$)/) continue; split(a, f, /[[:space:]]+/); ok[tolower(f[1])] = 1 } }
+        { s = $0; bad = 0
+          while (match(s, /0x[0-9a-fA-F]+/)) { t = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+            if (length(t) >= 66 && !(tolower(t) in ok)) { bad = 1; break } }
+          if (bad) print }' \
+    | while IFS= read -r l; do echo "public-guard: possible private key: $l"; done > "$tmp"
   if [ -s "$tmp" ]; then cat "$tmp"; hits=$((hits+$(wc -l < "$tmp"))); fi; rm -f "$tmp"
   while IFS= read -r pat; do
     [ -z "$pat" ] && continue

@@ -1,0 +1,16 @@
+# Exact 32-byte hex values the public guard accepts without a same-line marker (one per line, 0x + 64 hex, any case).
+# Only public, verifiable constants belong here; each entry says where it comes from. Never add a pattern or a
+# value that could be a key. A line passes only when EVERY 32-byte hex value on it is listed here.
+#
+# Pyth price feed ids (Hermes /v2/price_feeds, also in contracts/script/config/mainnet.json)
+0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace  ETH/USD
+0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43  BTC/USD
+0xb1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593  Equity.US.NVDA/USD
+0x16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1  Equity.US.TSLA/USD
+0x19e09bb805456ada3979a7d1cbb4b6d63babc3a0f8e8a9509f68afa5c4c11cd5  Equity.US.SPY/USD
+# Market ids: the ASCII symbol left-aligned in a bytes32 (bytes32("ETH") and so on)
+0x4554480000000000000000000000000000000000000000000000000000000000  ETH
+0x4254430000000000000000000000000000000000000000000000000000000000  BTC
+0x4e56444100000000000000000000000000000000000000000000000000000000  NVDA
+0x54534c4100000000000000000000000000000000000000000000000000000000  TSLA
+0x5350590000000000000000000000000000000000000000000000000000000000  SPY
