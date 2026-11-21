@@ -23,6 +23,17 @@ describe("hedger settings", () => {
     expect(Object.keys(env).sort()).toEqual(["DATABASE_URL", "HEDGER_KEYSTORE", "HEDGER_KEYSTORE_PASSWORD_FILE", "HEDGER_PRIVATE_KEY"]);
   });
 
+  test("hedger_enabled_switch: HEDGER_ENABLED=0 or an empty HEDGER_VENUES turns hedging off; the default stays on", () => {
+    expect(loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_VENUES: "hyperliquid" }).enabled).toBe(true);
+    expect(loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_ENABLED: "0", HEDGER_VENUES: "hyperliquid" }).enabled).toBe(false);
+    expect(loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_ENABLED: "false", HEDGER_VENUES: "hyperliquid" }).enabled).toBe(false);
+    const empty = loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_VENUES: "" });
+    expect(empty.enabled).toBe(false);
+    expect(empty.venues).toEqual([]);
+    expect(loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_VENUES: "hyperliquid," }).venues).toEqual(["hyperliquid"]);
+    expect(() => loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_ENABLED: "maybe" })).toThrow(ConfigurationError);
+  });
+
   test("mainnet_live_needs_confirm", () => {
     // default is a dry run, everywhere
     expect(loadHedgerSettings({ NETWORK: "mainnet" }, { HEDGER_VENUES: "arcus" }).settings.dryRun).toBe(true);

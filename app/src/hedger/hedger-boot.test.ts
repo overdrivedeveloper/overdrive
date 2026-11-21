@@ -139,4 +139,23 @@ suite("hedger boot", () => {
     const hedges = await db.sql`SELECT dry, usd::text AS usd FROM hedges`;
     expect(hedges.map((h) => [h.dry, h.usd])).toEqual([[true, (200_000n * 1_000_000n).toString()]]);
   }, 120_000); // boots a real Postgres and the binary; 30 s timed out twice when the machine load was 14 to 23
+
+  test("hedger_disabled_exits_cleanly: HEDGER_ENABLED=0 with hyperliquid listed and no HL account or key exits 0", async () => {
+    const url = new URL(testDatabaseUrl()!);
+    url.pathname = `/${db.name}`;
+    const env: Record<string, string> = {
+      PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "",
+      NODE_ENV: "production", NETWORK: "fork", CHAIN_ID: "31337", DATABASE_URL: url.toString(), DEPLOYMENT_FILE: join(dir, "missing.json"),
+      PUBLIC_RPC_URL: "http://127.0.0.1:9", HEDGER_ENABLED: "0", HEDGER_VENUES: "hyperliquid", HL_ACCOUNT_ADDRESS: "", LOG_LEVEL: "silent",
+    };
+    const child = Bun.spawn(["bun", "run", "src/bin/hedger.ts"], { cwd: APP, env, stdout: "pipe", stderr: "pipe" });
+    const killer = setTimeout(() => child.kill("SIGKILL"), 30_000);
+    const code = await child.exited;
+    clearTimeout(killer);
+    expect(code).toBe(0);
+    const row = (await db.sql<{ meta: Record<string, unknown>; last_error: string | null }[]>`SELECT meta, last_error FROM service_status WHERE job = 'hedger'`)[0];
+    expect(row?.last_error ?? null).toBeNull();
+    expect(row?.meta.disabled).toBe(true);
+    expect(row?.meta.dryRun).toBe(true);
+  }, 60_000);
 });

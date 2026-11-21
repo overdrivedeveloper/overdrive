@@ -33,7 +33,9 @@
 # The last 5 healthy releases are kept. Migrations are not reversed by a rollback (README.md, "Roll back").
 #
 # Network profile: NETWORK in /etc/overdrive/overdrive.env (mainnet 4663 or testnet 46630). The testnet profile has no
-# hedger. A remote deploy takes the profile from OVERDRIVE_NETWORK (default mainnet); the server refuses a mismatch.
+# hedger. On mainnet, HEDGER_ENABLED=0 (or an empty HEDGER_VENUES) turns hedging off: the hedger is then skipped (not
+# started, not checked, no keystore needed). A remote deploy takes the profile from OVERDRIVE_NETWORK (default mainnet); the
+# server refuses a mismatch.
 #
 # Exit codes: 0 deployed and healthy (or --check healthy); 75 nothing was switched (a failure before the link moved: the
 # running release is untouched, safe to try again later); 1 a failure after the switch (the link went back to the previous
@@ -188,6 +190,28 @@ server_main() {
     testnet) CHAIN=46630; CORE=(indexer api crank vol-engine liquidator); REQUIRED_KEYS=(crank liquidator vol-signer) ;;
     *) s_die "NETWORK must be mainnet or testnet in $ENVF (it is '$NET')" ;;
   esac
+  # Hedging off (HEDGER_ENABLED=0, or HEDGER_VENUES set to nothing): the hedger is not started, not health-checked and its
+  # keystore is not required. The hedger itself exits 0 at boot when off. hedger.env overrides overdrive.env (the unit loads
+  # it last). With hedging on, everything stays strict (key, venue settings, a healthy unit).
+  hedger_env() {
+    local f
+    for f in "$ETC/hedger.env" "$ENVF"; do
+      if [[ -f "$f" ]] && grep -q "^$1=" "$f"; then sed -n "s/^$1=//p" "$f" | tail -1; return 0; fi
+    done
+    return 1
+  }
+  hedger_off() {
+    local v
+    if v="$(hedger_env HEDGER_ENABLED)" && [[ "$(lower "$v")" == 0 || "$(lower "$v")" == false ]]; then return 0; fi
+    if v="$(hedger_env HEDGER_VENUES)" && [[ -z "${v//[ ,]/}" ]]; then return 0; fi
+    return 1
+  }
+  local HEDGER_OFF=0 _keep=() _x
+  if [[ " ${CORE[*]} " == *" hedger "* ]] && hedger_off; then
+    HEDGER_OFF=1
+    for _x in "${CORE[@]}"; do [[ "$_x" == hedger ]] || _keep+=("$_x"); done; CORE=("${_keep[@]}"); _keep=()
+    for _x in "${REQUIRED_KEYS[@]}"; do [[ "$_x" == hedger ]] || _keep+=("$_x"); done; REQUIRED_KEYS=("${_keep[@]}")
+  fi
   local api_port; api_port="$(envval API_PORT)"; api_port="${api_port:-38101}"
   api_url() { printf 'http://127.0.0.1:%s/health' "$api_port"; }
 
@@ -371,6 +395,10 @@ server_main() {
   fi
 
   # ---- restart one by one, check each; roll back on the first failure
+  if [[ "$HEDGER_OFF" == 1 ]]; then
+    systemctl stop overdrive-hedger.service 2>/dev/null || true
+    s_log "hedging is off (HEDGER_ENABLED=0 or empty HEDGER_VENUES): the hedger is not started and not checked"
+  fi
   local s units=()
   while IFS= read -r s; do units+=("overdrive-$s.service"); done < <(service_list)
   systemctl enable --quiet overdrive.target "${units[@]}"

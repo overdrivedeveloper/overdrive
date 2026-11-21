@@ -39,8 +39,16 @@ migrate unit run inside the same slice. A deploy build runs in its own 768M scop
 
 Order for the owner: `provision.sh --preflight`, then `provision.sh` (set `CADDY_ADD_IMPORT=1` only if the main Caddyfile has
 no `import /etc/caddy/conf.d/*.caddy` line and you accept one appended line), fill the env file, copy keystores into
-`/etc/overdrive/keys` (crank, hedger, liquidator, vol-signer, and vol-sender when `VOL_SEND=1`), run
+`/etc/overdrive/keys` (crank, hedger unless hedging is off, liquidator, vol-signer, and vol-sender when `VOL_SEND=1`), run
 `provision.sh --service-users`, then `deploy.sh`. The runbook is `docs/runbooks/server-bringup.md`.
+
+## Hedging off
+Hedging is off unless the owner turns it on. `HEDGER_ENABLED=0` (the `env.example` default), or an empty `HEDGER_VENUES`, in
+`overdrive.env` or `hedger.env` (which wins) means: the hedger exits 0 at boot without reading a key or any venue setting,
+`deploy.sh` stops it and leaves it out of the restart and health checks (`--check` too), and the hedger keystore is not
+required. With nothing hedged the Governor's hedge staleness check stays false, so buys are not paused by a missing hedger.
+`HEDGER_ENABLED=1` restores every strict check: the hedger keystore, the venue settings (`HL_ACCOUNT_ADDRESS` when
+`HEDGER_VENUES` lists `hyperliquid`) and a healthy unit.
 
 ## Roll back
 A failed deploy returns by itself. By hand: point `/opt/overdrive/current` at an older healthy release in

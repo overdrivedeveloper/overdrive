@@ -13,6 +13,8 @@ const bool01 = (fallback: "0" | "1") => z.enum(["0", "1", "true", "false"]).defa
 const usd = (fallback: string) => z.string().regex(/^\d+(\.\d{1,6})?$/).default(fallback).transform((v) => parseUsdg(v));
 
 const hedgerSchema = z.object({
+  // 0 turns hedging off: the hedger exits 0 at boot without reading a key or any venue setting, and deploy.sh skips it.
+  HEDGER_ENABLED: bool01("1"),
   HEDGER_DRY_RUN: bool01("1"),
   HEDGER_LIVE_CONFIRM: z.string().default(""),
   HEDGER_BAND_BPS: int(50, 1, 10_000),
@@ -33,6 +35,7 @@ const hedgerSchema = z.object({
     const out: VenueName[] = [];
     for (const raw of v.split(",")) {
       const name = raw.trim();
+      if (!name) continue; // "HEDGER_VENUES=" is no venue at all: hedging off
       if (!(VENUE_NAMES as readonly string[]).includes(name)) {
         ctx.addIssue({ code: "custom", message: `Unknown venue: ${name}` });
         return z.NEVER;
@@ -55,7 +58,11 @@ const hedgerSchema = z.object({
 
 export type HedgerEnv = z.infer<typeof hedgerSchema>;
 
-export interface HedgerBoot { settings: HedgerSettings; venues: VenueName[]; env: HedgerEnv }
+export interface HedgerBoot {
+  /** False when HEDGER_ENABLED=0 or HEDGER_VENUES is empty: nothing to hedge with, the process exits cleanly. */
+  enabled: boolean;
+  settings: HedgerSettings; venues: VenueName[]; env: HedgerEnv;
+}
 
 /** R12: parses the hedger env. Live trading on mainnet needs HEDGER_LIVE_CONFIRM=real-funds, else the process must exit. */
 export function loadHedgerSettings(config: Pick<RuntimeConfig, "NETWORK">, source: Record<string, string | undefined> = process.env): HedgerBoot {
@@ -72,6 +79,7 @@ export function loadHedgerSettings(config: Pick<RuntimeConfig, "NETWORK">, sourc
   if (config.NETWORK === "mainnet" && e.HEDGER_VENUES.includes("mock")) throw new ConfigurationError("Invalid hedger configuration: the mock venue is refused on mainnet");
   if (e.HL_NETWORK === "testnet" && e.HL_API_URL === "https://api.hyperliquid.xyz") e.HL_API_URL = "https://api.hyperliquid-testnet.xyz";
   return {
+    enabled: e.HEDGER_ENABLED && e.HEDGER_VENUES.length > 0,
     env: e,
     venues: e.HEDGER_VENUES,
     settings: {

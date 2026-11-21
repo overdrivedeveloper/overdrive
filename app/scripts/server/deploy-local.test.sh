@@ -206,6 +206,21 @@ sleep 1; printf 'NETWORK=moon\n' >"$R2/etc/overdrive/overdrive.env"
 out="$(dep "$R2" "$SHA1" OVERDRIVE_DEPLOYMENTS_SRC="$T/tdep")"; rc=$?
 check "an unknown NETWORK is refused before anything: exit 75" [ "$rc" == 75 ]
 
+# ---------------------------------------------------------------- F2: mainnet with hedging off (no hedger, no keystore)
+sleep 1; R5="$T/r5"; mkroot "$R5"; rm "$R5/etc/overdrive/keys/hedger."*
+echo HEDGER_ENABLED=0 >>"$R5/etc/overdrive/overdrive.env"
+: >"$CALLS"; out="$(dep "$R5" "$SHA1")"; rc=$?
+check "hedger_disabled_skipped: mainnet with HEDGER_ENABLED=0 deploys without the hedger keystore" bash -c '[ "$1" = 0 ] && grep -q "live and healthy" <<<"$2" && grep -q "hedging is off" <<<"$2"' _ "$rc" "$out"
+check "  ... the hedger is stopped, never restarted, the others are" bash -c '! grep -q "restart overdrive-hedger" "$1" && grep -q "stop overdrive-hedger" "$1" && grep -q "restart overdrive-liquidator" "$1"' _ "$CALLS"
+check "  ... and --check does not look at the hedger" bash -c 'OD_TEST_ROOT="$1" OD_ALL_ACTIVE=1 OD_SETTLE=0 OD_PRE_SLEEP=0 bash "$2" --local --check 2>&1 | grep -q "all healthy" && ! OD_TEST_ROOT="$1" OD_ALL_ACTIVE=1 OD_SETTLE=0 OD_PRE_SLEEP=0 bash "$2" --local --check 2>&1 | grep -q " hedger "' _ "$R5" "$DEPLOY"
+sleep 1; sed -i.bak '/^HEDGER_ENABLED=/d' "$R5/etc/overdrive/overdrive.env"; rm -f "$R5/etc/overdrive/overdrive.env.bak"
+printf 'HEDGER_VENUES=\n' >"$R5/etc/overdrive/hedger.env"
+: >"$CALLS"; out="$(dep "$R5" "$SHA2")"; rc=$?
+check "hedger_disabled_skipped: an empty HEDGER_VENUES in hedger.env also turns hedging off" bash -c '[ "$1" = 0 ] && ! grep -q "restart overdrive-hedger" "$2"' _ "$rc" "$CALLS"
+sleep 1; printf 'HEDGER_ENABLED=1\nHEDGER_VENUES=hyperliquid\n' >"$R5/etc/overdrive/hedger.env"
+out="$(dep "$R5" "$SHA1")"; rc=$?
+check "hedger_enabled_strict: HEDGER_ENABLED=1 without the hedger keystore is refused before the switch (exit 75)" bash -c '[ "$1" = 75 ] && grep -q "hedger.json and hedger.password are missing" <<<"$2"' _ "$rc" "$out"
+
 # ---------------------------------------------------------------- G: provision.sh against a fake root
 BUNV="$(sed -n 's/^BUN_VERSION="\(.*\)"/\1/p' "$PROVISION")"; FV="$(sed -n 's/^FOUNDRY_VERSION="\(.*\)"/\1/p' "$PROVISION")"
 newprov() { # newprov <root>: fake box with Postgres, Caddy (another project's site), and swap, pinned tools present

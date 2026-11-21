@@ -42,6 +42,14 @@ let key: `0x${string}` | undefined;
 let deployment: ReturnType<typeof loadDeploymentFile> | undefined;
 try {
   boot = loadHedgerSettings(config);
+  if (!boot.enabled) {
+    // Hedging is off by the owner's choice: no key, no venue, no loop. Exit 0 so systemd (Restart=on-failure) leaves it
+    // stopped; the stored status says so and never reads as live.
+    logger.info({ venues: boot.venues }, "Hedging is off (HEDGER_ENABLED=0 or empty HEDGER_VENUES); the hedger exits without starting");
+    await store.writeStatus("hedger", true, { disabled: true, dryRun: true, venues: [], checked: new Date().toISOString() }).catch(() => undefined);
+    await sql.end({ timeout: 2 }).catch(() => undefined);
+    process.exit(0);
+  }
   assertHedgerKeyDistinct();
   key = loadHedgerKey();
   if (!key && !boot.settings.dryRun) throw new Error("HEDGER_DRY_RUN=0 needs the hedger key (HEDGER_KEYSTORE + HEDGER_KEYSTORE_PASSWORD_FILE)");
