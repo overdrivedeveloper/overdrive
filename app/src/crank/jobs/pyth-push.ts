@@ -8,11 +8,16 @@ import { IODOracleGuardAbi } from "../../abi";
 import { raiseAlert } from "../alerts";
 import { readJobMeta, saveJobMeta, type CrankContext } from "../context";
 import { contractAddress } from "../gears";
-import { fetchLatestUpdates, type HermesUpdate } from "../hermes";
+import { fetchLatestUpdates, isNotEntitled, type HermesUpdate } from "../hermes";
 
 export const PYTH_PUSH_JOB = "pyth-push";
 /** Failed Hermes passes in a row after which the alert is critical instead of a warning. */
 export const HERMES_CRITICAL_AFTER = 3;
+/**
+ * A feed Hermes refused as "not entitled" (the key has no grant for it) is left out of later requests and probed again after
+ * this long. Its warning is logged at most once per window. The guard falls back to the market's TWAP pool for such a feed.
+ */
+export const NOT_ENTITLED_RETRY_MS = 3_600_000;
 
 export const PythAbi = parseAbi([
   "function getPriceUnsafe(bytes32 id) view returns ((int64 price, uint64 conf, int32 expo, uint256 publishTime))",
@@ -102,6 +107,8 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
   let warnedAt = 0;
   let intervalChecked = false;
   let hermesFailures = 0; // passes in a row that could not get an update from Hermes
+  const refusedAt = new Map<string, number>(); // lowercase Pyth id -> when Hermes last refused it as not entitled
+  let refusedWarnedAt = -Infinity;
 
   // I6-3: the health read and its critical alert. Runs on every pass, also when the push could not run (no key) or
   // failed (Hermes refused the key, the fee read or the send failed): that is when a reference is about to go stale.
@@ -124,12 +131,52 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
   const retry = async <T>(label: string, work: () => Promise<T>): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
       try { return await work(); } catch (error) {
-        if (attempt >= config.PYTH_PUSH_MAX_RETRIES) throw error;
+        // a refused grant does not heal by retrying; the caller splits the request instead
+        if (attempt >= config.PYTH_PUSH_MAX_RETRIES || isNotEntitled(error)) throw error;
         const wait = config.PYTH_PUSH_BACKOFF_MS * 2 ** attempt;
         logger.warn({ job: PYTH_PUSH_JOB, label, attempt: attempt + 1, waitMs: wait, err: error instanceof Error ? error.message : String(error) }, "Pyth push step failed; retrying");
         await sleep(wait);
       }
     }
+  };
+
+  const mergeUpdates = (parts: HermesUpdate[]): HermesUpdate => ({
+    updateData: parts.flatMap((p) => p.updateData),
+    publishTimes: new Map(parts.flatMap((p) => [...p.publishTimes])),
+  });
+
+  /**
+   * One Hermes request for every id the key may read. When Hermes refuses it as not entitled (one refused feed fails the whole
+   * request), each id is fetched alone: the refused ones are recorded and skipped, the others still come back and are pushed in
+   * one update tx. Throws only when nothing could be fetched for a reason other than a refused grant (an outage, a refused key).
+   */
+  const fetchEntitled = async (ids: readonly Hex[]): Promise<{ update?: HermesUpdate; refused: string[] }> => {
+    const now = nowMs();
+    const tryIds = ids.filter((id) => now - (refusedAt.get(id.toLowerCase()) ?? -Infinity) >= NOT_ENTITLED_RETRY_MS);
+    const refused = ids.filter((id) => !tryIds.includes(id)).map((id) => id.toLowerCase());
+    if (!tryIds.length) return { refused };
+    const refuse = (id: Hex) => { refusedAt.set(id.toLowerCase(), now); refused.push(id.toLowerCase()); };
+    try {
+      const update = await retry("hermes", () => fetchUpdates(tryIds));
+      for (const id of tryIds) refusedAt.delete(id.toLowerCase());
+      return { update, refused };
+    } catch (error) {
+      if (!isNotEntitled(error)) throw error;
+      if (tryIds.length === 1) { refuse(tryIds[0]!); return { refused }; }
+    }
+    const parts: HermesUpdate[] = [];
+    let failure: unknown;
+    for (const id of tryIds) {
+      try {
+        parts.push(await retry("hermes", () => fetchUpdates([id])));
+        refusedAt.delete(id.toLowerCase());
+      } catch (error) {
+        if (isNotEntitled(error)) refuse(id); else failure ??= error;
+      }
+    }
+    if (!parts.length && failure) throw failure;
+    if (failure) logger.warn({ job: PYTH_PUSH_JOB, err: failure instanceof Error ? failure.message : String(failure) }, "Hermes failed for some feeds; pushing the others");
+    return parts.length ? { update: mergeUpdates(parts), refused } : { refused };
   };
 
   return async (): Promise<Record<string, unknown>> => {
@@ -198,7 +245,7 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
 
     async function pushOnce(wanted: { market: PythMarket; published: number }[]): Promise<Record<string, unknown>> {
       const ids = wanted.map((w) => w.market.pythId);
-      const update = await retry("hermes", () => fetchUpdates(ids)).catch(async (error) => {
+      const fetched = await fetchEntitled(ids).catch(async (error) => {
         // one failed pass is a warning; HERMES_CRITICAL_AFTER in a row (a refused key does not heal) is critical
         hermesFailures++;
         const level = hermesFailures >= HERMES_CRITICAL_AFTER ? "critical" : "warn";
@@ -206,13 +253,22 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
         throw error;
       });
       hermesFailures = 0;
+      const refusedSymbols = wanted.filter((w) => fetched.refused.includes(w.market.pythId.toLowerCase())).map((w) => w.market.symbol);
+      for (const symbol of refusedSymbols) skipped.push(`${symbol}:not_entitled`);
+      if (refusedSymbols.length && nowMs() - refusedWarnedAt >= NOT_ENTITLED_RETRY_MS) {
+        refusedWarnedAt = nowMs();
+        logger.warn({ job: PYTH_PUSH_JOB, symbols: refusedSymbols }, "Hermes refuses these feeds for this key (not entitled); skipping them, the guard uses the TWAP pool reference where one is set");
+      }
+      if (!fetched.update) return { idle: true, reason: "not_entitled", notEntitled: refusedSymbols };
+      const update = fetched.update;
+      wanted = wanted.filter((w) => !fetched.refused.includes(w.market.pythId.toLowerCase()));
       const unknown = wanted.filter((w) => !update.publishTimes.has(w.market.pythId.toLowerCase())).map((w) => w.market.symbol);
       if (unknown.length) {
         logger.warn({ job: PYTH_PUSH_JOB, symbols: unknown }, "Hermes does not know these Pyth ids; check the id in the deployment config");
         await raiseAlert(context, { key: `pyth-push:unknown:${unknown.join(",")}`, level: "warn", text: `Hermes does not know the Pyth id of ${unknown.join(", ")}.` });
       }
       const newer = wanted.filter((w) => (update.publishTimes.get(w.market.pythId.toLowerCase()) ?? 0) > w.published);
-      if (!newer.length) return { idle: true, reason: "no_newer_print", unknown };
+      if (!newer.length) return { idle: true, reason: "no_newer_print", unknown, notEntitled: refusedSymbols };
       const fee = await retry("fee", () => state.readContract({ address: pyth, abi: PythAbi, functionName: "getUpdateFee", args: [update.updateData] }) as Promise<bigint>);
       if (spentWei + fee > budgetWei) {
         await raiseAlert(context, {
@@ -231,7 +287,7 @@ export function createPythPushJob(context: CrankContext, deps: PythDeps = {}) {
       }
       logger.info({ job: PYTH_PUSH_JOB, symbols: newer.map((n) => n.market.symbol), feeWei: fee.toString(), spentTodayWei: spentWei.toString(), dryRun: result.simulated }, "Pyth prices pushed");
       const pending = newer.filter((n) => !n.market.listed).map((n) => n.market.symbol);
-      return { idle: false, pushed: newer.map((n) => n.market.symbol), pending, feeWei: fee.toString(), dryRun: result.simulated, unknown };
+      return { idle: false, pushed: newer.map((n) => n.market.symbol), pending, feeWei: fee.toString(), dryRun: result.simulated, unknown, notEntitled: refusedSymbols };
     }
   }
 }

@@ -18,11 +18,17 @@ export interface HermesOptions {
 }
 
 export class HermesError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(message: string, readonly status?: number, readonly notEntitled = false) {
     super(message);
     this.name = "HermesError";
   }
 }
+
+/**
+ * A 403 whose body says "Not entitled" refuses one or more feeds the key has no grant for (the key itself is good). Hermes then
+ * refuses the whole multi-id request, so the caller retries per feed. Any other 403 (a refused key) stays a plain failure.
+ */
+export const isNotEntitled = (error: unknown): boolean => error instanceof HermesError && error.notEntitled;
 
 const hex = (id: string): string => (id.startsWith("0x") ? id : `0x${id}`).toLowerCase();
 
@@ -42,7 +48,11 @@ export async function fetchLatestUpdates(ids: readonly string[], options: Hermes
   } catch (error) {
     throw new HermesError(`Hermes request failed: ${error instanceof Error ? error.name : "error"}`);
   }
-  if (!response.ok) throw new HermesError(`Hermes answered ${response.status}`, response.status);
+  if (!response.ok) {
+    const text = response.status === 403 ? await response.text().catch(() => "") : "";
+    const notEntitled = /not entitled/i.test(text);
+    throw new HermesError(`Hermes answered ${response.status}${notEntitled ? " (not entitled)" : ""}`, response.status, notEntitled);
+  }
   const body = (await response.json().catch(() => undefined)) as { binary?: { data?: unknown }; parsed?: unknown } | undefined;
   const data = body?.binary?.data;
   if (!Array.isArray(data) || !data.every((d) => typeof d === "string" && /^(0x)?[0-9a-fA-F]+$/.test(d))) throw new HermesError("Hermes answer has no update data");

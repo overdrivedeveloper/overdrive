@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { encodeFunctionData } from "viem";
 import { RevertError } from "../chain/revert";
 import { oracleOf } from "../api/routes/status";
-import { authHeaderValue, fetchLatestUpdates, HermesError } from "./hermes";
+import { authHeaderValue, fetchLatestUpdates, HermesError, isNotEntitled } from "./hermes";
 import { checkReferences, createPythPushJob, PythAbi, pythPushMarkets } from "./jobs/pyth-push";
 import { resetAlertMemory, setAlertSender, type Alert } from "./alerts";
 import { FakeChain, MARKET_ETH, MARKET_NVDA, MARKET_TSLA, nullSql } from "../testing/mock-chain";
@@ -132,6 +132,95 @@ describe("pyth push", () => {
     } finally { setAlertSender(undefined); }
   });
 
+  // Hermes refuses a whole multi-id request when the key has no grant for one of the feeds (NVDA, SPY on 4663)
+  const entitledHermes = (refused: readonly string[], calls: string[][]) => async (ids: readonly string[]) => {
+    calls.push([...ids]);
+    if (ids.some((id) => refused.includes(id))) throw new HermesError("Hermes answered 403 (not entitled)", 403, true);
+    return { updateData: ids.map((id) => `0x${id.slice(2, 10)}` as `0x${string}`), publishTimes: new Map(ids.map((id) => [id, hermesTimes.get(id)!])) };
+  };
+  const capture = (context: ReturnType<FakeChain["context"]>, warnings: string[]) => {
+    (context as { logger: unknown }).logger = { warn: (_o: unknown, m: string) => warnings.push(m), info() {}, error() {} };
+    return context;
+  };
+
+  test("Hermes, all feeds entitled: one request, one update tx", async () => {
+    const calls: string[][] = [];
+    const run = createPythPushJob(chain.context(nullSql, env), { ...deps(), fetchUpdates: entitledHermes([], calls) });
+    expect(await run()).toMatchObject({ idle: false, pushed: ["NVDA", "ETH"], notEntitled: [] });
+    expect(calls).toEqual([[NVDA_ID, ETH_ID]]);
+    expect(chain.sent).toHaveLength(1);
+  });
+
+  test("Hermes refuses one feed (403 not entitled): the others are still pushed, the refused one is skipped with one warning", async () => {
+    const alerts: Alert[] = [];
+    setAlertSender(async (alert) => { alerts.push(alert); });
+    try {
+      const calls: string[][] = [];
+      const warnings: string[] = [];
+      const run = createPythPushJob(capture(chain.context(nullSql, env), warnings), { ...deps(), fetchUpdates: entitledHermes([NVDA_ID], calls) });
+      const first = await run();
+      expect(first).toMatchObject({ idle: false, pushed: ["ETH"], notEntitled: ["NVDA"] });
+      expect(first.skipped).toContain("NVDA:not_entitled");
+      // the batch, then one request per feed; a refused grant is not retried with backoff
+      expect(calls).toEqual([[NVDA_ID, ETH_ID], [NVDA_ID], [ETH_ID]]);
+      expect(sleeps).toEqual([]);
+      expect(chain.sent).toHaveLength(1);
+      expect(chain.sent[0]!.data).toBe(encodeFunctionData({ abi: PythAbi, functionName: "updatePriceFeeds", args: [[`0x${ETH_ID.slice(2, 10)}`]] }));
+      // next pass: the refused feed is left out (no failing batch), and the warning is not repeated
+      calls.length = 0;
+      published[ETH_ID] = 1_800_000_000 - 100; published[NVDA_ID] = 1_800_000_000 - 100;
+      expect(await run()).toMatchObject({ idle: false, pushed: ["ETH"], notEntitled: ["NVDA"] });
+      expect(calls).toEqual([[ETH_ID]]);
+      expect(warnings.filter((w) => w.includes("not entitled"))).toHaveLength(1);
+      expect(alerts.map((a) => a.key).filter((k) => k.startsWith("pyth-push:"))).toEqual([]);
+      // after the retry window the refused feed is probed again
+      chain.nowSeconds += 3_601n;
+      published[ETH_ID] = Number(chain.nowSeconds) - 100; published[NVDA_ID] = Number(chain.nowSeconds) - 100;
+      hermesTimes.set(ETH_ID, Number(chain.nowSeconds) - 2); hermesTimes.set(NVDA_ID, Number(chain.nowSeconds) - 2);
+      calls.length = 0;
+      expect(await run()).toMatchObject({ idle: false, pushed: ["ETH"] });
+      expect(calls[0]).toEqual([NVDA_ID, ETH_ID]);
+      expect(warnings.filter((w) => w.includes("not entitled"))).toHaveLength(2);
+    } finally { setAlertSender(undefined); }
+  });
+
+  test("Hermes refuses every stale feed as not entitled: idle, no Hermes alert, no tx", async () => {
+    const alerts: Alert[] = [];
+    setAlertSender(async (alert) => { alerts.push(alert); });
+    try {
+      const run = createPythPushJob(chain.context(nullSql, env), { ...deps(), fetchUpdates: entitledHermes([NVDA_ID, ETH_ID], []) });
+      expect(await run()).toMatchObject({ idle: true, reason: "not_entitled", notEntitled: ["NVDA", "ETH"] });
+      expect(chain.sent).toHaveLength(0);
+      expect(alerts.map((a) => a.key).filter((k) => k.startsWith("pyth-push:"))).toEqual([]);
+    } finally { setAlertSender(undefined); }
+  });
+
+  test("Hermes down for every feed (outage): the pass fails and the Hermes alert is raised", async () => {
+    const alerts: Alert[] = [];
+    setAlertSender(async (alert) => { alerts.push(alert); });
+    try {
+      hermesFails = 99;
+      await expect(job()()).rejects.toThrow("503");
+      expect(alerts.map((a) => a.key)).toContain("pyth-push:hermes:warn");
+      expect(chain.sent).toHaveLength(0);
+    } finally { setAlertSender(undefined); }
+  });
+
+  test("one feed refused and the other failing for another reason: the real failure is thrown and alerted", async () => {
+    const alerts: Alert[] = [];
+    setAlertSender(async (alert) => { alerts.push(alert); });
+    try {
+      const run = createPythPushJob(chain.context(nullSql, env), {
+        ...deps(), fetchUpdates: async (ids) => {
+          if (ids.includes(NVDA_ID)) throw new HermesError("Hermes answered 403 (not entitled)", 403, true);
+          throw new HermesError("Hermes answered 503", 503);
+        },
+      });
+      await expect(run()).rejects.toThrow("503");
+      expect(alerts.map((a) => a.key)).toContain("pyth-push:hermes:warn");
+    } finally { setAlertSender(undefined); }
+  });
+
   test("retries Hermes with doubling backoff, then gives up after the bound", async () => {
     hermesFails = 2;
     expect(await job()()).toMatchObject({ idle: false });
@@ -188,6 +277,12 @@ describe("hermes client", () => {
     expect(out.publishTimes.get(`0x${"aa".repeat(32)}`)).toBe(5);
     const bad = (async () => new Response("no", { status: 404 })) as unknown as typeof fetch;
     await expect(fetchLatestUpdates(["aa"], { baseUrl: "https://h.example", apiKey: "", apiKeyHeader: "x", fetch: bad })).rejects.toThrow("404");
+    const refused = (async () => new Response("Not entitled: feed 0xaa (no grant)", { status: 403 })) as unknown as typeof fetch;
+    const error = await fetchLatestUpdates(["aa"], { baseUrl: "https://h.example", apiKey: "k", apiKeyHeader: "x", fetch: refused }).catch((e) => e);
+    expect(error).toBeInstanceOf(HermesError);
+    expect(isNotEntitled(error)).toBe(true);
+    const keyRefused = (async () => new Response("invalid api key", { status: 403 })) as unknown as typeof fetch;
+    expect(isNotEntitled(await fetchLatestUpdates(["aa"], { baseUrl: "https://h.example", apiKey: "k", apiKeyHeader: "x", fetch: keyRefused }).catch((e) => e))).toBe(false);
   });
 });
 
